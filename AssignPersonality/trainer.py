@@ -229,7 +229,9 @@ class Trainer:
         print(self.model)
 
         if args.pretrained_path is None:
-            self.model.apply(models.init_weights)
+            pass
+            # pytorch module will auto init_weights with uniform
+            # self.model.apply(models.init_weights)
         else:
             self.load_model()
 

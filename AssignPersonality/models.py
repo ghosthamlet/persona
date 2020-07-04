@@ -107,6 +107,78 @@ class PCCM(nn.Module):
 
         return ret, profile_exists, no_profile_mask, has_profile_mask
 
+    def decode(
+        self,
+        decode_fn,
+        start,
+        end, 
+        y,
+        post_hid,
+        teacher_forcing_ratio
+    ):
+        rnn_outs = None
+        outs = torch.zeros(*y.shape[:2], 
+                self.f_decoder.output_dim).to(self.device)
+
+        if type(start) == int:
+            hid = post_hid
+            out = y[start]
+            for t in range(start, end):
+                out, hid, _ = decode_fn(out, hid, None)
+                outs[t] = out
+                teacher_force = random.random() < teacher_forcing_ratio
+                top1 = out.max(1)[1]
+                out = y[t] if teacher_force else top1
+        else:
+            rnn_outs = torch.zeros(*y.shape[:2], 
+                    self.f_decoder.dec_hid_dim).to(self.device)
+                
+            if end == 0:
+                s = start.max()
+                rg = range(s, -1, -1)
+            else:
+                s = start.min()
+                rg = range(s, end)
+            mask = start == s
+            # remove this line
+            # mask = start > -1
+
+            hid = post_hid[mask]
+            out = y[s, mask]
+            top1 = None
+
+            for t in rg:
+                if top1 is not None:
+                    old_mask = mask.clone()
+                    add_mask = start == t
+                    # XXX: this line same result, but backward failed
+                    # FIXME: maybe a pytorch bug!
+                    # mask |= add_mask
+                    mask = mask | add_mask
+
+                    if not teacher_force:
+                        tmp = torch.zeros_like(old_mask).long()
+                        tmp[old_mask] = top1
+                        tmp[add_mask] = y[t, add_mask]
+                        top1 = tmp[mask]
+                    out = y[t, mask] if teacher_force else top1 
+                    # out = y[t, mask]
+                    # print(y.shape, out.shape)
+
+                    tmp = torch.zeros(old_mask.shape[0], hid.shape[1]).to(self.device)
+                    tmp[old_mask] = hid
+                    tmp[add_mask] = post_hid[add_mask]
+                    hid = tmp[mask]
+                    # hid = post_hid[mask]
+
+                out, hid, rnn_out = decode_fn(out, hid, mask)
+                outs[t, mask] = out
+                rnn_outs[t, mask] = rnn_out
+                teacher_force = random.random() < teacher_forcing_ratio
+                top1 = out.max(1)[1]
+
+        return outs, rnn_outs
+
     def _decode(
         self,
         decode_fn,
@@ -159,78 +231,6 @@ class PCCM(nn.Module):
                     out = y[t, i].unsqueeze(0) if teacher_force else top1 
 
         return outs, rnn_outs
-
-    def decode(
-        self,
-        decode_fn,
-        start,
-        end, 
-        y,
-        post_hid,
-        teacher_forcing_ratio
-    ):
-        rnn_outs = None
-        outs = torch.zeros(*y.shape[:2], 
-                self.f_decoder.output_dim).to(self.device)
-
-        if type(start) == int:
-            hid = post_hid
-            out = y[start]
-            for t in range(start, end):
-                out, hid, _ = decode_fn(out, hid, None)
-                outs[t] = out
-                teacher_force = random.random() < teacher_forcing_ratio
-                top1 = out.max(1)[1]
-                out = y[t] if teacher_force else top1
-        else:
-            rnn_outs = torch.zeros(*y.shape[:2], 
-                    self.f_decoder.dec_hid_dim).to(self.device)
-                
-            if end == 0:
-                s = start.max()
-                rg = range(s, -1, -1)
-            else:
-                s = start.min()
-                rg = range(s, end)
-            mask = start == s
-            # remove this line
-            # mask = start > -1
-
-            hid = post_hid[mask]
-            out = y[s, mask]
-            top1 = None
-
-            for t in rg:
-                if top1 is not None:
-                    old_mask = mask.clone()
-                    add_mask = start == t
-                    # XXX: this line same result, but backward failed
-                    # mask |= add_mask
-                    mask = mask | add_mask
-
-                    if not teacher_force:
-                        tmp = torch.zeros_like(old_mask).long()
-                        tmp[old_mask] = top1
-                        tmp[add_mask] = y[t, add_mask]
-                        top1 = tmp[mask]
-                    out = y[t, mask] if teacher_force else top1 
-                    # out = y[t, mask]
-                    # print(y.shape, out.shape)
-
-                    tmp = torch.zeros(old_mask.shape[0], hid.shape[1]).to(self.device)
-                    tmp[old_mask] = hid
-                    tmp[add_mask] = post_hid[add_mask]
-                    hid = tmp[mask]
-                    # hid = post_hid[mask]
-
-                out, hid, rnn_out = decode_fn(out, hid, mask)
-                outs[t, mask] = out
-                rnn_outs[t, mask] = rnn_out
-                teacher_force = random.random() < teacher_forcing_ratio
-                top1 = out.max(1)[1]
-
-        return outs, rnn_outs
- 
                         
 
 def init_weights(m):

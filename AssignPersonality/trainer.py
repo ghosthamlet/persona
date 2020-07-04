@@ -91,6 +91,7 @@ class Trainer:
         parser.add_argument('--limit_example_length', default=256, type=int, required=False, help='')
         parser.add_argument('--max_seq_length', default=300, type=int, required=False, help='')
         parser.add_argument('--shuffle_data', action='store_true', required=False, help='')
+        parser.add_argument('--max_vocab_size', default=40000, type=int, required=False, help='')
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')

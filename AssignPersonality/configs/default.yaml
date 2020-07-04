@@ -11,7 +11,8 @@ limit_example_length: 1000000
 max_seq_length: 300
 shuffle_data: True
 # pretrain_emb must include special_tokens
-pretrain_emb: False
+max_vocab_size: 40000
+pretrain_emb: True
 
 emb_freeze: True
 enc_bidi: True

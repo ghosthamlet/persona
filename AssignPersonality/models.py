@@ -64,6 +64,8 @@ class PCCM(nn.Module):
             #      so the navie forward decoder and bidecoder 
             #      may process partial posts of one batch simultaneously
             profile_exists = self.profile_checker(post_outs)
+            # FIXME: profile_exists are all same value
+            # print('profile_exists:', profile_exists)
             no_profile_mask = profile_exists <= 0.5
             has_profile_mask = profile_exists > 0.5
             no_profile = profile_exists[no_profile_mask]
@@ -253,7 +255,7 @@ def build_word2vec(corpus_fname, vec_fname, vocab_fname):
     model.wv.save_word2vec_format(vec_fname, vocab_fname)
 
 
-def load_embeddings_and_vocab(vec_fname, vocab_fname, truncate_freq=97):
+def load_embeddings_and_vocab(vec_fname, vocab_fname, truncate_freq=50):
     import gensim
     model = gensim.models.KeyedVectors.load_word2vec_format(vec_fname, vocab_fname)
     if truncate_freq is not None:

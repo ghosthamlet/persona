@@ -1,9 +1,9 @@
 
-# Use cpu for easy debug
+# use cpu for easy debug
 device: cuda
 seed: 42
 n_epochs: 10
-n_epochs_early_stage: 3
+n_epochs_early_stage: 0
 clip_grad: 1
 # batch_size: 128
 batch_size: 80
@@ -11,7 +11,7 @@ limit_example_length: 1000000
 max_seq_length: 300
 shuffle_data: True
 # pretrain_emb must include special_tokens
-pretrain_emb: True
+pretrain_emb: False
 
 emb_freeze: True
 enc_bidi: True

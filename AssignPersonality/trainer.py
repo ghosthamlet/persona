@@ -82,7 +82,7 @@ class Trainer:
 
         parser.add_argument('--config_file', default='configs/default.yaml', type=str, required=False, 
             help='Provide config in config_file or as other commandline args')
-        parser.add_argument('--device', default='cuda', type=str, required=False, help='Use cpu for easy debug')
+        parser.add_argument('--device', default='cuda', type=str, required=False, help='use cpu for easy debug')
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
         parser.add_argument('--n_epochs', default=10, type=int, required=False, help='')
         parser.add_argument('--n_epochs_early_stage', default=0, type=int, required=False, help='')
@@ -223,7 +223,7 @@ class Trainer:
                 b_decoder, f_decoder, device=self.device
                 ).to(self.device)
         # XXX: Adam is not good
-        self.optimizer = optim.SGD(self.model.parameters(), lr=args.lr,
+        self.optimizer = optim.Adam(self.model.parameters(), lr=args.lr,
                 weight_decay=args.weight_decay)
 
         print(self.model)
@@ -388,11 +388,11 @@ if __name__ == '__main__':
     profiles = OrderedDict(
             姓名='张',
             #姓名='张三丰',
-            年龄='三岁',
+            #年龄='三岁',
             性别='男孩',
             #爱好='动漫',
             #特长='钢琴',
-            体重='60',
+            #体重='60',
             地址='北京',
             星座='双子座',
     )

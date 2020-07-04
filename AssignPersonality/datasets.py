@@ -98,6 +98,10 @@ class Vocab:
     def itos(self, i):
         return self.itos_map[i]
 
+    def exists_profile(self, s):
+        return s in self.en_to_zh and self.en_to_zh[s] in self.profile_stoi_map \
+                or s in self.profile_stoi_map
+
     def profile_stoi(self, s):
         if s in self.en_to_zh:
             s = self.en_to_zh[s]
@@ -207,6 +211,8 @@ def convert_examples_to_features(
 ):
     ret = []
     for post, resp, key in examples:
+        if not vocab.exists_profile(key[1]):
+            continue
         ipost = [vocab.stoi(k) for k in post[:max_length]] + [vocab.stoi(EOS)]
         iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:max_length]] + [vocab.stoi(EOS)]
         ikey = [vocab.binary_stoi(key[0]), vocab.profile_stoi(key[1])]

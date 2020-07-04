@@ -102,6 +102,7 @@ class ProfileDetector(nn.Module):
 
         self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.attn = nn.Linear(emb_dim*2 + enc_hid_dim, n_profile)
+        # self.attn = nn.Linear(emb_dim + enc_hid_dim, n_profile)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, profiles, post_outs):
@@ -109,6 +110,9 @@ class ProfileDetector(nn.Module):
         # profiles shape like: [k, v; k, v; k, v]
         # n_profile X 2 X emb_dim
         emb = self.dropout(self.emb(profiles))
+        # emb = self.dropout(self.emb(profiles[:, 0]))
+        # emb_v = self.dropout(self.emb(profiles[:, 1]))
+        # emb_v = emb_v.unsqueeze(0).repeat(post_outs_agg.shape[0], 1, 1)
         # batch_size X n_profile X emb_dim * 2
         emb = emb.view(emb.shape[0], -1).unsqueeze(0).repeat(post_outs_agg.shape[0], 1, 1)
 
@@ -124,7 +128,8 @@ class ProfileDetector(nn.Module):
         # https://stackoverflow.com/questions/23435782/numpy-selecting-specific-column-index-per-row-by-using-a-list-of-indexes
         # profile_v = emb_v[:, j] (select columns) != below (select column per row)
         # batch_size X emb_dim
-        profile_v = emb[torch.arange(len(emb)), j].view(-1, 2, self.emb_dim)[:, 1]
+        profile_v = emb[torch.arange(emb.shape[0]), j].view(emb.shape[0], 2, self.emb_dim)[:, 1]
+        # profile_v = emb_v[torch.arange(len(emb_v)), j]
 
         return beta, j, profile_v
 

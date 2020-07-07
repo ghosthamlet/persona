@@ -1,0 +1,41 @@
+
+# use cpu for easy debug
+device: cuda
+seed: 42
+n_epochs: 10
+n_epochs_early_stage: 0
+clip_grad: 1
+# batch_size: 128
+batch_size: 80
+limit_example_length: 1000000
+max_seq_length: 300
+shuffle_data: True
+# pretrain_emb must include special_tokens
+max_vocab_size: 40000
+pretrain_emb: True
+
+emb_freeze: True
+enc_bidi: True
+enc_num_layers: 4
+dec_num_layers: 4
+enc_emb_dim: 100
+dec_emb_dim: 100
+enc_hid_dim: 200
+dec_hid_dim: 200
+attn_dim: 16
+enc_dropout: 0
+dec_dropout: 0
+enc_rnn_dropout: 0
+dec_rnn_dropout: 0
+
+alpha: 0.6
+lr: 0.5
+weight_decay: 0.99
+
+model_path: models/
+pretrained_path:
+data_path: datas/
+cache_path: caches/
+corpus_fname:
+vec_fname: models/weibo-19m-100.txt
+vocab_fname: models/weibo-19m-100.vocab.txt

@@ -303,6 +303,8 @@ class Attention(nn.Module):
      https://github.com/pytorch/fairseq/blob/master/fairseq/models/lstm.py#L318
      https://pytorch.org/tutorials/beginner/torchtext_translation_tutorial.html#defining-our-nn-module-and-optimizer
      https://pytorch.org/tutorials/beginner/deploy_seq2seq_hybrid_frontend_tutorial.html#define-decoders-attention-module
+     https://github.com/facebookresearch/ParlAI/blob/master/projects/controllable_dialogue/controllable_seq2seq/modules.py#L815
+     https://github.com/philipperemy/keras-attention-mechanism
     """
     def __init__(
         self,

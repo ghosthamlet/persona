@@ -12,43 +12,46 @@ from utils import mask_seq_batch
 class PTF(nn.Module):
     def __init__(
         self,
-        encoder,
-        decoder,
+        trait_encoder,
+        trait_fusion,
+        post_encoder,
+        resp_decoder,
         device
     ):
         super().__init__()
 
-        self.encoder = encoder
-        self.decoder = decoder
+        self.trait_encoder = trait_encoder
+        self.trait_fusion = trait_fusion
+        self.post_encoder = post_encoder
+        self.resp_decoder = resp_decoder
         self.device = device
 
     def forward(
         self,
         X,
         y, 
-        y_lens,
         profiles,
-        early_stage=False, 
         teacher_forcing_ratio=0.5
     ):
-        ret = []
         max_len = y.shape[0]
 
         post_outs, post_hid = self.encoder(X)
+        trait_enc = self.trait_encoder(profiles)
 
         hid = post_hid
         out = y[start]
         rnn_outs = None
         outs = torch.zeros(*y.shape[:2], 
-                self.f_decoder.output_dim).to(self.device)
+                self.resp_decoder.output_dim).to(self.device)
         for t in range(start, end):
-            out, hid, _ = decode_fn(out, hid, None)
+            trait_fus = self.trait_fusion(hid, trait_enc)
+            out, hid, _ = self.resp_decoder(out, hid, post_outs, trait_fus)
             outs[t] = out
             teacher_force = random.random() < teacher_forcing_ratio
             top1 = out.max(1)[1]
             out = y[t] if teacher_force else top1
 
-        return ret, profile_exists, no_profile_mask, has_profile_mask
+        return outs
                       
 
 def init_weights(m):

@@ -179,7 +179,6 @@ class Trainer:
         input_dim = self.input_dim
         pad_idx = self.pad_idx
 
-        emb = modules.embedding(input_dim, args.enc_emb_dim, embeddings, args.emb_freeze, pad_idx)
         post_encoder = modules.PostEncoder(input_dim, args.enc_emb_dim, args.enc_hid_dim,
                 args.dec_hid_dim, args.enc_num_layers, args.enc_dropout, args.enc_bidi,
                 args.emb_freeze, pad_idx, embeddings

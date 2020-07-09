@@ -1,3 +1,5 @@
+
+import ..utils
  
 import torch
 import torch.nn as nn
@@ -17,7 +19,7 @@ class TraitEncoder(nn.Module):
     ):
         super().__init__()
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, X):
@@ -88,7 +90,7 @@ class PostEncoder(nn.Module):
         self.num_directions = _num_dir(enc_bidi)
         self.enc_hid_dim = enc_hid_dim
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.encoder = nn.GRU(emb_dim, enc_hid_dim, 
                 num_layers=num_layers, bidirectional=enc_bidi)
         self.out = nn.Linear(enc_hid_dim * self.num_directions, dec_hid_dim)
@@ -142,14 +144,16 @@ class RespDecoder(nn.Module):
         self.num_layers = num_layers
         self.dec_method = dec_method
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.decoder = nn.GRU(dec_input_dim, dec_hid_dim, 
                 num_layers=num_layers, bidirectional=False)
         self.out = nn.Linear(enc_hid_dim + dec_hid_dim + emb_dim, self.output_dim)
         self.bias_out = nn.Linear(enc_hid_dim + dec_hid_dim + emb_dim, self.output_dim)
-        self.Vo = nn.Parameter()
+        self.Vo = nn.Parameter(torch.Tensor(dec_hid_dim, 1))
         self.attend = attention 
         self.dropout = nn.Dropout(dropout)
+
+        nn.init.kaiming_uniform_(self.Vo, a=math.sqrt(5))
 
     def forward(
         self,
@@ -159,9 +163,11 @@ class RespDecoder(nn.Module):
         traits_fus=None
     ):
         if self.dec_method = 'PAA':
-            a = self.attend(hid, post_outs, traits_fus)
+            values = torch.cat([post_outs, traits_fus.repeat(post_outs.shape[0], 1, 1)], dim=2)
+            a = self.attend(hid, values)
         elif self.dec_method = 'PAB':
-            a = self.attend(hid, post_outs)
+            values = post_outs
+            a = self.attend(hid, values)
         c = torch.bmm(a.unsqueeze(1), post_outs.permute(1, 0, 2))
         c = c.permute(1, 0, 2)
 
@@ -187,46 +193,4 @@ class RespDecoder(nn.Module):
                     (1 - alpha) * self.bias_out(traits_fus)
 
         return out, hid, rnn_outs
-
-                               
-class Attention(nn.Module):
-    def __init__(
-        self,
-        enc_hid_dim,
-        dec_hid_dim,
-        attn_dim
-    ):
-        super().__init__()
-
-        attn_in = enc_hid_dim + dec_hid_dim
-        self.attn = nn.Linear(attn_in, attn_dim)
-
-    def forward(self, decoder_hid, post_outs):
-        post_len = post_outs.shape[0]
-        repeat_decoder_hid = decoder_hid.unsqueeze(1).repeat(1, post_len, 1)
-        post_outs = post_outs.permute(1, 0, 2)
-
-        energy = torch.tanh(self.attn(torch.cat((
-            repeat_decoder_hid,
-            post_outs),
-            dim=2)))
-        att = torch.sum(energy, dim=2)
-
-        return F.softmax(att, dim=1)
-
-
-def _num_dir(enc_bidi):
-    return 2 if enc_bidi else 1
-
-
-def embedding(
-    input_dim,
-    emb_dim,
-    embeddings,
-    emb_freeze,
-    pad_idx
-):
-    if embeddings is None:
-        return nn.Embedding(input_dim, emb_dim, padding_idx=pad_idx)
-    return nn.Embedding.from_pretrained(embeddings, freeze=emb_freeze, padding_idx=pad_idx)
 

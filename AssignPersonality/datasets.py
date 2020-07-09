@@ -12,6 +12,16 @@ SOS = '<SOS>'
 EOS = '<EOS>'
 UNK = '<UNK>'
 PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK]
+EN_TO_ZH = dict(
+    location='地址',
+    name='姓名',
+    weight='体重',
+    gender='性别',
+    age='年龄',
+    constellation='星座',
+    hobby='爱好',
+    speciality='特长',
+) 
 
 
 class Vocab:
@@ -26,16 +36,6 @@ class Vocab:
         self.itos_map = {}
         self.profile_stoi_map = {}
         self.profile_itos_map = {}
-        self.en_to_zh = dict(
-            location='地址',
-            name='姓名',
-            weight='体重',
-            gender='性别',
-            age='年龄',
-            constellation='星座',
-            hobby='爱好',
-            speciality='特长',
-        )
         self.binary_lable = dict(
             positive=1,
             negative=0,
@@ -99,12 +99,12 @@ class Vocab:
         return self.itos_map[i]
 
     def exists_profile(self, s):
-        return s in self.en_to_zh and self.en_to_zh[s] in self.profile_stoi_map \
+        return s in EN_TO_ZH and EN_TO_ZH[s] in self.profile_stoi_map \
                 or s in self.profile_stoi_map
 
     def profile_stoi(self, s):
-        if s in self.en_to_zh:
-            s = self.en_to_zh[s]
+        if s in EN_TO_ZH:
+            s = EN_TO_ZH[s]
         return self.profile_stoi_map[s][0]
 
     def profile_itos(self, i):

@@ -7,6 +7,7 @@ import argparse
 import yaml
 from collections import OrderedDict
 
+import ..utils
 import modules
 import datasets
 import models
@@ -45,6 +46,8 @@ class Trainer:
             print('Loading word2vec...')
             embeddings, gensim_vocab = models.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
             embeddings = embeddings.to(self.device)
+            args.enc_emb_dim = embeddings.shape[1]
+            args.dec_emb_dim = embeddings.shape[1]
         self.vocab = datasets.Vocab(gensim_vocab, profiles, args.data_path)
         self.input_dim = len(self.vocab)
         # if special_tokens did not include in pretrain_emb, append zeros, disable emb_freeze
@@ -92,12 +95,13 @@ class Trainer:
         parser.add_argument('--max_seq_length', default=300, type=int, required=False, help='')
         parser.add_argument('--shuffle_data', action='store_true', required=False, help='')
         parser.add_argument('--max_vocab_size', default=40000, type=int, required=False, help='')
-        parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
+        parser.add_argument('--pretrain_emb', action='store_true', required=False, help='when it is true, emb_dim will be ignored and set to pretrain_emb dim')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
         parser.add_argument('--enc_bidi', action='store_true', required=False, help='')
         parser.add_argument('--enc_num_layers', default=4, type=int, required=False, help='')
         parser.add_argument('--dec_num_layers', default=4, type=int, required=False, help='')
+        # TODO: change to single emb_dim
         parser.add_argument('--enc_emb_dim', default=100, type=int, required=False, help='')
         parser.add_argument('--dec_emb_dim', default=100, type=int, required=False, help='')
         parser.add_argument('--enc_hid_dim', default=64, type=int, required=False, help='')
@@ -181,9 +185,11 @@ class Trainer:
                 args.emb_freeze, pad_idx, embeddings
                 )
         profile_checker = modules.ProfileChecker(args.enc_hid_dim)
+        attention = utils.Attention(args.enc_hid_dim, args.enc_emb_dim*2, 
+                args.attn_dim)
         profile_detector = modules.ProfileDetector(
                 input_dim, args.enc_emb_dim, args.enc_hid_dim,
-                len(self.profiles_features), args.enc_dropout,
+                len(self.profiles_features), attention, args.enc_dropout,
                 args.emb_freeze, pad_idx, embeddings
                 )
         profile_emb = modules.ProfileEmb(input_dim, args.enc_emb_dim, 
@@ -193,7 +199,7 @@ class Trainer:
                 args.enc_dropout, args.emb_freeze, pad_idx, embeddings
                 )
 
-        attention = modules.Attention(args.enc_hid_dim, args.dec_hid_dim, 
+        attention = utils.Attention(args.enc_hid_dim, args.dec_hid_dim, 
                 args.attn_dim)
         naive_forward_decoder = modules.NaiveForwardDecoder(
                 input_dim, args.dec_emb_dim, args.enc_hid_dim,
@@ -201,7 +207,7 @@ class Trainer:
                 args.dec_dropout, attention,
                 args.emb_freeze, pad_idx, embeddings
                 )
-        attention = modules.Attention(args.enc_hid_dim, args.dec_hid_dim, 
+        attention = utils.Attention(args.enc_hid_dim, args.dec_hid_dim, 
                 args.attn_dim)
         b_decoder = modules.BiBackwardDecoder(
                 input_dim, args.dec_emb_dim, args.enc_hid_dim,
@@ -209,7 +215,7 @@ class Trainer:
                 args.dec_dropout, attention,
                 args.emb_freeze, pad_idx, embeddings
                 )
-        attention = modules.Attention(args.enc_hid_dim, args.dec_hid_dim, 
+        attention = utils.Attention(args.enc_hid_dim, args.dec_hid_dim, 
                 args.attn_dim)
         f_decoder = modules.BiForwardDecoder(
                 input_dim, args.dec_emb_dim, args.enc_hid_dim,
@@ -288,10 +294,12 @@ class Trainer:
         epoch_loss = 0
         for _, (X, y, X_lens, y_lens, profile_key) in enumerate(data_iter):
             self.optimizer.zero_grad()
+
             X = X.to(self.device)
             y = y.to(self.device)
-            profile_y = profile_key[:, 0].float().to(self.device)
-            profile_j = profile_key[:, 1].float().to(self.device)
+            profile_key = profile_key.float().to(self.device)
+            profile_y = profile_key[:, 0]
+            profile_j = profile_key[:, 1]
 
             decoder_outs, profile_exists, no_profile_mask, has_profile_mask = self.model(
                     X, y, y_lens, self.profiles_features, early_stage)
@@ -299,38 +307,39 @@ class Trainer:
             exists_no_profile = out is not None
             exists_has_profile = f_out is not None
 
-            if exists_has_profile:
-                y_pos = y[:, has_profile_mask].T
-                y_pos = y_pos[torch.arange(y_pos.shape[0]), v_pos]
-                bi_out = torch.where(b_out == 0, f_out, b_out).permute(1, 0, 2)
-                bi_out[torch.arange(bi_out.shape[0]), v_pos, y_pos] = 1
-                bi_out = bi_out.permute(1, 0, 2)
-                bi_out = bi_out[1:].reshape(-1, bi_out.shape[-1])
+            out_loss = torch.tensor(0.).to(self.device)
+            profile_exists_loss = torch.tensor(0.).to(self.device)
+            profile_detector_loss = torch.tensor(0.).to(self.device)
 
-            out_loss = torch.tensor(0).float().to(self.device)
-            if early_stage:
-                y = y[1:].view(-1)
-                profile_exists_loss = torch.tensor(0).float().to(self.device)
-                profile_detector_loss = torch.tensor(0).float().to(self.device)
-                out_loss = self.out_loss_fn(bi_out, y)
-                print('early_stage out_loss:', out_loss.item())
-            else:
+            if not early_stage:
                 # profile_exists_loss = self.profile_exists_loss_fn(profile_exists, profile_y)
                 profile_exists_loss = F.binary_cross_entropy(profile_exists, profile_y)
-                profile_detector_loss = torch.tensor(0).float().to(self.device)
-                if exists_no_profile:
-                    out_loss += self.out_loss_fn(
-                            out[1:].view(-1, out.shape[-1]), 
-                            y[:, no_profile_mask][1:].view(-1))
-                    print('exists_no_profile out_loss:', out_loss.item())
+                
                 if exists_has_profile:
                     _profile_j = torch.zeros_like(beta).to(self.device)
                     _profile_j[torch.arange(beta.shape[0]), profile_j[has_profile_mask].long()] = 1
                     profile_detector_loss = self.profile_detector_loss_fn(beta, _profile_j)
-                    out_loss += self.out_loss_fn(
-                            bi_out, 
-                            y[:, has_profile_mask][1:].view(-1))
-                    print('exists_has_profile out_loss:', out_loss.item())
+
+            if exists_no_profile:
+                out_loss += self.out_loss_fn(
+                        out[1:].view(-1, out.shape[-1]), 
+                        y[:, no_profile_mask][1:].view(-1))
+                print('exists_no_profile out_loss:', out_loss.item())
+ 
+            if exists_has_profile:
+                y_pos = y[:, has_profile_mask].T
+                y_pos = y_pos[torch.arange(y_pos.shape[0]), v_pos]
+                bi_out = torch.where(b_out == 0, f_out, b_out)
+                bi_out[v_pos, torch.arange(bi_out.shape[1]), y_pos] = 1
+                bi_out = bi_out[1:].reshape(-1, bi_out.shape[-1])
+                print(y_pos)
+                print(f_out)
+                print(b_out)
+                print(bi_out)
+                out_loss += self.out_loss_fn(
+                        bi_out, 
+                        y[:, has_profile_mask][1:].view(-1))
+                print('exists_has_profile out_loss:', out_loss.item())
 
             print('profile_exists_loss, profile_detector_loss: ', 
                     profile_exists_loss.item(), profile_detector_loss.item())

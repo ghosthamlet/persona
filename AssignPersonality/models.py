@@ -54,11 +54,23 @@ class PCCM(nn.Module):
         if early_stage:
             profile_exists = None
             beta = None
+            v_pos = None
+            no_profile_mask = None
+            has_profile_mask = None
+            bi_decode = random.random() > 0.5
             v_pos = torch.tensor([random.randint(0, v-1) for v in y_lens]).to(self.device)
-            profile_v = self.profile_emb(y[v_pos, torch.arange(y.shape[1])])
-            no_profile_mask = torch.zeros_like(v_pos) == 0
-            has_profile_mask = torch.ones_like(v_pos) == 1
-            ret.append([None, None, None, None])
+            if not bi_decode:
+                no_profile_mask = torch.zeros_like(v_pos) == 1
+                outs, _ = self.decode(
+                        lambda out, hid, _: self.naive_forward_decoder(
+                            out, hid, mask_seq_batch(post_outs, no_profile_mask)), 
+                        0, max_len, mask_seq_batch(y, no_profile_mask), 
+                        post_hid[no_profile_mask], teacher_forcing_ratio)
+                ret.append([outs, None, None, None])
+            else:
+                has_profile_mask = torch.ones_like(v_pos) == 1
+                profile_v = self.profile_emb(y[v_pos, torch.arange(y.shape[1])])
+                ret.append([None, None, None, None])
         else:
             # XXX: there maybe profile and not profile post in one batch,
             #      so the navie forward decoder and bidecoder 
@@ -97,10 +109,11 @@ class PCCM(nn.Module):
                         mask_seq_batch(post_outs, has_profile_mask)[:, mask], profile_v[mask]), 
                     v_pos, 0, mask_seq_batch(y, has_profile_mask), 
                     post_hid[has_profile_mask], teacher_forcing_ratio)
+            b_rnn_outs_agg = b_rnn_outs.sum(dim=0)
             f_outs, _ = self.decode(
                     lambda out, hid, mask: self.f_decoder(out, hid, 
                         mask_seq_batch(post_outs, has_profile_mask)[:, mask], 
-                        profile_v[mask], b_rnn_outs.sum(dim=0)[mask]), 
+                        profile_v[mask], b_rnn_outs_agg[mask]), 
                     v_pos, max_len, mask_seq_batch(y, has_profile_mask), 
                     post_hid[has_profile_mask], teacher_forcing_ratio)
         ret.append([f_outs, b_outs, beta, v_pos])
@@ -259,3 +272,4 @@ def load_embeddings_and_vocab(vec_fname, vocab_fname):
     import gensim
     model = gensim.models.KeyedVectors.load_word2vec_format(vec_fname, vocab_fname)
     return torch.tensor(model.vectors), model.vocab
+

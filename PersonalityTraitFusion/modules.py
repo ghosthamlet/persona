@@ -14,14 +14,17 @@ class TraitEncoder(nn.Module):
         emb_freeze, 
         pad_idx,
         embeddings=None
-        ):
+    ):
         super().__init__()
 
         self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, X):
+        # n_trait X 2
         emb = self.dropout(self.emb(X))
+        # n_trait X 2*emb_dim
+        emb = emb.view(emb.shape[0], -1)
 
         return emb
 
@@ -43,6 +46,9 @@ class TraitFusion(nn.Module):
         super().__init__()
 
     def attention_method(self, prev_dec_hid, traits_enc):
+        batch_size = prev_dec_hid.shape[0]
+        traits_enc = traits_enc.unsqueeze(1).repeat(1, batch_size, 1)
+
         a = self.attend(prev_dec_hid, traits_enc)
         c = torch.bmm(a.unsqueeze(1), traits_enc.permute(1, 0, 2))
         c = c.permute(1, 0, 2)
@@ -50,34 +56,18 @@ class TraitFusion(nn.Module):
         return c
 
     def average_method(self, prev_dec_hid, traits_enc): 
-        return traits_enc.mean(dim=0)
+        batch_size = prev_dec_hid.shape[0]
+        return traits_enc.mean(dim=0)\
+                .unsqueeze(0).unsqueeze(0).repeat(1, batch_size, 1)
 
     def concat_method(self, prev_dec_hid, traits_enc):
-        return torch.cat(traits_enc, dim=1)
+        batch_size = prev_dec_hid.shape[0]
+        return torch.cat(traits_enc, dim=1)\
+                .unsqueeze(1).repeat(1, batch_size, 1)
 
     def forward(self, prev_dec_hid, traits_enc):
         return self.method_fn(prev_dec_hid, traits_enc)
 
-
-class PAA(nn.Module):
-    def __init__(
-        self
-    ):
-        super.__init__()
-
-    def forward(self):
-        pass
-
-
-class PAB(nn.Module):
-    def __init__(
-        self
-    ):
-        super.__init__()
-
-    def forward(self):
-        pass
-                     
  
 class PostEncoder(nn.Module):
     def __init__(self,

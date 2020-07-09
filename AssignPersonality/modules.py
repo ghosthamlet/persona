@@ -1,4 +1,6 @@
  
+import ..utils
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,10 +25,10 @@ class PostEncoder(nn.Module):
         super().__init__()
         self.enc_bidi = enc_bidi
         self.num_layers = num_layers
-        self.num_directions = _num_dir(enc_bidi)
+        self.num_directions = utils.num_dir(enc_bidi)
         self.enc_hid_dim = enc_hid_dim
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.encoder = nn.GRU(emb_dim, enc_hid_dim, 
                 num_layers=num_layers, bidirectional=enc_bidi)
         self.out = nn.Linear(enc_hid_dim * self.num_directions, dec_hid_dim)
@@ -85,6 +87,7 @@ class ProfileDetector(nn.Module):
         emb_dim, 
         enc_hid_dim, 
         n_profile, 
+        attention,
         dropout, 
         emb_freeze, 
         pad_idx,
@@ -100,9 +103,8 @@ class ProfileDetector(nn.Module):
         super().__init__()
         self.emb_dim = emb_dim
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.attn = nn.Linear(emb_dim*2 + enc_hid_dim, n_profile)
-        # self.attn = nn.Linear(emb_dim + enc_hid_dim, n_profile)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.attention = attention
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, profiles, post_outs):
@@ -116,12 +118,9 @@ class ProfileDetector(nn.Module):
         # batch_size X n_profile X emb_dim * 2
         emb = emb.view(emb.shape[0], -1).unsqueeze(0).repeat(post_outs_agg.shape[0], 1, 1)
 
-        # batch_size X n_profile X enc_hid_dim
-        repeat_outs = post_outs_agg.unsqueeze(1).repeat(1, emb.shape[1], 1)
-        energy = torch.tanh(self.attn(torch.cat([repeat_outs, emb], dim=2)))
-        att = torch.sum(energy, dim=2)
         # batch_size X n_profile
-        beta = F.log_softmax(att, dim=1)
+        a = self.attend(post_outs_agg, emb.permute(1, 0, 2))
+        beta = a.log()
 
         # batch_size
         j = beta.argmax(dim=1)
@@ -146,7 +145,7 @@ class ProfileEmb(nn.Module):
     ):
         super().__init__()
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, profile):
@@ -167,7 +166,7 @@ class PositionDetector(nn.Module):
     ):
         super().__init__()
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, X, profile_v):
@@ -203,7 +202,7 @@ class _BaseDecoder(nn.Module):
         self.output_dim = input_dim
         self.num_layers = num_layers
 
-        self.emb = embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.decoder = nn.GRU(dec_input_dim, dec_hid_dim, 
                 num_layers=num_layers, bidirectional=False)
         self.out = nn.Linear(enc_hid_dim + dec_hid_dim + emb_dim, self.output_dim)
@@ -294,55 +293,4 @@ class BiBackwardDecoder(_BaseDecoder):
         assert profile_v is not None
         return super().forward(X, hid, post_outs, profile_v)
                
-                               
-class Attention(nn.Module):
-    """different attention implementions
-     https://nbviewer.jupyter.org/github/susanli2016/NLP-with-Python/blob/master/Attention%20Basics.ipynb
-     https://github.com/graykode/nlp-tutorial/blob/master/4-2.Seq2Seq(Attention)/Seq2Seq(Attention)-Torch.py
-     https://github.com/graykode/nlp-tutorial/blob/master/4-3.Bi-LSTM(Attention)/Bi-LSTM(Attention)-Torch.py
-     https://github.com/pytorch/fairseq/blob/master/fairseq/models/lstm.py#L318
-     https://pytorch.org/tutorials/beginner/torchtext_translation_tutorial.html#defining-our-nn-module-and-optimizer
-     https://pytorch.org/tutorials/beginner/deploy_seq2seq_hybrid_frontend_tutorial.html#define-decoders-attention-module
-     https://github.com/facebookresearch/ParlAI/blob/master/projects/controllable_dialogue/controllable_seq2seq/modules.py#L815
-     https://github.com/philipperemy/keras-attention-mechanism
-    """
-    def __init__(
-        self,
-        enc_hid_dim,
-        dec_hid_dim,
-        attn_dim
-    ):
-        super().__init__()
-
-        attn_in = enc_hid_dim + dec_hid_dim
-        self.attn = nn.Linear(attn_in, attn_dim)
-
-    def forward(self, decoder_hid, post_outs):
-        post_len = post_outs.shape[0]
-        repeat_decoder_hid = decoder_hid.unsqueeze(1).repeat(1, post_len, 1)
-        post_outs = post_outs.permute(1, 0, 2)
-
-        energy = torch.tanh(self.attn(torch.cat((
-            repeat_decoder_hid,
-            post_outs),
-            dim=2)))
-        att = torch.sum(energy, dim=2)
-
-        return F.softmax(att, dim=1)
-
-
-def _num_dir(enc_bidi):
-    return 2 if enc_bidi else 1
-
-
-def embedding(
-    input_dim,
-    emb_dim,
-    embeddings,
-    emb_freeze,
-    pad_idx
-):
-    if embeddings is None:
-        return nn.Embedding(input_dim, emb_dim, padding_idx=pad_idx)
-    return nn.Embedding.from_pretrained(embeddings, freeze=emb_freeze, padding_idx=pad_idx)
 

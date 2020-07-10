@@ -196,12 +196,14 @@ class Trainer:
                 args.emb_freeze, pad_idx, embeddings
                 )
 
+        self.best_model = None
         self.model = models.PTF(
                 trait_encoder, trait_fusion, post_encoder,
                 resp_decoder
                 ).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=args.lr,
                 weight_decay=args.weight_decay)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
 
         print(self.model)
 
@@ -235,17 +237,25 @@ class Trainer:
 
         print('Run main stage...')
 
+        best_val_loss = float("inf")
+
         for epoch in range(self.args.n_epochs):
             start_time = time.time()
 
             train_loss = self.train(early_stage=False)
-            self.save_model(epoch)
-
             valid_loss = self.eval()
+ 
+            if valid_loss < best_val_loss:
+                best_val_loss = val_loss
+                self.best_model = model
+                self.save_model(epoch)
+
+            scheduler.step()
 
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
+            print('-' * 89)
             print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
             print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
             print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
@@ -268,6 +278,7 @@ class Trainer:
 
             out = self.model(X, y, self.profiles_features)
             loss = self.out_loss_fn(out[1:].view(-1, out.shape[-1]), y[1:].view(-1))
+            # utils.print_backward_graph(loss)
             loss.backward()
 
             nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)

@@ -148,3 +148,20 @@ def label_resp_profile_v(embs, vocab, resp_fname, profile_key_fname, profiles=No
     return ret
 
 
+# https://discuss.pytorch.org/t/print-autograd-graph/692/33
+# https://github.com/waleedka/hiddenlayer/blob/master/demos/pytorch_graph.ipynb
+def print_backward_graph(tensor):
+    def fn(grad_fn):
+        print('------------------------')
+        next_functions = grad_fn.next_functions
+        for v in next_functions:
+            if v[0] is None:
+                continue
+            print(v[0], v[1])
+        # print(next_functions)
+        for v in next_functions:
+            if v[0] is None:
+                continue
+            fn(v[0])
+    print(tensor.grad_fn)
+    fn(tensor.grad_fn)

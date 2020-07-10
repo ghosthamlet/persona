@@ -23,7 +23,6 @@ class PCCM(nn.Module):
         naive_forward_decoder,
         b_decoder,
         f_decoder,
-        device
     ):
         super().__init__()
 
@@ -35,7 +34,6 @@ class PCCM(nn.Module):
         self.naive_forward_decoder = naive_forward_decoder
         self.b_decoder = b_decoder
         self.f_decoder = f_decoder
-        self.device = device
 
     def forward(
         self,
@@ -58,7 +56,7 @@ class PCCM(nn.Module):
             no_profile_mask = None
             has_profile_mask = None
             bi_decode = random.random() > 0.5
-            v_pos = torch.tensor([random.randint(0, v-1) for v in y_lens]).to(self.device)
+            v_pos = torch.tensor([random.randint(0, v-1) for v in y_lens]).to(X.device)
             if not bi_decode:
                 no_profile_mask = torch.zeros_like(v_pos) == 1
                 outs, _ = self.decode(
@@ -131,7 +129,7 @@ class PCCM(nn.Module):
     ):
         rnn_outs = None
         outs = torch.zeros(*y.shape[:2], 
-                self.f_decoder.output_dim).to(self.device)
+                self.f_decoder.output_dim).to(y.device)
 
         if type(start) == int:
             hid = post_hid
@@ -144,7 +142,7 @@ class PCCM(nn.Module):
                 out = y[t] if teacher_force else top1
         else:
             rnn_outs = torch.zeros(*y.shape[:2], 
-                    self.f_decoder.dec_hid_dim).to(self.device)
+                    self.f_decoder.dec_hid_dim).to(y.device)
                 
             if end == 0:
                 s = start.max()
@@ -178,7 +176,7 @@ class PCCM(nn.Module):
                     # out = y[t, mask]
                     # print(y.shape, out.shape)
 
-                    tmp = torch.zeros(old_mask.shape[0], hid.shape[1]).to(self.device)
+                    tmp = torch.zeros(old_mask.shape[0], hid.shape[1]).to(y.device)
                     tmp[old_mask] = hid
                     tmp[add_mask] = post_hid[add_mask]
                     hid = tmp[mask]
@@ -202,7 +200,7 @@ class PCCM(nn.Module):
         teacher_forcing_ratio
     ):
         rnn_outs = None
-        outs = torch.zeros(*y.shape[:2], self.f_decoder.output_dim).to(self.device)
+        outs = torch.zeros(*y.shape[:2], self.f_decoder.output_dim).to(y.device)
 
         if type(start) == int and type(end) == int:
             hid = post_hid
@@ -214,7 +212,7 @@ class PCCM(nn.Module):
                 top1 = out.max(1)[1]
                 out = y[t] if teacher_force else top1
         else:
-            rnn_outs = torch.zeros(*y.shape[:2], self.f_decoder.dec_hid_dim).to(self.device)
+            rnn_outs = torch.zeros(*y.shape[:2], self.f_decoder.dec_hid_dim).to(y.device)
             # TODO: optimize
             # XXX: for every row in batch
             for i in range(0, y.shape[1]):

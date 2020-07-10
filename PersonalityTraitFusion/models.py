@@ -16,7 +16,6 @@ class PTF(nn.Module):
         trait_fusion,
         post_encoder,
         resp_decoder,
-        device
     ):
         super().__init__()
 
@@ -24,7 +23,6 @@ class PTF(nn.Module):
         self.trait_fusion = trait_fusion
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
-        self.device = device
 
     def forward(
         self,
@@ -42,7 +40,7 @@ class PTF(nn.Module):
         out = y[start]
         rnn_outs = None
         outs = torch.zeros(*y.shape[:2], 
-                self.resp_decoder.output_dim).to(self.device)
+                self.resp_decoder.output_dim).to(X.device)
         for t in range(start, end):
             trait_fus = self.trait_fusion(hid, trait_enc)
             out, hid, _ = self.resp_decoder(out, hid, post_outs, trait_fus)

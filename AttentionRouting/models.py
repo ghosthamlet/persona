@@ -53,14 +53,22 @@ class TransformerModel(nn.Module):
 class AR(nn.Module):
     def __init__(
         self,
+        context_emb,
+        persona_emb,
+        output_emb,
         post_encoder,
         resp_decoder,
     ):
         super().__init__()
 
+        self.context_emb = context_emb
+        self.persona_emb = persona_emb
+        self.output_emb = output_emb
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
-        self.transformer = nn.Transformer()
+
+        self.share_encoder_decoder()
+        self._init_weights()
 
     def forward(
         self,
@@ -88,7 +96,21 @@ class AR(nn.Module):
             out = y[t] if teacher_force else top1
 
         return outs
-                      
+
+    def share_encoder_decoder(self):
+        for i, layer in enumernate(self.post_encoder.transformer_encoder.layers):
+            d_layers = self.resp_decoder.layers
+            d_layers[i].self_attn = layer.self_attn
+            d_layers[i].linear1 = layer.linear1
+            d_layers[i].linear2 = layer.linear2
+            d_layers[i].norm1 = layer.norm1
+            d_layers[i].norm2 = layer.norm2
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
 
 def init_weights(m):
     for name, param in m.named_parameters():

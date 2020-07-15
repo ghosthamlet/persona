@@ -53,6 +53,10 @@ class TransformerModel(nn.Module):
 class AR(nn.Module):
     def __init__(
         self,
+        sep_idx,
+        spe1_idx,
+        spe2_idx,
+
         context_emb,
         persona_emb,
         output_emb,
@@ -61,22 +65,47 @@ class AR(nn.Module):
     ):
         super().__init__()
 
+        self.sep_idx = sep_idx
+        self.spe1_idx = spe1_idx
+        self.spe2_idx = spe2_idx
+
         self.context_emb = context_emb
         self.persona_emb = persona_emb
         self.output_emb = output_emb
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
 
-        self.share_encoder_decoder()
+        self._share_encoder_decoder()
         self._init_weights()
 
     def forward(
         self,
         X,
         y, 
-        profiles,
-        teacher_forcing_ratio=0.5
+        persona,
     ):
+        context_emb = self.context_emb(X, 
+                self.sep_idx, self.spe1_idx, self.spe2_idx)
+        persona_emb = self.persona_emb(persona)
+
+        context_enc = self.post_encoder(context_emb)
+        persona_enc = self.post_encoder(persona_emb)
+
+        out = self.resp_decoder(y, context_enc, persona_enc,
+                y_mask, context_mask, y_key_padding_mask, context_key_padding_mask)
+
+        return out
+
+    def encode(self, X):
+        pass
+
+    def decode(self, X):
+        pass
+
+    def generate(self, X):
+        pass
+
+    def predict(self, X):
         max_len = y.shape[0]
 
         post_outs, post_hid = self.encoder(X)
@@ -97,7 +126,7 @@ class AR(nn.Module):
 
         return outs
 
-    def share_encoder_decoder(self):
+    def _share_encoder_decoder(self):
         for i, layer in enumernate(self.post_encoder.transformer_encoder.layers):
             d_layers = self.resp_decoder.layers
             d_layers[i].self_attn = layer.self_attn

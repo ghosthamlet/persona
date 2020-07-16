@@ -62,6 +62,7 @@ class AR(nn.Module):
         output_emb,
         post_encoder,
         resp_decoder,
+        generater,
     ):
         super().__init__()
 
@@ -74,6 +75,7 @@ class AR(nn.Module):
         self.output_emb = output_emb
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
+        self.generater = generater
 
         self._share_encoder_decoder()
         self._init_weights()
@@ -83,27 +85,31 @@ class AR(nn.Module):
         X,
         y, 
         persona,
+        masks,
     ):
+        src_mask, tgt_mask = masks
+        context_enc, persona_enc = self.encode(X, persona, src_mask)
+        out = self.decode(y, context_enc, persona_enc, tgt_mask, src_mask)
+
+        return out
+
+    def encode(self, X, persona, src_mask):
         context_emb = self.context_emb(X, 
                 self.sep_idx, self.spe1_idx, self.spe2_idx)
         persona_emb = self.persona_emb(persona)
 
-        context_enc = self.post_encoder(context_emb)
+        context_enc = self.post_encoder(context_emb, src_mask)
         persona_enc = self.post_encoder(persona_emb)
+ 
+        return context_enc, persona_enc
 
-        out = self.resp_decoder(y, context_enc, persona_enc,
-                y_mask, context_mask, y_key_padding_mask, context_key_padding_mask)
+    def decode(self, y, context_enc, persona_enc, tgt_mask, src_mask):
+        out = self.resp_decoder(y, context_enc, persona_enc, tgt_mask, src_mask) 
+                # y_key_padding_mask, context_key_padding_mask)
+        return self.generate(out)
 
-        return out
-
-    def encode(self, X):
-        pass
-
-    def decode(self, X):
-        pass
-
-    def generate(self, X):
-        pass
+    def generate(self, enc):
+        return self.generater(enc)
 
     def predict(self, X):
         max_len = y.shape[0]

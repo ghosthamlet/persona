@@ -1,6 +1,8 @@
 
 import os
+import json
 import time
+import itertools
 from filelock import FileLock
 
 import torch
@@ -11,31 +13,22 @@ PAD = '<PAD>'
 SOS = '<SOS>'
 EOS = '<EOS>'
 UNK = '<UNK>'
-PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK]
+SEP = '<SEP>'
+SPE1 = '<SPE1>'
+SPE2 = '<SPE2>'
+PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK, 
+        SEP, SPE1, SPE2]
 
 
 class Vocab:
     def __init__(
         self,
         vocab,
-        profiles,
         data_path,
         special_tokens=None
     ):
         self.stoi_map = {}
         self.itos_map = {}
-        self.profile_stoi_map = {}
-        self.profile_itos_map = {}
-        self.en_to_zh = dict(
-            location='地址',
-            name='姓名',
-            weight='体重',
-            gender='性别',
-            age='年龄',
-            constellation='星座',
-            hobby='爱好',
-            speciality='特长',
-        )
         self.binary_lable = dict(
             positive=1,
             negative=0,
@@ -45,10 +38,6 @@ class Vocab:
             special_tokens = PRESET_SPECIAL_TOKENS
         else:
             special_tokens = PRESET_SPECIAL_TOKENS + special_tokens
-
-        for i, (k, v) in enumerate(profiles.items()):
-            self.profile_stoi_map[k] = (i, v)
-            self.profile_itos_map[i] = (k, v)
 
         if vocab is None:
             self.__init(data_path, special_tokens)
@@ -98,18 +87,6 @@ class Vocab:
     def itos(self, i):
         return self.itos_map[i]
 
-    def exists_profile(self, s):
-        return s in self.en_to_zh and self.en_to_zh[s] in self.profile_stoi_map \
-                or s in self.profile_stoi_map
-
-    def profile_stoi(self, s):
-        if s in self.en_to_zh:
-            s = self.en_to_zh[s]
-        return self.profile_stoi_map[s][0]
-
-    def profile_itos(self, i):
-        return self.profile_itos_map[i]
-
     def binary_stoi(self, s):
         return self.binary_lable[s]
 
@@ -124,6 +101,7 @@ class PersonaDataset(Dataset):
         max_seq_length,
         data_path,
         cache_path,
+        data_processer,
         limit_length=None,
         mode='train',
         overwrite_cache=True,
@@ -149,16 +127,15 @@ class PersonaDataset(Dataset):
             else:
                 print(f"Creating features from dataset file at {data_path}")
 
-                examples = get_examples(data_path, mode)
+                examples = list(data_processer.get_examples(data_path, mode))
                 if limit_length is not None:
                     examples = examples[:limit_length]
                     
-                self.features = convert_examples_to_features(
+                self.features = list(data_processer.convert_examples_to_features(
                     vocab,
                     examples,
-                    max_length=max_seq_length,
                     mode=mode,
-                )
+                ))
                 start = time.time()
                 # torch.save(self.features, cached_features_file)
                 # ^ This seems to take a lot of time so I want to investigate why and how we can improve.
@@ -171,75 +148,105 @@ class PersonaDataset(Dataset):
         return self.features[i]
 
 
-def get_examples(path, mode):
-    post_file_path = os.path.join(path, mode + '.post')
-    resp_file_path = os.path.join(path, mode + '.resp')
-    key_file_path = os.path.join(path, mode + '.keys')
+class DataProcesser:
+    def __init__(
+        self,
+        max_seq_length,
+        max_context_size,
+        complete_persona=True
+    ):
+        # context length <= max_seq_length * max_context_size
+        self.max_seq_length = max_seq_length
+        self.max_context_size = max_context_size
+        self.complete_persona = complete_persona
 
-    with open(post_file_path) as f:
-        posts = f.read()
-    with open(resp_file_path) as f:
-        resps = f.read()
+    def get_examples(self, path, mode):
+        file_path = os.path.join(path, mode + '.txt')
+        # prefer city to province, as city can infer province, inverse can't
+        parse_loc = lambda x: x != '' and x.split()[-1] or UNK
 
-    keys = ''
-    if os.path.exists(key_file_path):
-        with open(key_file_path) as f:
-            keys = f.read()
+        with open(file_path) as f:
+            for line in f:
+                obj = json.loads(line)
+                dialogs = obj['dialog']
+                d_len = len(dialogs)
+                persona1 = obj['profile'][0]
+                persona2 = obj['profile'][1]
 
-    def parse(s):
-        if len(s) == 0:
-            return []
-        # last row is blank
-        return list(map(lambda x: x.split(), s.split('\n')))[:-1]
+                if d_len == 0:
+                    continue
+                if self.complete_persona:
+                    if all(persona1['loc'], persona1['gender'],
+                        persona2['loc'], persona2['gender']):
+                        continue
+                # remove the last no resp post
+                if d_len % 2 != 0:
+                    dialogs = dialogs[:d_len-1]
 
-    posts_arr = parse(posts)
-    resps_arr = parse(resps)
-    if keys == '':
-        # placehold for early_stage_train
-        keys_arr = [['negative', 'name']] * len(posts_arr)
-    else:
-        keys_arr = parse(keys)
+                personas = [
+                        [persona1['gender'] or UNK, parse_loc(persona1['loc'])],
+                        [persona2['gender'] or UNK, parse_loc(persona2['loc'])],
+                        ]
+                tags = [
+                        (persona1['tag'][0] or UNK).split(';'),
+                        (persona2['tag'][0] or UNK).split(';'),
+                        ]
+                persona = [('性别', persona2['gender'] or UNK), 
+                           ('地址', parse_loc(persona2['loc'])),
+                           ('兴趣', ),
+                           (v for v in (persona2['tag'][0] or UNK).split(';'))]
+                for i in range(d_len, 2):
+                    if dialogs[i] == '':
+                        dialogs[i] = UNK
+                    context = [v[0].split() for v in dialogs[:i+1]]
+                    resp = dialogs[i+1][0].split()
+                    yield context, personas, tags, resp, persona
 
-    return list(zip(posts_arr, resps_arr, keys_arr))
-
-
-def convert_examples_to_features(
-    vocab,
-    examples,
-    max_length,
-    mode
-):
-    ret = []
-    for post, resp, key in examples:
-        if not vocab.exists_profile(key[1]):
-            continue
-        ipost = [vocab.stoi(k) for k in post[:max_length]] + [vocab.stoi(EOS)]
-        iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:max_length]] + [vocab.stoi(EOS)]
-        ikey = [vocab.binary_stoi(key[0]), vocab.profile_stoi(key[1])]
-        ret.append((ipost, iresp, ikey))
-    return ret
-
-
-def convert_profiles_to_features(
-    vocab,
-    profiles
-):
-    return [[vocab.stoi(k), vocab.stoi(v)] 
-            for k, v in profiles.items()]
+    def convert_examples_to_features(
+        self,
+        vocab,
+        examples,
+        mode
+    ):
+        for context, personas, tags, resp, persona in examples:
+            icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
+                        + [vocab.stoi(SEP)]
+                       for post in context]
+            isegs = [[vocab.stoi(SPE1)] * len(icontext[i]) 
+                     + [vocab.stoi(SPE2)] * len(icontext[i+1]) 
+                    for i in range(len(icontext), 2)]
+            iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:max_length]] + [vocab.stoi(EOS)]
+            ipersonas = map(lambda x: list(map(vocab.stoi, x)), personas)
+            itags = map(lambda x: list(map(vocab.stoi, x)), tags)
+            ipersona = map(lambda x: list(map(vocab.stoi, x)), persona)
+            yield (itertools.chain(*icontext), itertools.chain(*isegs), ipersonas, itags, 
+                    iresp, itertools.chain(*ipersona))
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
 def generate_batch(batch, pad_idx):
-    post, resp, key = zip(*batch)
-    post_lens = [len(v) for v in post]
-    resp_lens = [len(v) for v in resp]
+    context, segs, personas, tags, resp, persona = zip(*batch)
+    personas = torch.tensor(personas).permute(1, 2, 0)
+    persona = torch.tensor(persona).T
 
     fn = lambda x: list(map(torch.tensor, x)) 
-    post_pad = pad_sequence(fn(post), padding_value=pad_idx)
+    context_pad = pad_sequence(fn(context), padding_value=pad_idx)
+    segs_pad = pad_sequence(fn(segs), padding_value=pad_idx)
+    tags = itertools.chain(*tags)
+    tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
+    tags_pad = tags_pad.view(-1, 2, tags_pad.shape[1]/2).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
-    key = torch.tensor(key)
+    src_mask = context_pad == pad_idx
+    tgt_mask = resp_pad == pad_idx
+    tgt_mask = tgt_mask | _generate_square_subsequent_mask(len(resp_pad))
 
-    return post_pad, resp_pad, post_lens, resp_lens, key
+    return (context_pad, segs_pad, personas, tags_pad), (resp_pad, persona), (src_mask, tgt_mask)
+
+
+ def _generate_square_subsequent_mask(sz):
+    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask
 
 
 def retokenize(fname):
@@ -259,3 +266,20 @@ def retokenize(fname):
         ss = '\n'.join(res)
         f.write(ss)
 
+
+def build_corpus(raw_fname, corpus_fname):
+    datas = []
+    with open(raw_fname) as f:
+        for line in f:
+            datas.append(json.loads(line))
+
+    datas_str = [] 
+    for v in datas: 
+        for d in v['dialog']: 
+            datas_str.append(d[0]) 
+        if v['profile'][0]['tag'][0] != '' or v['profile'][1]['tag'][0] != '': 
+            datas_str.append((v['profile'][0]['tag'][0].replace(';', ' ') 
+                + ' ' + v['profile'][1]['tag'][0].replace(';', ' ')).strip()) 
+
+    with open(corpus_fname) as f:
+        f.write('\n'.join(datas_str))

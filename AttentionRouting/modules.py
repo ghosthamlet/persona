@@ -28,38 +28,32 @@ class ContextEmb(nn.Module):
         self.pos_encoder = PositionalEncoding(emb_dim, dropout)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, context, sep_idx, spe1_idx, spe2_idx):
-        # utt: seq_len X batch_size
+    def forward(self, X, sep_idx, spe1_idx, spe2_idx):
+        # context: seq_len X batch_size
         #      seq: ..._SEP...
         # segs: seq_len X batch_size
         #      _SPE1 _SPE1 _SPE1 _SPE2 _SPE2 _SPE2
-        # persona: 2 X n_persona
-        # tags: 2 X n_tags (list type, as n_tag is different in speakers)
-        utt, segs, persona, tags = context
-        emb = self.emb(utt) * math.sqrt(self.emb_dim)
+        # personas: 2 X n_persona X batch_size
+        # tags: 2 X n_tags X batch_size (n_tags has pad, as it is different in speakers)
+        context, segs, personas, tags = X
+        emb = self.emb(context) * math.sqrt(self.emb_dim)
 
         # XXX: paper no this
         segs_emb = self.emb(segs)
 
-        # 2 X n_persona X emb_dim
-        persona_emb = self.emb(persona)
-        # 2 X 1 X emb_dim
-        tags_emb = torch.cat([
-            self.emb(tags[0]).mean(dim=0, keepdim=True),
-            self.emb(tags[1]).mean(dim=0, keepdim=True)
-            ], dim=0).unsqueeze(1)
-        # 2 X n_persona+1 X emb_dim --> 2 X emb_dim
-        persona_emb = torch.cat([persona_emb, tags_emb], dim=1).sum(dim=1)
+        # 2 X n_persona X batch_size X emb_dim
+        personas_emb = self.emb(personas)
+        # 2 X n_tags X batch_size X emb_dim
+        tags_emb = self.emb(tags_emb)
+        # 2 X batch_size X emb_dim
+        personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
         # segs spe1_idx and spe2_idx is not a must
-        # (segs == idx) can be created from iterate utt
-       # fn = lambda idx, i: torch.where(
-       #        (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-       #        emb + persona_emb[i], emb)
-       # emb = fn(spe1_idx, 0)
-       # emb = fn(spe2_idx, 1)
-        emb = torch.where(
-               (segs == spe1_idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-               emb + persona_emb[0], emb + persona_emb[1])
+        # (segs == idx) can be created from iterate context
+        fn = lambda idx, i: torch.where(
+               (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+               emb + personas_emb[i], emb)
+        emb = fn(spe1_idx, 0)
+        emb = fn(spe2_idx, 1)
 
         emb = emb + self.pos_encoder(emb)
         emb = self.dropout(emb)
@@ -84,11 +78,8 @@ class PersonaEmb(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, persona):
-        # persona: pack all k v into a word seq
-        # seq_len X emb_dim
-        emb = self.dropout(self.emb(persona) * math.sqrt(self.emb_dim))
         # seq_len X batch_size X emb_dim
-        emb = emb.unsqueeze(1)
+        emb = self.dropout(self.emb(persona) * math.sqrt(self.emb_dim))
 
         return emb                
 
@@ -231,3 +222,15 @@ class TransformerDecoder(Module):
         return output
 
 
+class Generater(nn.Module):
+    def __init__(
+        self,
+        d_model,
+        output_dim
+    ):
+        super().__init__()
+
+        self.out = nn.Linear(d_model, output_dim, bias=False)
+
+    def forward(self, enc):
+        return self.out(enc)

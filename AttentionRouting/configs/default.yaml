@@ -6,9 +6,9 @@ n_epochs: 10
 n_epochs_early_stage: 0
 clip_grad: 1
 # batch_size: 128
-batch_size: 80
-limit_example_length: 1000000
-max_seq_length: 300
+batch_size: 32
+limit_example_length: 100000
+max_seq_length: 60
 shuffle_data: True
 # pretrain_emb must include special_tokens
 max_vocab_size: 40000
@@ -23,8 +23,8 @@ dec_emb_dim: 100
 enc_hid_dim: 200
 dec_hid_dim: 200
 attn_dim: 16
-enc_dropout: 0
-dec_dropout: 0
+enc_dropout: 0.1
+dec_dropout: 0.1
 enc_rnn_dropout: 0
 dec_rnn_dropout: 0
 
@@ -34,8 +34,18 @@ weight_decay: 0.99
 
 model_path: models/
 pretrained_path:
+# data_path: tmp/
 data_path: datas/
 cache_path: caches/
 corpus_fname:
-vec_fname: models/weibo-19m-100.txt
-vocab_fname: models/weibo-19m-100.vocab.txt
+vec_fname: models/vec.txt
+vocab_fname: models/vocab.txt
+
+max_context_size: 6
+num_layers: 6
+# n_head: 8
+n_head: 5
+# d_model: 512
+d_model: 100
+d_ff: 2048
+attn_alpha: 1

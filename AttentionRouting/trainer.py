@@ -7,7 +7,10 @@ import argparse
 import yaml
 from collections import OrderedDict
 
-import ..utils
+import sys
+# for import parent utils
+sys.path.append('../')
+import utils
 import modules
 import datasets
 import models
@@ -22,7 +25,7 @@ from torch.utils.data import DataLoader
 
 
 class Trainer:
-    def __init__(self, profiles):
+    def __init__(self):
         args = self.parse_args()
         self.args = args
         self.best_valid_loss = float('inf')
@@ -31,39 +34,12 @@ class Trainer:
 
         self.ensure_deps()
 
-        if args.pretrain_emb and (
-                not os.path.exists(args.vec_fname) 
-                or not os.path.exists(args.vocab_fname)
-        ):
-            # XXX: datasets.retokenize all the chinese old datasets first 
-            # 现成的已分词数据分词质量不好，造成word2vec效果下降，如小提琴的most_similar完全错误
-            # TODO: try token to letter or subwords
-            print('Pretraining word2vec...')
-            models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname)
-
-        embeddings, gensim_vocab = None, None
-        if args.pretrain_emb:
-            print('Loading word2vec...')
-            embeddings, gensim_vocab = models.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
-            embeddings = embeddings.to(self.device)
-        self.vocab = datasets.Vocab(gensim_vocab, profiles, args.data_path)
-        self.input_dim = len(self.vocab)
-        # if special_tokens did not include in pretrain_emb, append zeros, disable emb_freeze
-        if args.pretrain_emb:
-            elen = embeddings.shape[0]
-            if self.input_dim > elen:
-                args.emb_freeze = False
-                append = torch.zeros(self.input_dim - elen, embeddings.shape[1]).to(self.device)
-                embeddings = torch.cat([embeddings, append], dim=0)
-
-        self.profiles_features = torch.tensor(
-                datasets.convert_profiles_to_features(self.vocab, profiles)).to(self.device)
-        self.pad_idx = self.vocab.stoi(datasets.PAD)
-
+        print('Build vocab and embeddings...')
+        self.build_vocab_and_embeddings()
         print('Build dataloaders...')
         self.build_dataloaders()
         print('Build model...')
-        self.build_model(embeddings)
+        self.build_model()
         print('Build loss fns...')
         self.build_loss_fns()
 
@@ -104,10 +80,8 @@ class Trainer:
         parser.add_argument('--enc_hid_dim', default=64, type=int, required=False, help='')
         parser.add_argument('--dec_hid_dim', default=64, type=int, required=False, help='')
         parser.add_argument('--attn_dim', default=8, type=int, required=False, help='')
-        parser.add_argument('--enc_dropout', default=0.5, type=float, required=False, help='')
-        parser.add_argument('--dec_dropout', default=0.5, type=float, required=False, help='')
-        parser.add_argument('--enc_rnn_dropout', default=0, type=float, required=False, help='')
-        parser.add_argument('--dec_rnn_dropout', default=0, type=float, required=False, help='')
+        parser.add_argument('--enc_dropout', default=0.1, type=float, required=False, help='')
+        parser.add_argument('--dec_dropout', default=0.1, type=float, required=False, help='')
 
         parser.add_argument('--alpha', default=1, type=float, required=False, help='weight of second loss')
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
@@ -120,6 +94,13 @@ class Trainer:
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
+
+        parser.add_argument('--max_context_size', default=10, type=int, required=False, help='')
+        parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
+        parser.add_argument('--n_head', default=8, type=int, required=False, help='')
+        parser.add_argument('--d_model', default=512, type=int, required=False, help='')
+        parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
+        parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
 
         args = parser.parse_args()
         if args.config_file != '':
@@ -136,26 +117,63 @@ class Trainer:
                 assert gensim.__version__ >= v
             except:
                 raise Exception('If pretrain_emb enabled, please install gensim>=%s' % v)
+
+    def build_vocab_and_embeddings(self):
+        args = self.args
+
+        if args.pretrain_emb and (
+                not os.path.exists(args.vec_fname) 
+                or not os.path.exists(args.vocab_fname)
+        ):
+            # XXX: datasets.retokenize all the chinese old datasets first 
+            # 现成的已分词数据分词质量不好，造成word2vec效果下降，如小提琴的most_similar完全错误
+            # TODO: try token to letter or subwords
+            print('Pretraining word2vec...')
+            models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, args.d_model)
+
+        embeddings, gensim_vocab = None, None
+        if args.pretrain_emb:
+            print('Loading word2vec...')
+            embeddings, gensim_vocab = models.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
+            embeddings = embeddings.to(self.device)
+        self.vocab = datasets.Vocab(gensim_vocab, args.data_path)
+        self.input_dim = len(self.vocab)
+        # if special_tokens did not include in pretrain_emb, append zeros, disable emb_freeze
+        if args.pretrain_emb:
+            elen = embeddings.shape[0]
+            if self.input_dim > elen:
+                args.emb_freeze = False
+                append = torch.zeros(self.input_dim - elen, embeddings.shape[1]).to(self.device)
+                embeddings = torch.cat([embeddings, append], dim=0)
+
+        self.pad_idx = self.vocab.stoi(datasets.PAD)
+        self.embeddings = embeddings
                                                                                          
     def build_dataloaders(self):
         args = self.args
         gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
 
         if args.n_epochs_early_stage > 0:
+            dp = datasets.DataProcesser(args.max_seq_length, args.max_context_size)
             ds = datasets.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
-                    limit_length=args.limit_example_length, mode='early_stage_train')
+                    data_processer=dp, limit_length=args.limit_example_length, 
+                    mode='early_stage_train')
             self.early_stage_train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
 
+        dp = datasets.DataProcesser(args.max_seq_length, args.max_context_size)
         ds = datasets.PersonaDataset(
                 self.vocab, args.max_seq_length, 
                 data_path=args.data_path, cache_path=args.cache_path, 
-                limit_length=args.limit_example_length, mode='train')
+                data_processer=dp, limit_length=args.limit_example_length, 
+                mode='train')
         self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                 collate_fn=gb, shuffle=args.shuffle_data) 
 
+        self.valid_iter = None
+        self.test_iter = None
        #ds = datasets.PersonaDataset(
        #        self.vocab, args.max_seq_length, 
        #        data_path=args.data_path, cache_path=args.cache_path, 
@@ -170,36 +188,36 @@ class Trainer:
        #self.test_iter = DataLoader(ds, batch_size=args.batch_size,
        #        collate_fn=gb, shuffle=args.shuffle_data)
 
-    def build_model(self, embeddings):
+    def build_model(self):
         args = self.args
         output_dim = self.input_dim
         input_dim = self.input_dim
         pad_idx = self.pad_idx
+        embeddings = self.embeddings
+        sep_idx = self.vocab.stoi(datasets.SEP)
+        spe1_idx = self.vocab.stoi(datasets.SPE1)
+        spe2_idx = self.vocab.stoi(datasets.SPE2)
 
-        trait_encoder = modules.TraitEncoder(input_dim, args.enc_emb_dim, args.dropout,
-                args.emb_freeze, args.pad_idx, embeddings)
-        attention = utils.Attention(args.enc_emb_dim*2, args.dec_hid_dim, 
-                args.attn_dim)
-        trait_fusion = modules.TraitFusion('attention', attention)
+        context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
+                input_dim, args.d_model, args.emb_freeze,
+                pad_idx, args.enc_dropout, embeddings)
+        persona_emb = modules.PersonaEmb(input_dim, args.d_model, args.emb_freeze,
+                pad_idx, embeddings)
+        output_emb = modules.OutputEmb(input_dim, args.d_model, args.emb_freeze,
+                pad_idx, args.enc_dropout, embeddings)
 
-        post_encoder = modules.PostEncoder(input_dim, args.enc_emb_dim, args.enc_hid_dim,
-                args.dec_hid_dim, args.enc_num_layers, args.enc_dropout, args.enc_bidi,
-                args.emb_freeze, pad_idx, embeddings
-                )
+        post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
+                args.n_head, args.num_layers, args.enc_dropout)
 
-        attention = utils.Attention(args.enc_hid_dim + args.enc_emb_dim*2, args.dec_hid_dim, 
-                args.attn_dim)
-        resp_decoder = modules.RespDecoder(
-                input_dim, args.dec_emb_dim, args.enc_hid_dim,
-                args.dec_hid_dim, args.attn_dim, args.dec_num_layers,
-                args.dec_dropout, attention, 'PAA'
-                args.emb_freeze, pad_idx, embeddings
-                )
+        resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
+                args.attn_alpha, args.d_ff, args.dec_dropout)
+        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
+        generater = modules.Generater(args.d_model, output_dim)
 
         self.best_model = None
-        self.model = models.PTF(
-                trait_encoder, trait_fusion, post_encoder,
-                resp_decoder
+        self.model = models.AR(
+                context_emb, persona_emb, output_emb,
+                post_encoder, resp_decoder, generater
                 ).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=args.lr,
                 weight_decay=args.weight_decay)
@@ -246,11 +264,11 @@ class Trainer:
             valid_loss = self.eval()
  
             if valid_loss < best_val_loss:
-                best_val_loss = val_loss
-                self.best_model = model
+                best_val_loss = valid_loss
+                self.best_model = self.model
                 self.save_model(epoch)
 
-            scheduler.step()
+            # scheduler.step()
 
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
@@ -270,18 +288,20 @@ class Trainer:
             data_iter = self.train_iter
 
         epoch_loss = 0
-        for _, (X, y, X_lens, y_lens, profile_key) in enumerate(data_iter):
+        for _, (X, (y, persona), masks) in enumerate(data_iter):
             self.optimizer.zero_grad()
 
-            X = X.to(self.device)
+            X = list(map(lambda x: x.to(self.device), X))
             y = y.to(self.device)
+            persona = persona.to(self.device)
+            masks = list(map(lambda x: x.to(self.device), masks))
 
-            out = self.model(X, y, self.profiles_features)
+            out = self.model(X, y, persona, masks)
             loss = self.out_loss_fn(out[1:].view(-1, out.shape[-1]), y[1:].view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
             self.optimizer.step()
 
             iloss = loss.item()
@@ -343,6 +363,6 @@ if __name__ == '__main__':
             地址='北京',
             星座='双子座',
     )
-    trainer = Trainer(profiles)
+    trainer = Trainer()
     trainer.run()
 

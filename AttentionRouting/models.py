@@ -53,10 +53,6 @@ class TransformerModel(nn.Module):
 class AR(nn.Module):
     def __init__(
         self,
-        sep_idx,
-        spe1_idx,
-        spe2_idx,
-
         context_emb,
         persona_emb,
         output_emb,
@@ -65,10 +61,6 @@ class AR(nn.Module):
         generater,
     ):
         super().__init__()
-
-        self.sep_idx = sep_idx
-        self.spe1_idx = spe1_idx
-        self.spe2_idx = spe2_idx
 
         self.context_emb = context_emb
         self.persona_emb = persona_emb
@@ -87,24 +79,27 @@ class AR(nn.Module):
         persona,
         masks,
     ):
-        src_mask, tgt_mask = masks
-        context_enc, persona_enc = self.encode(X, persona, src_mask)
-        out = self.decode(y, context_enc, persona_enc, tgt_mask, src_mask)
+        context_enc, persona_enc = self.encode(X, persona, masks)
+        out = self.decode(y, context_enc, persona_enc, masks)
 
         return out
 
-    def encode(self, X, persona, src_mask):
-        context_emb = self.context_emb(X, 
-                self.sep_idx, self.spe1_idx, self.spe2_idx)
+    def encode(self, X, persona, masks):
+        src_mask, _, _, persona_mask = masks
+        context_emb = self.context_emb(X)
         persona_emb = self.persona_emb(persona)
 
         context_enc = self.post_encoder(context_emb, src_mask)
-        persona_enc = self.post_encoder(persona_emb)
+        persona_enc = self.post_encoder(persona_emb, persona_mask)
  
         return context_enc, persona_enc
 
-    def decode(self, y, context_enc, persona_enc, tgt_mask, src_mask):
-        out = self.resp_decoder(y, context_enc, persona_enc, tgt_mask, src_mask) 
+    def decode(self, y, context_enc, persona_enc, masks):
+        src_mask, tgt_mask, tgt_pad_mask, _ = masks
+        y_enc = self.output_emb(y)
+        out = self.resp_decoder(y_enc, context_enc, persona_enc, 
+                memory_key_padding_mask=src_mask, tgt_mask=tgt_mask, 
+                tgt_key_padding_mask=tgt_pad_mask) 
                 # y_key_padding_mask, context_key_padding_mask)
         return self.generate(out)
 
@@ -133,9 +128,9 @@ class AR(nn.Module):
         return outs
 
     def _share_encoder_decoder(self):
-        for i, layer in enumernate(self.post_encoder.transformer_encoder.layers):
+        for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
             d_layers = self.resp_decoder.layers
-            d_layers[i].self_attn = layer.self_attn
+            d_layers[i].multihead_attn = layer.self_attn
             d_layers[i].linear1 = layer.linear1
             d_layers[i].linear2 = layer.linear2
             d_layers[i].norm1 = layer.norm1
@@ -161,11 +156,11 @@ def count_parameters(m):
     return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
 
-def build_word2vec(corpus_fname, vec_fname, vocab_fname, max_vocab_size):
+def build_word2vec(corpus_fname, vec_fname, vocab_fname, max_vocab_size, emb_dim=100):
     import gensim
     lss = gensim.models.word2vec.LineSentence(corpus_fname) 
     # skip-gram is more accuracy for most words, but CBOW is better for name similarity
-    model = gensim.models.Word2Vec(lss, max_final_vocab=max_vocab_size)
+    model = gensim.models.Word2Vec(lss, max_final_vocab=max_vocab_size, size=emb_dim)
     model.wv.save_word2vec_format(vec_fname, vocab_fname)
 
 

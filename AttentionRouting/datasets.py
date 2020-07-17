@@ -53,18 +53,20 @@ class Vocab:
             self.itos_map[i] = k
             i += 1
 
+    # TODO: add max_vocab_size
     def __init(
         self,
         data_path,
         special_tokens=None
     ):
-        examples = get_examples(data_path, 'train')
+        examples = list(DataProcesser(0, 0).get_examples(data_path, 'train'))
 
         self.stoi_map = {}
         self.itos_map = {}
 
         i = 0
-        for post, resp, _ in examples:
+        for post, _, _, resp, _ in examples:
+            post = list(itertools.chain(*post))
             for k in set(post + resp):
                 if k not in self.stoi_map:
                     self.stoi_map[k] = [i, 0]
@@ -176,12 +178,13 @@ class DataProcesser:
                 if d_len == 0:
                     continue
                 if self.complete_persona:
-                    if all(persona1['loc'], persona1['gender'],
-                        persona2['loc'], persona2['gender']):
+                    if not all((persona1['loc'], persona1['gender'],
+                        persona2['loc'], persona2['gender'])):
                         continue
                 # remove the last no resp post
                 if d_len % 2 != 0:
                     dialogs = dialogs[:d_len-1]
+                    d_len -= 1
 
                 personas = [
                         [persona1['gender'] or UNK, parse_loc(persona1['loc'])],
@@ -195,7 +198,7 @@ class DataProcesser:
                            ('地址', parse_loc(persona2['loc'])),
                            ('兴趣', ),
                            (v for v in (persona2['tag'][0] or UNK).split(';'))]
-                for i in range(d_len, 2):
+                for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
                     context = [v[0].split() for v in dialogs[:i+1]]
@@ -211,39 +214,45 @@ class DataProcesser:
         for context, personas, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
-                       for post in context]
+                        for post in context[:self.max_context_size]]
+            l = len(icontext)
             isegs = [[vocab.stoi(SPE1)] * len(icontext[i]) 
-                     + [vocab.stoi(SPE2)] * len(icontext[i+1]) 
-                    for i in range(len(icontext), 2)]
-            iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:max_length]] + [vocab.stoi(EOS)]
-            ipersonas = map(lambda x: list(map(vocab.stoi, x)), personas)
-            itags = map(lambda x: list(map(vocab.stoi, x)), tags)
-            ipersona = map(lambda x: list(map(vocab.stoi, x)), persona)
-            yield (itertools.chain(*icontext), itertools.chain(*isegs), ipersonas, itags, 
-                    iresp, itertools.chain(*ipersona))
+                     + [vocab.stoi(SPE2)] * (len(icontext[i+1]) if i+1 < l else 0)
+                    for i in range(0, l, 2)]
+            iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
+            ipersonas = list(map(lambda x: list(map(vocab.stoi, x)), personas))
+            itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
+            ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
+            yield (list(itertools.chain(*icontext)), list(itertools.chain(*isegs)), ipersonas, itags, 
+                    iresp, list(itertools.chain(*ipersona)))
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
 def generate_batch(batch, pad_idx):
     context, segs, personas, tags, resp, persona = zip(*batch)
     personas = torch.tensor(personas).permute(1, 2, 0)
-    persona = torch.tensor(persona).T
 
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
     segs_pad = pad_sequence(fn(segs), padding_value=pad_idx)
     tags = itertools.chain(*tags)
     tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
-    tags_pad = tags_pad.view(-1, 2, tags_pad.shape[1]/2).transpose(1, 0)
+    tags_pad = tags_pad.view(-1, 2, int(tags_pad.shape[1]/2)).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
-    src_mask = context_pad == pad_idx
-    tgt_mask = resp_pad == pad_idx
-    tgt_mask = tgt_mask | _generate_square_subsequent_mask(len(resp_pad))
+    src_mask = (context_pad == pad_idx).T
+    tgt_pad_mask = (resp_pad == pad_idx).T
+    tgt_mask = _generate_square_subsequent_mask(resp_pad.shape[0])
+    # tgt_mask = tgt_mask | _generate_square_subsequent_mask(len(resp_pad))
+    # persona = torch.tensor(persona).T
+    persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
+    persona_mask = (persona_pad == pad_idx).T
 
-    return (context_pad, segs_pad, personas, tags_pad), (resp_pad, persona), (src_mask, tgt_mask)
+    return ((context_pad, segs_pad, personas, tags_pad), 
+            (resp_pad, persona_pad), 
+            (src_mask, tgt_mask, tgt_pad_mask, persona_mask))
 
 
- def _generate_square_subsequent_mask(sz):
+def _generate_square_subsequent_mask(sz):
     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
     return mask

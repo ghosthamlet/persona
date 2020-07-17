@@ -1,5 +1,9 @@
 
-import ..utils
+import math
+import sys
+# for import parent utils
+sys.path.append('../')
+import utils
  
 import torch
 import torch.nn as nn
@@ -14,21 +18,28 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 class ContextEmb(nn.Module):
     def __init__(
         self,
+        sep_idx,
+        spe1_idx,
+        spe2_idx,
+
         input_dim,
         emb_dim, 
-        dropout,
         emb_freeze, 
         pad_idx,
+        dropout,
         embeddings=None 
     ):
         super().__init__()
+        self.sep_idx = sep_idx
+        self.spe1_idx = spe1_idx
+        self.spe2_idx = spe2_idx
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.pos_encoder = PositionalEncoding(emb_dim, dropout)
+        self.pos_encoder = PositionalEncoding(emb_dim)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, X, sep_idx, spe1_idx, spe2_idx):
+    def forward(self, X):
         # context: seq_len X batch_size
         #      seq: ..._SEP...
         # segs: seq_len X batch_size
@@ -44,7 +55,7 @@ class ContextEmb(nn.Module):
         # 2 X n_persona X batch_size X emb_dim
         personas_emb = self.emb(personas)
         # 2 X n_tags X batch_size X emb_dim
-        tags_emb = self.emb(tags_emb)
+        tags_emb = self.emb(tags)
         # 2 X batch_size X emb_dim
         personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
         # segs spe1_idx and spe2_idx is not a must
@@ -52,8 +63,8 @@ class ContextEmb(nn.Module):
         fn = lambda idx, i: torch.where(
                (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
                emb + personas_emb[i], emb)
-        emb = fn(spe1_idx, 0)
-        emb = fn(spe2_idx, 1)
+        emb = fn(self.spe1_idx, 0)
+        emb = fn(self.spe2_idx, 1)
 
         emb = emb + self.pos_encoder(emb)
         emb = self.dropout(emb)
@@ -66,7 +77,6 @@ class PersonaEmb(nn.Module):
         self,
         input_dim,
         emb_dim, 
-        dropout,
         emb_freeze, 
         pad_idx,
         embeddings=None 
@@ -75,11 +85,10 @@ class PersonaEmb(nn.Module):
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.dropout = nn.Dropout(dropout)
 
     def forward(self, persona):
         # seq_len X batch_size X emb_dim
-        emb = self.dropout(self.emb(persona) * math.sqrt(self.emb_dim))
+        emb = self.emb(persona) * math.sqrt(self.emb_dim)
 
         return emb                
 
@@ -89,21 +98,21 @@ class OutputEmb(nn.Module):
         self,
         input_dim,
         emb_dim, 
-        dropout,
         emb_freeze, 
         pad_idx,
+        dropout,
         embeddings=None 
     ):
         super().__init__()
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.pos_encoder = PositionalEncoding(emb_dim, dropout)
+        self.pos_encoder = PositionalEncoding(emb_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, output):
-        emb = self.dropout(self.emb(output) * math.sqrt(self.emb_dim))
-        emb = emb + self.pos_encoder(emb)
+        emb = self.emb(output) * math.sqrt(self.emb_dim)
+        emb = self.dropout(emb + self.pos_encoder(emb))
 
         return emb                
 
@@ -125,33 +134,34 @@ class PositionalEncoding(nn.Module):
         return x
 
  
-class Encoder(nn.Module):
-    def __init__(self,
+class TransformerEncoder(nn.Module):
+    def __init__(
+        self,
         input_dim,
         emb_dim, 
         n_hid,
         n_head,
         num_layers,
-        dropout,
+        dropout
     ):
         super().__init__()
         self.num_layers = num_layers
 
         encoder_layers = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
-        self.dropout = nn.Dropout(dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
 
-    def forward(self, emb, src_mask=None):
-        outs = self.transformer_encoder(emb, src_mask)
+    def forward(self, emb, mask=None):
+        outs = self.transformer_encoder(emb, src_key_padding_mask=mask)
 
         return outs
 
 
-class TransformerDecoderLayer(Module):
+class TransformerDecoderLayer(nn.Module):
     r"""Derived from torch.nn.TransformerDecoderLayer
     """
 
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+    def __init__(self, d_model, nhead, attn_alpha,
+            dim_feedforward=2048, dropout=0.1, activation="relu"):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -159,6 +169,7 @@ class TransformerDecoderLayer(Module):
         self.dropout1 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
         self.dropout2 = nn.Dropout(dropout)
+        self.attn_alpha = attn_alpha
         self.cls = nn.Linear(d_model, dim_feedforward)
 
         self.dropout = nn.Dropout(dropout)
@@ -167,8 +178,8 @@ class TransformerDecoderLayer(Module):
 
         self.activation = nn.modules.transformer._get_activation_fn(activation)
 
-    def forward(self, tgt, memory, persona, 
-            tgt_mask=None, memory_mask=None, 
+    def forward(self, tgt, memory, persona,
+            tgt_mask=None, memory_mask=None,
             tgt_key_padding_mask=None, memory_key_padding_mask=None):
        #tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
        #                      key_padding_mask=tgt_key_padding_mask)[0]
@@ -185,8 +196,9 @@ class TransformerDecoderLayer(Module):
         # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
         attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)[0]
-        alpha = self.cls(memory)
-        attn_merge = tgt + self.dropout(alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev)
+        alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
+        attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+        attn_merge = tgt + self.dropout(attn_merge)
         attn_merge = self.norm1(attn_merge)
  
         tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
@@ -196,7 +208,7 @@ class TransformerDecoderLayer(Module):
         return tgt, alpha
 
 
-class TransformerDecoder(Module):
+class TransformerDecoder(nn.Module):
     r"""Derived from torch.nn.TransformerDecoder
     """
 
@@ -207,12 +219,13 @@ class TransformerDecoder(Module):
         self.norm = norm
 
     def forward(self, tgt, memory, profiles, 
+            memory_mask=None, memory_key_padding_mask=None,
             tgt_mask=None, tgt_key_padding_mask=None):
         output = tgt
 
         for i in range(self.num_layers):
-            output = self.layers[i](output, memory, tgt_mask=tgt_mask,
-                                    memory_mask=memory_mask,
+            output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
+                                    memory_mask=memory_mask, persona=profiles,
                                     tgt_key_padding_mask=tgt_key_padding_mask,
                                     memory_key_padding_mask=memory_key_padding_mask)
 

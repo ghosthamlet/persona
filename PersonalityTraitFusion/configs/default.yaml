@@ -14,12 +14,11 @@ shuffle_data: True
 max_vocab_size: 40000
 pretrain_emb: True
 
+emb_dim: 100
 emb_freeze: True
 enc_bidi: True
 enc_num_layers: 4
 dec_num_layers: 4
-enc_emb_dim: 100
-dec_emb_dim: 100
 enc_hid_dim: 200
 dec_hid_dim: 200
 attn_dim: 16

@@ -49,22 +49,23 @@ class ContextEmb(nn.Module):
         context, segs, personas, tags = X
         emb = self.emb(context) * math.sqrt(self.emb_dim)
 
-        # XXX: paper no this
-        segs_emb = self.emb(segs)
+        if True:
+            # XXX: paper no this
+            segs_emb = self.emb(segs)
 
-        # 2 X n_persona X batch_size X emb_dim
-        personas_emb = self.emb(personas)
-        # 2 X n_tags X batch_size X emb_dim
-        tags_emb = self.emb(tags)
-        # 2 X batch_size X emb_dim
-        personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
-        # segs spe1_idx and spe2_idx is not a must
-        # (segs == idx) can be created from iterate context
-        fn = lambda idx, i: torch.where(
-               (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-               emb + personas_emb[i], emb)
-        emb = fn(self.spe1_idx, 0)
-        emb = fn(self.spe2_idx, 1)
+            # 2 X n_persona X batch_size X emb_dim
+            personas_emb = self.emb(personas)
+            # 2 X n_tags X batch_size X emb_dim
+            tags_emb = self.emb(tags)
+            # 2 X batch_size X emb_dim
+            personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
+            # segs spe1_idx and spe2_idx is not a must
+            # (segs == idx) can be created from iterate context
+            fn = lambda emb, idx, i: torch.where(
+                   (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                   emb + personas_emb[i], emb)
+            emb = fn(emb, self.spe1_idx, 0)
+            emb = fn(emb, self.spe2_idx, 1)
 
         emb = emb + self.pos_encoder(emb)
         emb = self.dropout(emb)
@@ -87,7 +88,7 @@ class PersonaEmb(nn.Module):
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, persona):
-        # seq_len X batch_size X emb_dim
+        # seq_len(k;v) X batch_size X emb_dim
         emb = self.emb(persona) * math.sqrt(self.emb_dim)
 
         return emb                
@@ -180,7 +181,8 @@ class TransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, memory, persona,
             tgt_mask=None, memory_mask=None,
-            tgt_key_padding_mask=None, memory_key_padding_mask=None):
+            tgt_key_padding_mask=None, memory_key_padding_mask=None,
+            persona_pad_mask=None):
        #tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
        #                      key_padding_mask=tgt_key_padding_mask)[0]
        #tgt = tgt + self.dropout1(tgt2)
@@ -190,16 +192,33 @@ class TransformerDecoderLayer(nn.Module):
        #tgt = tgt + self.dropout2(tgt2)
        #tgt = self.norm2(tgt)
 
-        attn_t = self.multihead_attn(tgt, persona, persona)[0]
-        attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
-                key_padding_mask=memory_key_padding_mask)[0]
         # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-        attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-                              key_padding_mask=tgt_key_padding_mask)[0]
-        alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
-        attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
-        attn_merge = tgt + self.dropout(attn_merge)
-        attn_merge = self.norm1(attn_merge)
+        if False:
+            # lr 1.5e-4
+            attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
+                                  key_padding_mask=tgt_key_padding_mask)[0]
+            attn_t = self.multihead_attn(tgt, persona, persona, 
+                    key_padding_mask=persona_pad_mask)[0]
+            attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                    key_padding_mask=memory_key_padding_mask)[0]
+            alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
+            attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+            attn_merge = tgt + self.dropout(attn_merge)
+            attn_merge = self.norm1(attn_merge)
+        else:
+            # lr 0.05
+            attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
+                                  key_padding_mask=tgt_key_padding_mask)[0]
+            attn_prev = tgt + self.dropout1(attn_prev)
+            attn_prev = self.norm1(attn_prev)
+            attn_t = self.multihead_attn(attn_prev, persona, persona, 
+                    key_padding_mask=persona_pad_mask)[0]
+            attn_c = self.multihead_attn(attn_prev, memory, memory, attn_mask=memory_mask, 
+                    key_padding_mask=memory_key_padding_mask)[0]
+            alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
+            attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c
+            attn_merge = attn_prev + self.dropout(attn_merge)
+            attn_merge = self.norm1(attn_merge)
  
         tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
         tgt = attn_merge + self.dropout2(tgt2)
@@ -220,14 +239,16 @@ class TransformerDecoder(nn.Module):
 
     def forward(self, tgt, memory, profiles, 
             memory_mask=None, memory_key_padding_mask=None,
-            tgt_mask=None, tgt_key_padding_mask=None):
+            tgt_mask=None, tgt_key_padding_mask=None,
+            persona_pad_mask=None):
         output = tgt
 
         for i in range(self.num_layers):
             output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
                                     memory_mask=memory_mask, persona=profiles,
                                     tgt_key_padding_mask=tgt_key_padding_mask,
-                                    memory_key_padding_mask=memory_key_padding_mask)
+                                    memory_key_padding_mask=memory_key_padding_mask,
+                                    persona_pad_mask=persona_pad_mask)
 
         if self.norm:
             output = self.norm(output)

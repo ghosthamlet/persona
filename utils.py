@@ -165,3 +165,21 @@ def print_backward_graph(tensor):
             fn(v[0])
     print(tensor.grad_fn)
     fn(tensor.grad_fn)
+
+ 
+def vocab_zh_trim_rule(word, count, min_count):
+    import gensim
+    l = len(word)
+    o = ord(word[0])
+
+    # remove single english letter, keep other single ascii
+    if l == 1 and (91 > o > 64 or 123 > o > 96):
+        return gensim.utils.RULE_DISCARD
+
+    # remove english or number with 2-20 letters 
+    # some special char may be removed
+    if l > 1 and sum(map(ord, word)) < 123 * 20:
+        return gensim.utils.RULE_DISCARD
+
+    return gensim.utils.RULE_DEFAULT
+                                   

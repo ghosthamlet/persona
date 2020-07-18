@@ -83,7 +83,6 @@ class Trainer:
         parser.add_argument('--enc_dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--dec_dropout', default=0.1, type=float, required=False, help='')
 
-        parser.add_argument('--alpha', default=1, type=float, required=False, help='weight of second loss')
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
 
@@ -297,7 +296,7 @@ class Trainer:
             masks = list(map(lambda x: x.to(self.device), masks))
 
             out = self.model(X, y, persona, masks)
-            loss = self.out_loss_fn(out[1:].view(-1, out.shape[-1]), y[1:].view(-1))
+            loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), y[1:].view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 

@@ -5,6 +5,11 @@ import time
 import itertools
 from filelock import FileLock
 
+import sys
+# for import parent utils
+sys.path.append('../')
+import utils
+
 import torch
 from torch.utils.data.dataset import Dataset
 from torch.nn.utils.rnn import pad_sequence
@@ -59,6 +64,8 @@ class Vocab:
         data_path,
         special_tokens=None
     ):
+        import gensim
+
         examples = list(DataProcesser(0, 0).get_examples(data_path, 'train'))
 
         self.stoi_map = {}
@@ -72,6 +79,14 @@ class Vocab:
                     self.stoi_map[k] = [i, 0]
                     i += 1
                 self.stoi_map[k][1] += 1
+
+        min_count = 137
+        self.stoi_map = {k: v 
+                         for k, v in self.stoi_map.items()
+                         if v[1] >= min_count and gensim.utils.RULE_DISCARD != utils.vocab_zh_trim_rule(k, v[1], min_count)}
+
+        for i, (k, v) in enumerate(self.stoi_map.items()):
+            v[0] = i
 
         i = len(self.stoi_map)
         for k in special_tokens:
@@ -166,6 +181,7 @@ class DataProcesser:
         file_path = os.path.join(path, mode + '.txt')
         # prefer city to province, as city can infer province, inverse can't
         parse_loc = lambda x: x != '' and x.split()[-1] or UNK
+        parse_gender = lambda x: '男' if x == 'male' else '女'
 
         with open(file_path) as f:
             for line in f:
@@ -187,14 +203,14 @@ class DataProcesser:
                     d_len -= 1
 
                 personas = [
-                        [persona1['gender'] or UNK, parse_loc(persona1['loc'])],
-                        [persona2['gender'] or UNK, parse_loc(persona2['loc'])],
+                        [parse_gender(persona1['gender']) or UNK, parse_loc(persona1['loc'])],
+                        [parse_gender(persona2['gender']) or UNK, parse_loc(persona2['loc'])],
                         ]
                 tags = [
                         (persona1['tag'][0] or UNK).split(';'),
                         (persona2['tag'][0] or UNK).split(';'),
                         ]
-                persona = [('性别', persona2['gender'] or UNK), 
+                persona = [('性别', parse_gender(persona2['gender']) or UNK), 
                            ('地址', parse_loc(persona2['loc'])),
                            ('兴趣', ),
                            (v for v in (persona2['tag'][0] or UNK).split(';'))]
@@ -203,6 +219,7 @@ class DataProcesser:
                         dialogs[i] = UNK
                     context = [v[0].split() for v in dialogs[:i+1]]
                     resp = dialogs[i+1][0].split()
+                    # TODO: change to class
                     yield context, personas, tags, resp, persona
 
     def convert_examples_to_features(
@@ -223,6 +240,20 @@ class DataProcesser:
             ipersonas = list(map(lambda x: list(map(vocab.stoi, x)), personas))
             itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
             ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
+            print()
+            print('context:')
+            print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
+            print('segs:')
+            print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
+            print('personas:')
+            print([vocab.itos(v) for v in ipersonas[0]])
+            print([vocab.itos(v) for v in ipersonas[1]])
+            print('tags:')
+            print([vocab.itos(v) for v in itags[0]])
+            print([vocab.itos(v) for v in itags[1]])
+            print('resp:')
+            print([vocab.itos(v) for v in iresp])
+
             yield (list(itertools.chain(*icontext)), list(itertools.chain(*isegs)), ipersonas, itags, 
                     iresp, list(itertools.chain(*ipersona)))
 
@@ -239,17 +270,15 @@ def generate_batch(batch, pad_idx):
     tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
     tags_pad = tags_pad.view(-1, 2, int(tags_pad.shape[1]/2)).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
-    src_mask = (context_pad == pad_idx).T
+    src_pad_mask = (context_pad == pad_idx).T
     tgt_pad_mask = (resp_pad == pad_idx).T
     tgt_mask = _generate_square_subsequent_mask(resp_pad.shape[0])
-    # tgt_mask = tgt_mask | _generate_square_subsequent_mask(len(resp_pad))
-    # persona = torch.tensor(persona).T
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
-    persona_mask = (persona_pad == pad_idx).T
+    persona_pad_mask = (persona_pad == pad_idx).T
 
     return ((context_pad, segs_pad, personas, tags_pad), 
             (resp_pad, persona_pad), 
-            (src_mask, tgt_mask, tgt_pad_mask, persona_mask))
+            (src_pad_mask, tgt_mask, tgt_pad_mask, persona_pad_mask))
 
 
 def _generate_square_subsequent_mask(sz):

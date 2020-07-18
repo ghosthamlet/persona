@@ -6,46 +6,38 @@ n_epochs: 10
 n_epochs_early_stage: 0
 clip_grad: 1
 # batch_size: 128
-batch_size: 32
-limit_example_length: 100000
-max_seq_length: 60
+batch_size: 128
+limit_example_length: 
+# most weibo are short 
+max_seq_length: 15
 shuffle_data: True
-# pretrain_emb must include special_tokens
-max_vocab_size: 40000
+# pretrain_emb must include special_tokens?
+# english letter will removed in max_vocab_size by gensim
+max_vocab_size: 42000
 pretrain_emb: True
 
 emb_freeze: True
-enc_bidi: True
-enc_num_layers: 4
-dec_num_layers: 4
-enc_emb_dim: 100
-dec_emb_dim: 100
-enc_hid_dim: 200
-dec_hid_dim: 200
-attn_dim: 16
 enc_dropout: 0.1
 dec_dropout: 0.1
-enc_rnn_dropout: 0
-dec_rnn_dropout: 0
 
-alpha: 0.6
-lr: 0.5
+# lr: 1.5e-4
+lr: 0.05
 weight_decay: 0.99
 
 model_path: models/
 pretrained_path:
-# data_path: tmp/
-data_path: datas/
+data_path: tmp/
+# data_path: datas/
 cache_path: caches/
 corpus_fname:
-vec_fname: models/vec.txt
-vocab_fname: models/vocab.txt
+vec_fname: models/vec-512a.txt
+vocab_fname: models/vocab-512a.txt
 
 max_context_size: 6
 num_layers: 6
-# n_head: 8
-n_head: 5
-# d_model: 512
-d_model: 100
+n_head: 8
+# n_head: 5
+d_model: 512
+# d_model: 100
 d_ff: 2048
 attn_alpha: 1

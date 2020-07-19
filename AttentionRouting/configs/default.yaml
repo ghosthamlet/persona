@@ -20,14 +20,13 @@ emb_freeze: True
 enc_dropout: 0.1
 dec_dropout: 0.1
 
-# lr: 1.5e-4
-lr: 0.05
-weight_decay: 0.99
+lr: 1.5e-4
+weight_decay: 0.05
 
 model_path: models/
 pretrained_path:
-data_path: tmp/
-# data_path: datas/
+# data_path: tmp/
+data_path: datas/
 cache_path: caches/
 corpus_fname:
 vec_fname: models/vec-512a.txt

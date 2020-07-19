@@ -193,8 +193,8 @@ class TransformerDecoderLayer(nn.Module):
        #tgt = self.norm2(tgt)
 
         # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-        if False:
-            # lr 1.5e-4
+        if True:
+            # must start with small lr 1.5e-4
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
                                   key_padding_mask=tgt_key_padding_mask)[0]
             attn_t = self.multihead_attn(tgt, persona, persona, 
@@ -206,7 +206,7 @@ class TransformerDecoderLayer(nn.Module):
             attn_merge = tgt + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
         else:
-            # lr 0.05
+            # this can start with large lr 0.05
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
                                   key_padding_mask=tgt_key_padding_mask)[0]
             attn_prev = tgt + self.dropout1(attn_prev)

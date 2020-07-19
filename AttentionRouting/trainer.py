@@ -218,7 +218,7 @@ class Trainer:
                 context_emb, persona_emb, output_emb,
                 post_encoder, resp_decoder, generater
                 ).to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=args.lr,
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
                 weight_decay=args.weight_decay)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
 
@@ -262,8 +262,10 @@ class Trainer:
             train_loss = self.train(early_stage=False)
             valid_loss = self.eval()
  
-            if valid_loss < best_val_loss:
-                best_val_loss = valid_loss
+            # if valid_loss < best_val_loss:
+                # best_val_loss = valid_loss
+            if train_loss < best_val_loss:
+                best_val_loss = train_loss
                 self.best_model = self.model
                 self.save_model(epoch)
 

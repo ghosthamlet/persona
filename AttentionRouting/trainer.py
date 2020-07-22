@@ -157,7 +157,7 @@ class Trainer:
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
-            self.train_lm_iter = DataLoader(ds, batch_size=args.batch_size, 
+            self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=datasets.generate_lm_batch, shuffle=False) 
         else:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
@@ -213,11 +213,11 @@ class Trainer:
 
         self.best_model = None
         if args.n_epochs_early_stage > 0:
-            self.model_lm = models.LM(output_emb, resp_decoder, generater).to(self.device)
-            self.optimizer = optim.AdamW(self.model_lm.parameters(), lr=args.lr,
+            self.model = models.LM(output_emb, resp_decoder, generater).to(self.device)
+            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
-            print(self.model_lm)
-            print(f'The model has {models.count_parameters(self.model_lm):,} trainable parameters')
+            print(self.model)
+            print(f'The model has {models.count_parameters(self.model):,} trainable parameters')
         else:
             self.model = models.AR(
                     context_emb, persona_emb, output_emb,
@@ -291,28 +291,28 @@ class Trainer:
         print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
     def train_lm(self):
-        self.model_lm.train()
+        self.model.train()
 
         epoch_loss = 0
-        for _, feature in enumerate(self.train_lm_iter):
+        for _, feature in enumerate(self.train_iter):
             self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
 
-            out = self.model_lm(feature)
+            out = self.model(feature)
             loss = self.out_loss_fn(out.view(-1, out.shape[-1]), 
                     feature.y.view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(self.model_lm.parameters(), self.args.clip_grad)
+            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
             self.optimizer.step()
 
             iloss = loss.item()
             epoch_loss += iloss
             print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
 
-        return epoch_loss / len(data_iter)
+        return epoch_loss / len(self.train_iter)
  
 
     def train(self, data_iter=None, early_stage=False):

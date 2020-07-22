@@ -31,7 +31,7 @@ class LM(nn.Module):
     def forward(self, feature):
         enc = self.output_emb(feature.x)
         out = self.decoder(enc, tgt_mask=feature.x_mask) 
-        return self.generate(out)
+        return self.generater(out)
 
 
 class AR(nn.Module):

@@ -13,6 +13,27 @@ import utils
 import modules
 
 
+class LM(nn.Module):
+    def __init__(
+        self,
+        output_emb,
+        decoder,
+        generater,
+    ):
+        super().__init__()
+
+        self.output_emb = output_emb
+        self.decoder = decoder
+        self.generater = generater
+
+        _init_weights(self.parameters())
+
+    def forward(self, feature):
+        enc = self.output_emb(feature.x)
+        out = self.decoder(enc, tgt_mask=feature.x_mask) 
+        return self.generate(out)
+
+
 class AR(nn.Module):
     def __init__(
         self,
@@ -34,12 +55,9 @@ class AR(nn.Module):
 
         # TODO: share input output embedding and pre_softmax
         self._share_encoder_decoder()
-        self._init_weights()
+        _init_weights(self.parameters())
 
-    def forward(
-        self,
-        feature,
-    ):
+    def forward(self, feature):
         context_enc, persona_enc = self.encode(feature)
         out = self.decode(feature, context_enc, persona_enc)
 
@@ -61,7 +79,11 @@ class AR(nn.Module):
                 tgt_mask=feature.resp_mask, 
                 tgt_key_padding_mask=feature.resp_pad_mask, 
                 persona_pad_mask=feature.persona_pad_mask) 
-        return self.generate(out)
+
+        enc_lm = self.output_emb(feature.lm.x)
+        out_lm = self.decoder(enc_lm, tgt_mask=feature.lm.x_mask) 
+
+        return self.generate(out), self.generate(out_lm)
 
     def generate(self, enc):
         return self.generater(enc)
@@ -89,17 +111,18 @@ class AR(nn.Module):
 
     def _share_encoder_decoder(self):
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
-            d_layers = self.resp_decoder.layers
-            d_layers[i].multihead_attn = layer.self_attn
-            d_layers[i].linear1 = layer.linear1
-            d_layers[i].linear2 = layer.linear2
-            d_layers[i].norm1 = layer.norm1
-            d_layers[i].norm2 = layer.norm2
+            d_layer = self.resp_decoder.layers[i]
+            layer.self_attn = d_layer.multihead_attn
+            layer.linear1 = d_layer.linear1
+            layer.linear2 = d_layer.linear2
+            layer.norm1 = d_layer.norm1
+            layer.norm2 = d_layer.norm2
 
-    def _init_weights(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
+
+def _init_weights(m):
+    for p in m:
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
 
 
 def init_weights(m):

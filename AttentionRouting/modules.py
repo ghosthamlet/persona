@@ -194,12 +194,15 @@ class TransformerDecoderLayer(nn.Module):
         # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
         if True:
             # must start with small lr 1.5e-4
+            attn_t = 0
+            attn_c = 0
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
                                   key_padding_mask=tgt_key_padding_mask)[0]
-            attn_t = self.multihead_attn(tgt, persona, persona, 
-                    key_padding_mask=persona_pad_mask)[0]
-            attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
-                    key_padding_mask=memory_key_padding_mask)[0]
+            if persona is not None and memory is not None:
+                attn_t = self.multihead_attn(tgt, persona, persona, 
+                        key_padding_mask=persona_pad_mask)[0]
+                attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                        key_padding_mask=memory_key_padding_mask)[0]
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
             attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
             attn_merge = tgt + self.dropout(attn_merge)
@@ -236,10 +239,11 @@ class TransformerDecoder(nn.Module):
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, tgt, memory, profiles, 
+    def forward(self, tgt, memory=None, profiles=None, 
             memory_mask=None, memory_key_padding_mask=None,
             tgt_mask=None, tgt_key_padding_mask=None,
             persona_pad_mask=None):
+        """Train language model When memory and profiles is None"""
         output = tgt
 
         for i in range(self.num_layers):

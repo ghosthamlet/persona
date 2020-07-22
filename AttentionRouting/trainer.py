@@ -21,7 +21,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 
 class Trainer:
@@ -42,8 +42,6 @@ class Trainer:
         self.build_model()
         print('Build loss fns...')
         self.build_loss_fns()
-
-        print(f'The model has {models.count_parameters(self.model):,} trainable parameters')
 
     def set_random_seed(self):
         torch.manual_seed(self.args.seed)
@@ -153,23 +151,23 @@ class Trainer:
         gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
 
         if args.n_epochs_early_stage > 0:
-            dp = datasets.DataProcesser(args.max_seq_length, args.max_context_size)
+            dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
+                    max_seq_length=args.max_seq_length*args.max_context_size)
             ds = datasets.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
-                    data_processer=dp, limit_length=args.limit_example_length, 
-                    mode='early_stage_train')
-            self.early_stage_train_iter = DataLoader(ds, batch_size=args.batch_size, 
+                    data_processer=dp, mode='train_lm')
+            self.train_lm_iter = DataLoader(ds, batch_size=args.batch_size, 
+                    collate_fn=datasets.generate_lm_batch, shuffle=False) 
+        else:
+            dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
+                    max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+            ds = datasets.PersonaDataset(
+                    self.vocab, args.max_seq_length, 
+                    data_path=args.data_path, cache_path=args.cache_path, 
+                    data_processer=dp, mode='train')
+            self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
-
-        dp = datasets.DataProcesser(args.max_seq_length, args.max_context_size)
-        ds = datasets.PersonaDataset(
-                self.vocab, args.max_seq_length, 
-                data_path=args.data_path, cache_path=args.cache_path, 
-                data_processer=dp, limit_length=args.limit_example_length, 
-                mode='train')
-        self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
-                collate_fn=gb, shuffle=args.shuffle_data) 
 
         self.valid_iter = None
         self.test_iter = None
@@ -214,15 +212,23 @@ class Trainer:
         generater = modules.Generater(args.d_model, output_dim)
 
         self.best_model = None
-        self.model = models.AR(
-                context_emb, persona_emb, output_emb,
-                post_encoder, resp_decoder, generater
-                ).to(self.device)
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
-                weight_decay=args.weight_decay)
+        if args.n_epochs_early_stage > 0:
+            self.model_lm = models.LM(output_emb, resp_decoder, generater).to(self.device)
+            self.optimizer = optim.AdamW(self.model_lm.parameters(), lr=args.lr,
+                    weight_decay=args.weight_decay)
+            print(self.model_lm)
+            print(f'The model has {models.count_parameters(self.model_lm):,} trainable parameters')
+        else:
+            self.model = models.AR(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater
+                    ).to(self.device)
+            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+                    weight_decay=args.weight_decay)
+            print(self.model)
+            print(f'The model has {models.count_parameters(self.model):,} trainable parameters')
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
 
-        print(self.model)
 
         if args.pretrained_path is None:
             pass
@@ -238,8 +244,8 @@ class Trainer:
         for epoch in range(self.args.n_epochs_early_stage):
             start_time = time.time()
 
-            train_loss = self.train(early_stage=True, data_iter=self.early_stage_train_iter)
-            self.save_model(epoch)
+            train_loss = self.train_lm()
+            self.save_model(epoch, 'lm')
 
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
@@ -251,6 +257,8 @@ class Trainer:
         if self.args.n_epochs_early_stage > 0:
             print('Run early stage...')
             trainer.run_early_stage()
+            # after fin, rerun with pretrained model 
+            return
 
         print('Run main stage...')
 
@@ -282,6 +290,31 @@ class Trainer:
         test_loss = self.eval(self.test_iter)
         print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
+    def train_lm(self):
+        self.model_lm.train()
+
+        epoch_loss = 0
+        for _, feature in enumerate(self.train_lm_iter):
+            self.optimizer.zero_grad()
+
+            utils.feature_to_device(feature, self.device)
+
+            out = self.model_lm(feature)
+            loss = self.out_loss_fn(out.view(-1, out.shape[-1]), 
+                    feature.y.view(-1))
+            # utils.print_backward_graph(loss)
+            loss.backward()
+
+            # nn.utils.clip_grad_norm_(self.model_lm.parameters(), self.args.clip_grad)
+            self.optimizer.step()
+
+            iloss = loss.item()
+            epoch_loss += iloss
+            print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
+
+        return epoch_loss / len(data_iter)
+ 
+
     def train(self, data_iter=None, early_stage=False):
         self.model.train()
 
@@ -292,14 +325,13 @@ class Trainer:
         for _, feature in enumerate(data_iter):
             self.optimizer.zero_grad()
 
-            for k in feature.__slots__:
-                v = getattr(feature, k)
-                if type(v) == torch.Tensor:
-                    setattr(feature, k, v.to(self.device))
+            utils.feature_to_device(feature, self.device)
 
-            out = self.model(feature)
+            out, out_lm = self.model(feature)
             loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
                     feature.resp[1:].view(-1))
+            loss += self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
+                    feature.lm.y.view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 
@@ -332,8 +364,9 @@ class Trainer:
 
         return epoch_loss / len(data_iter)
 
-    def save_model(self, epoch):
-        model_path = os.path.join(self.args.model_path, 'model_epoch{}'.format(epoch + 1))
+    def save_model(self, epoch, stage=''):
+        model_path = os.path.join(self.args.model_path, 
+                'model_{}_epoch{}'.format(stage, epoch + 1))
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         torch.save(self.model.state_dict(), model_path + '/model.pt')

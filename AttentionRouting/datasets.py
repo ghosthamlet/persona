@@ -160,8 +160,8 @@ class PersonaDataset(Dataset):
                 # ^ This seems to take a lot of time so I want to investigate why and how we can improve.
                 print("Saving features into cached file %s [took %.3f s]" % (cached_features_file, time.time() - start))
 
-    # def __len__(self):
-    #    return len(self.features)
+    def __len__(self):
+        return len(self.features)
 
     def __getitem__(self, i):
         return self.features[i]
@@ -263,9 +263,11 @@ class ChatDataProcesser:
           # print('resp:')
           # print([vocab.itos(v) for v in iresp])
 
-            yield (list(itertools.chain(*icontext)), list(itertools.chain(*isegs)), 
+            icontext = list(itertools.chain(*icontext))
+            yield (icontext, list(itertools.chain(*isegs)), 
                     ipersonas_no_tag, itags, 
-                    iresp, list(itertools.chain(*ipersona)))
+                    iresp, list(itertools.chain(*ipersona)), 
+                    icontext + iresp)
 
 
 class LMDataProcesser:
@@ -281,11 +283,23 @@ class LMDataProcesser:
         file_path = os.path.join(path, mode + '.txt')
 
         with open(file_path) as f:
-            i = 0
-            for line in f:
-                if self.limit_length is not None and i == self.limit_length:
-                    break
-                i += 1
+            datas = list(f.read())
+        l = len(datas)
+
+        # self.max_seq_length-1 for every seq start with prev seq end char
+        i = 0
+        for j in range(1, l, self.max_seq_length-1):
+            if self.limit_length is not None and i == self.limit_length:
+                break
+            i += 1
+
+            e = j + self.max_seq_length
+            # remove last short seq
+            if e > l:
+                break
+
+            # j-1 for every seq start with prev seq end char except zero seq
+            yield datas[j-1:e]
 
     def convert_examples_to_features(
         self,
@@ -293,9 +307,19 @@ class LMDataProcesser:
         examples,
         mode
     ):
-        for context, personas_no_tag, tags, resp, persona in examples:
-            pass
+        for seq in examples:
+            yield [vocab.stoi(k) for k in seq]
  
+ 
+@dataclass
+class LMFeature:
+    __slots__ = ['x', 'y', 'x_mask']
+    
+    x: Tensor
+    y: Tensor
+
+    x_mask: Tensor
+       
 
 @dataclass
 class ChatFeature:
@@ -314,18 +338,15 @@ class ChatFeature:
 
     context_pad_mask: Tensor
     resp_mask: Tensor
-    resp_pad_mask: tensor
-    persona_pad_mask: tensor
+    resp_pad_mask: Tensor
+    persona_pad_mask: Tensor
 
-
-@dataclass
-class LMFeature:
-    __slots__ = []
+    lm: LMFeature
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
 def generate_batch(batch, pad_idx):
-    context, segs, personas_no_tag, tags, resp, persona = zip(*batch)
+    context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
     personas_no_tag = torch.tensor(personas_no_tag).permute(1, 2, 0)
 
     fn = lambda x: list(map(torch.tensor, x)) 
@@ -341,6 +362,8 @@ def generate_batch(batch, pad_idx):
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
     persona_pad_mask = (persona_pad == pad_idx).T
 
+    lm = generate_lm_batch(lm)
+
     return ChatFeature(
             context=context_pad,
             segs=segs_pad,
@@ -354,7 +377,18 @@ def generate_batch(batch, pad_idx):
             resp_mask=tgt_mask,
             resp_pad_mask=tgt_pad_mask,
             persona_pad_mask=persona_pad_mask,
+
+            lm=lm,
     )
+
+
+def generate_lm_batch(batch):
+    batch = torch.tensor(batch).T
+    x = batch[:-1]
+    y = batch[1:]
+    x_mask = _generate_square_subsequent_mask(x.shape[0])
+
+    return LMFeature(x=x, y=y, x_mask=x_mask)
 
 
 def _generate_square_subsequent_mask(sz):
@@ -398,7 +432,4 @@ def build_corpus(raw_fname, corpus_fname):
     with open(corpus_fname) as f:
         f.write('\n'.join(datas_str))
 
-
-def build_lm_corpus():
-    pass
 

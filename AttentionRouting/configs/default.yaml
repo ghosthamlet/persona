@@ -3,18 +3,20 @@
 device: cuda
 seed: 42
 n_epochs: 10
-n_epochs_early_stage: 0
+n_epochs_early_stage: 10
 clip_grad: 1
 # batch_size: 128
 batch_size: 128
-limit_example_length: 
+limit_example_length: 10000
 # most weibo are short 
+# lm context size is equal max_seq_length * max_context_size
 max_seq_length: 15
 max_context_size: 6
 shuffle_data: True
 # pretrain_emb must include special_tokens? see Transformers library
 # english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
 max_vocab_size: 42000
+# pretrain char LM 440674938 n_token with 14023 n_vocab, data are AssignPersona weibo, tieba, douban
 pretrain_emb: True
 
 emb_freeze: True

@@ -183,3 +183,15 @@ def vocab_zh_trim_rule(word, count, min_count):
 
     return gensim.utils.RULE_DEFAULT
                                    
+
+def feature_to_device(feature, device):
+    if not hasattr(feature, '__slots__'):
+        return
+
+    for k in feature.__slots__:
+        v = getattr(feature, k)
+        if type(v) == torch.Tensor:
+            setattr(feature, k, v.to(device))
+        else:
+            feature_to_device(v, device)
+

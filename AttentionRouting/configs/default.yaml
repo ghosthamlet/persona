@@ -10,15 +10,21 @@ batch_size: 128
 limit_example_length: 
 # most weibo are short 
 max_seq_length: 15
+max_context_size: 6
 shuffle_data: True
-# pretrain_emb must include special_tokens?
-# english letter will removed in max_vocab_size by gensim
+# pretrain_emb must include special_tokens? see Transformers library
+# english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
 max_vocab_size: 42000
 pretrain_emb: True
 
 emb_freeze: True
 enc_dropout: 0.1
 dec_dropout: 0.1
+num_layers: 6
+n_head: 8
+d_model: 512
+d_ff: 2048
+attn_alpha: 1
 
 lr: 1.5e-4
 weight_decay: 0.05
@@ -32,11 +38,4 @@ corpus_fname:
 vec_fname: models/vec-512a.txt
 vocab_fname: models/vocab-512a.txt
 
-max_context_size: 6
-num_layers: 6
-n_head: 8
-# n_head: 5
-d_model: 512
-# d_model: 100
-d_ff: 2048
-attn_alpha: 1
+

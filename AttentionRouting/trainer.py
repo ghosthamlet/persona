@@ -289,16 +289,17 @@ class Trainer:
             data_iter = self.train_iter
 
         epoch_loss = 0
-        for _, (X, (y, persona), masks) in enumerate(data_iter):
+        for _, feature in enumerate(data_iter):
             self.optimizer.zero_grad()
 
-            X = list(map(lambda x: x.to(self.device), X))
-            y = y.to(self.device)
-            persona = persona.to(self.device)
-            masks = list(map(lambda x: x.to(self.device), masks))
+            for k in feature.__slots__:
+                v = getattr(feature, k)
+                if type(v) == torch.Tensor:
+                    setattr(feature, k, v.to(self.device))
 
-            out = self.model(X, y, persona, masks)
-            loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), y[1:].view(-1))
+            out = self.model(feature)
+            loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
+                    feature.resp[1:].view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 

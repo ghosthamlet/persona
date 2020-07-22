@@ -4,6 +4,8 @@ import json
 import time
 import itertools
 from filelock import FileLock
+from dataclasses import dataclass
+from typing import Sequence
 
 import sys
 # for import parent utils
@@ -11,6 +13,7 @@ sys.path.append('../')
 import utils
 
 import torch
+from torch import Tensor
 from torch.utils.data.dataset import Dataset
 from torch.nn.utils.rnn import pad_sequence
 
@@ -66,7 +69,7 @@ class Vocab:
     ):
         import gensim
 
-        examples = list(DataProcesser(0, 0).get_examples(data_path, 'train'))
+        examples = list(ChatDataProcesser(0, 0).get_examples(data_path, 'train'))
 
         self.stoi_map = {}
         self.itos_map = {}
@@ -111,6 +114,9 @@ class Vocab:
         return [k for k, v in self.binary_lable.items() if i == v][0]
 
 
+# use IterableDataset for lazy load
+# shuffle and sort can't work for lazy 
+# __len__ is useless for lazy load
 class PersonaDataset(Dataset):
     def __init__(
         self,
@@ -119,7 +125,6 @@ class PersonaDataset(Dataset):
         data_path,
         cache_path,
         data_processer,
-        limit_length=None,
         mode='train',
         overwrite_cache=True,
     ):
@@ -145,9 +150,6 @@ class PersonaDataset(Dataset):
                 print(f"Creating features from dataset file at {data_path}")
 
                 examples = list(data_processer.get_examples(data_path, mode))
-                if limit_length is not None:
-                    examples = examples[:limit_length]
-                    
                 self.features = list(data_processer.convert_examples_to_features(
                     vocab,
                     examples,
@@ -158,24 +160,26 @@ class PersonaDataset(Dataset):
                 # ^ This seems to take a lot of time so I want to investigate why and how we can improve.
                 print("Saving features into cached file %s [took %.3f s]" % (cached_features_file, time.time() - start))
 
-    def __len__(self):
-        return len(self.features)
+    # def __len__(self):
+    #    return len(self.features)
 
     def __getitem__(self, i):
         return self.features[i]
 
 
-class DataProcesser:
+class ChatDataProcesser:
     def __init__(
         self,
         max_seq_length,
         max_context_size,
+        limit_length=None,
         complete_persona=True
     ):
         # context length <= max_seq_length * max_context_size
         self.max_seq_length = max_seq_length
         self.max_context_size = max_context_size
         self.complete_persona = complete_persona
+        self.limit_length = limit_length
 
     def get_examples(self, path, mode):
         file_path = os.path.join(path, mode + '.txt')
@@ -184,7 +188,12 @@ class DataProcesser:
         parse_gender = lambda x: '男' if x == 'male' else '女'
 
         with open(file_path) as f:
+            i = 0
             for line in f:
+                if self.limit_length is not None and i == self.limit_length:
+                    break
+                i += 1
+
                 obj = json.loads(line)
                 dialogs = obj['dialog']
                 d_len = len(dialogs)
@@ -202,7 +211,7 @@ class DataProcesser:
                     dialogs = dialogs[:d_len-1]
                     d_len -= 1
 
-                personas = [
+                personas_no_tag = [
                         [parse_gender(persona1['gender']) or UNK, parse_loc(persona1['loc'])],
                         [parse_gender(persona2['gender']) or UNK, parse_loc(persona2['loc'])],
                         ]
@@ -219,8 +228,8 @@ class DataProcesser:
                         dialogs[i] = UNK
                     context = [v[0].split() for v in dialogs[:i+1]]
                     resp = dialogs[i+1][0].split()
-                    # TODO: change to class
-                    yield context, personas, tags, resp, persona
+
+                    yield context, personas_no_tag, tags, resp, persona
 
     def convert_examples_to_features(
         self,
@@ -228,7 +237,7 @@ class DataProcesser:
         examples,
         mode
     ):
-        for context, personas, tags, resp, persona in examples:
+        for context, personas_no_tag, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
                         for post in context[:self.max_context_size]]
@@ -237,31 +246,87 @@ class DataProcesser:
                      + [vocab.stoi(SPE2)] * (len(icontext[i+1]) if i+1 < l else 0)
                     for i in range(0, l, 2)]
             iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            ipersonas = list(map(lambda x: list(map(vocab.stoi, x)), personas))
+            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
             itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
             ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
-            print()
-            print('context:')
-            print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
-            print('segs:')
-            print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
-            print('personas:')
-            print([vocab.itos(v) for v in ipersonas[0]])
-            print([vocab.itos(v) for v in ipersonas[1]])
-            print('tags:')
-            print([vocab.itos(v) for v in itags[0]])
-            print([vocab.itos(v) for v in itags[1]])
-            print('resp:')
-            print([vocab.itos(v) for v in iresp])
+          # print()
+          # print('context:')
+          # print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
+          # print('segs:')
+          # print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
+          # print('personas_no_tag:')
+          # print([vocab.itos(v) for v in ipersonas_no_tag[0]])
+          # print([vocab.itos(v) for v in ipersonas_no_tag[1]])
+          # print('tags:')
+          # print([vocab.itos(v) for v in itags[0]])
+          # print([vocab.itos(v) for v in itags[1]])
+          # print('resp:')
+          # print([vocab.itos(v) for v in iresp])
 
-            yield (list(itertools.chain(*icontext)), list(itertools.chain(*isegs)), ipersonas, itags, 
+            yield (list(itertools.chain(*icontext)), list(itertools.chain(*isegs)), 
+                    ipersonas_no_tag, itags, 
                     iresp, list(itertools.chain(*ipersona)))
+
+
+class LMDataProcesser:
+    def __init__(
+        self,
+        max_seq_length,
+        limit_length=None
+    ):
+        self.max_seq_length = max_seq_length
+        self.limit_length = limit_length
+
+    def get_examples(self, path, mode):
+        file_path = os.path.join(path, mode + '.txt')
+
+        with open(file_path) as f:
+            i = 0
+            for line in f:
+                if self.limit_length is not None and i == self.limit_length:
+                    break
+                i += 1
+
+    def convert_examples_to_features(
+        self,
+        vocab,
+        examples,
+        mode
+    ):
+        for context, personas_no_tag, tags, resp, persona in examples:
+            pass
+ 
+
+@dataclass
+class ChatFeature:
+    __slots__ = ['context', 'segs', 'personas_no_tag', 'tags',
+            'resp', 'persona', 
+            'context_pad_mask', 'resp_mask', 
+            'resp_pad_mask', 'persona_pad_mask']
+
+    context: Tensor
+    segs: Tensor
+    personas_no_tag: Tensor
+    tags: Tensor
+
+    resp: Tensor
+    persona: Tensor
+
+    context_pad_mask: Tensor
+    resp_mask: Tensor
+    resp_pad_mask: tensor
+    persona_pad_mask: tensor
+
+
+@dataclass
+class LMFeature:
+    __slots__ = []
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
 def generate_batch(batch, pad_idx):
-    context, segs, personas, tags, resp, persona = zip(*batch)
-    personas = torch.tensor(personas).permute(1, 2, 0)
+    context, segs, personas_no_tag, tags, resp, persona = zip(*batch)
+    personas_no_tag = torch.tensor(personas_no_tag).permute(1, 2, 0)
 
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
@@ -276,9 +341,20 @@ def generate_batch(batch, pad_idx):
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
     persona_pad_mask = (persona_pad == pad_idx).T
 
-    return ((context_pad, segs_pad, personas, tags_pad), 
-            (resp_pad, persona_pad), 
-            (src_pad_mask, tgt_mask, tgt_pad_mask, persona_pad_mask))
+    return ChatFeature(
+            context=context_pad,
+            segs=segs_pad,
+            personas_no_tag=personas_no_tag,
+            tags=tags_pad,
+
+            resp=resp_pad,
+            persona=persona_pad,
+
+            context_pad_mask=src_pad_mask,
+            resp_mask=tgt_mask,
+            resp_pad_mask=tgt_pad_mask,
+            persona_pad_mask=persona_pad_mask,
+    )
 
 
 def _generate_square_subsequent_mask(sz):
@@ -321,3 +397,8 @@ def build_corpus(raw_fname, corpus_fname):
 
     with open(corpus_fname) as f:
         f.write('\n'.join(datas_str))
+
+
+def build_lm_corpus():
+    pass
+

@@ -39,30 +39,29 @@ class ContextEmb(nn.Module):
         self.pos_encoder = PositionalEncoding(emb_dim)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, X):
+    def forward(self, feature):
         # context: seq_len X batch_size
         #      seq: ..._SEP...
         # segs: seq_len X batch_size
         #      _SPE1 _SPE1 _SPE1 _SPE2 _SPE2 _SPE2
-        # personas: 2 X n_persona X batch_size
+        # personas_no_tag: 2 X n_persona X batch_size
         # tags: 2 X n_tags X batch_size (n_tags has pad, as it is different in speakers)
-        context, segs, personas, tags = X
-        emb = self.emb(context) * math.sqrt(self.emb_dim)
+        emb = self.emb(feature.context) * math.sqrt(self.emb_dim)
 
         if True:
             # XXX: paper no this
-            segs_emb = self.emb(segs)
+            segs_emb = self.emb(feature.segs)
 
             # 2 X n_persona X batch_size X emb_dim
-            personas_emb = self.emb(personas)
+            personas_emb = self.emb(feature.personas_no_tag)
             # 2 X n_tags X batch_size X emb_dim
-            tags_emb = self.emb(tags)
+            tags_emb = self.emb(feature.tags)
             # 2 X batch_size X emb_dim
             personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
             # segs spe1_idx and spe2_idx is not a must
             # (segs == idx) can be created from iterate context
             fn = lambda emb, idx, i: torch.where(
-                   (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                   (feature.segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
                    emb + personas_emb[i], emb)
             emb = fn(emb, self.spe1_idx, 0)
             emb = fn(emb, self.spe2_idx, 1)

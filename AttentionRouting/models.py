@@ -32,38 +32,35 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
 
+        # TODO: share input output embedding and pre_softmax
         self._share_encoder_decoder()
         self._init_weights()
 
     def forward(
         self,
-        X,
-        y, 
-        persona,
-        masks,
+        feature,
     ):
-        context_enc, persona_enc = self.encode(X, persona, masks)
-        out = self.decode(y, context_enc, persona_enc, masks)
+        context_enc, persona_enc = self.encode(feature)
+        out = self.decode(feature, context_enc, persona_enc)
 
         return out
 
-    def encode(self, X, persona, masks):
-        src_mask, _, _, persona_mask = masks
-        context_emb = self.context_emb(X)
-        persona_emb = self.persona_emb(persona)
+    def encode(self, feature):
+        context_emb = self.context_emb(feature)
+        persona_emb = self.persona_emb(feature.persona)
 
-        context_enc = self.post_encoder(context_emb, src_mask)
-        persona_enc = self.post_encoder(persona_emb, persona_mask)
+        context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
+        persona_enc = self.post_encoder(persona_emb, feature.persona_pad_mask)
  
         return context_enc, persona_enc
 
-    def decode(self, y, context_enc, persona_enc, masks):
-        src_mask, tgt_mask, tgt_pad_mask, persona_pad_mask = masks
-        y_enc = self.output_emb(y)
-        out = self.resp_decoder(y_enc, context_enc, persona_enc, 
-                memory_key_padding_mask=src_mask, tgt_mask=tgt_mask, 
-                tgt_key_padding_mask=tgt_pad_mask, persona_pad_mask=persona_pad_mask) 
-                # y_key_padding_mask, context_key_padding_mask)
+    def decode(self, feature, context_enc, persona_enc):
+        resp_enc = self.output_emb(feature.resp)
+        out = self.resp_decoder(resp_enc, context_enc, persona_enc, 
+                memory_key_padding_mask=feature.context_pad_mask, 
+                tgt_mask=feature.resp_mask, 
+                tgt_key_padding_mask=feature.resp_pad_mask, 
+                persona_pad_mask=feature.persona_pad_mask) 
         return self.generate(out)
 
     def generate(self, enc):

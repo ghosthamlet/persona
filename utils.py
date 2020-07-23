@@ -1,7 +1,25 @@
 
 import torch
 import torch.nn as nn
+from torch.utils.data.dataset import Dataset
 
+ 
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super().__init__()
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = self.pe[:x.size(0), :]
+        return x
+       
                                 
 class Attention(nn.Module):
     """different attention implementions
@@ -194,4 +212,190 @@ def feature_to_device(feature, device):
             setattr(feature, k, v.to(device))
         else:
             feature_to_device(v, device)
+ 
+
+class Vocab:
+    def __init__(
+        self,
+        vocab,
+        data_path,
+        special_tokens=None
+    ):
+        self.stoi_map = {}
+        self.itos_map = {}
+        self.binary_lable = dict(
+            positive=1,
+            negative=0,
+        )
+
+        if special_tokens is None:
+            special_tokens = PRESET_SPECIAL_TOKENS
+        else:
+            special_tokens = PRESET_SPECIAL_TOKENS + special_tokens
+
+        if vocab is None:
+            self.__init(data_path, special_tokens)
+            return
+
+        for k, v in vocab.items():
+            self.stoi_map[k] = (v.index, v.count)
+            self.itos_map[v.index] = k
+
+        i = len(self.stoi_map)
+        for k in special_tokens:
+            self.stoi_map[k] = [i, 1000]
+            self.itos_map[i] = k
+            i += 1
+
+    # TODO: add max_vocab_size
+    def __init(
+        self,
+        data_path,
+        special_tokens=None
+    ):
+        import gensim
+
+        examples = list(ChatDataProcesser(0, 0).get_examples(data_path, 'train'))
+
+        self.stoi_map = {}
+        self.itos_map = {}
+
+        i = 0
+        for post, _, _, resp, _ in examples:
+            post = list(itertools.chain(*post))
+            for k in set(post + resp):
+                if k not in self.stoi_map:
+                    self.stoi_map[k] = [i, 0]
+                    i += 1
+                self.stoi_map[k][1] += 1
+
+        min_count = 137
+        self.stoi_map = {k: v 
+                         for k, v in self.stoi_map.items()
+                         if v[1] >= min_count and gensim.utils.RULE_DISCARD != utils.vocab_zh_trim_rule(k, v[1], min_count)}
+
+        for i, (k, v) in enumerate(self.stoi_map.items()):
+            v[0] = i
+
+        i = len(self.stoi_map)
+        for k in special_tokens:
+            self.stoi_map[k] = [i, 1000]
+            i += 1
+
+        self.itos_map = {i: k for k, (i, _) in self.stoi_map.items()}
+
+    def __len__(self):
+        return len(self.stoi_map)
+
+    def stoi(self, s):
+        return self.stoi_map.get(s, self.stoi_map[UNK])[0]
+
+    def itos(self, i):
+        return self.itos_map[i]
+
+    def binary_stoi(self, s):
+        return self.binary_lable[s]
+
+    def binary_itos(self, i):
+        return [k for k, v in self.binary_lable.items() if i == v][0]
+       
+
+# use IterableDataset for lazy load
+# shuffle and sort can't work for lazy 
+# __len__ is useless for lazy load
+class PersonaDataset(Dataset):
+    def __init__(
+        self,
+        vocab,
+        max_seq_length,
+        data_path,
+        cache_path,
+        data_processer,
+        mode='train',
+        overwrite_cache=True,
+    ):
+        # Load data features from cache or dataset file
+        cached_features_file = os.path.join(
+            cache_path,
+            "cached_{}_{}".format(
+                mode, str(max_seq_length),
+            ),
+        )
+        
+        # Make sure only the first process in distributed training processes the dataset,
+        # and the others will use the cache.
+        lock_path = cached_features_file + ".lock"
+        with FileLock(lock_path):
+            if os.path.exists(cached_features_file) and not overwrite_cache:
+                start = time.time()
+                self.features = torch.load(cached_features_file)
+                print(
+                    f"Loading features from cached file {cached_features_file} [took %.3f s]", time.time() - start
+                )
+            else:
+                print(f"Creating features from dataset file at {data_path}")
+
+                examples = list(data_processer.get_examples(data_path, mode))
+                self.features = list(data_processer.convert_examples_to_features(
+                    vocab,
+                    examples,
+                    mode=mode,
+                ))
+                start = time.time()
+                # torch.save(self.features, cached_features_file)
+                # ^ This seems to take a lot of time so I want to investigate why and how we can improve.
+                print("Saving features into cached file %s [took %.3f s]" % (cached_features_file, time.time() - start))
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, i):
+        return self.features[i]
+       
+ 
+def generate_square_subsequent_mask(sz):
+    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask
+     
+ 
+def uniform_init_weights(m):
+    for name, param in m.named_parameters():
+        if 'weight' in name:
+            n = param.data.shape[-1]
+            nn.init.uniform_(param.data, -math.sqrt(3/n), math.sqrt(3/n))
+            # nn.init.normal_(param.data, mean=0, std=0.01)
+        else:
+            nn.init.constant_(param.data, 0)
+
+
+def xavier_init_weights(m):
+    for p in m.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+
+def count_parameters(m):
+    return sum(p.numel() for p in m.parameters() if p.requires_grad)
+
+
+def build_word2vec(corpus_fname, vec_fname, vocab_fname, 
+        max_vocab_size, trim_rule=vocab_zh_trim_rule, emb_dim=100):
+    """
+    no need utils.vocab_zh_trim_rule for char embedding
+    """
+    import gensim
+    lss = gensim.models.word2vec.LineSentence(corpus_fname) 
+    # skip-gram is more accuracy for most words, but CBOW is better for name similarity
+    model = gensim.models.Word2Vec(lss, 
+            max_final_vocab=max_vocab_size, size=emb_dim,
+            trim_rule=trim_rule)
+    model.wv.save_word2vec_format(vec_fname, vocab_fname)
+    return model
+
+
+def load_embeddings_and_vocab(vec_fname, vocab_fname):
+    import gensim
+    model = gensim.models.KeyedVectors.load_word2vec_format(vec_fname, vocab_fname)
+    return torch.tensor(model.vectors), model.vocab
 

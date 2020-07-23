@@ -13,7 +13,6 @@ import utils
 import modules
 
 
-
 class AR(nn.Module):
     def __init__(
         self,
@@ -35,7 +34,7 @@ class AR(nn.Module):
 
         self._share_emb()
         self._share_encoder_decoder()
-        _init_weights(self.parameters())
+        utils.xavier_init_weights(self)
 
     def forward(self, feature):
         context_enc, persona_enc = self.encode(feature)
@@ -91,8 +90,8 @@ class AR(nn.Module):
         return outs
 
     def _share_emb(self):
-        self.context_emb.emb = self.output_emb.emb
-        self.persona_emb.emb = self.output_emb.emb
+        self.context_emb.emb.weight = self.output_emb.emb.weight
+        self.persona_emb.emb.weight = self.output_emb.emb.weight
         self.generater.out.weight = self.output_emb.emb.weight
 
     def _share_encoder_decoder(self):
@@ -126,7 +125,7 @@ class _LM(nn.Module):
         self.generater = generater
 
         self._share_emb()
-        _init_weights(self.parameters())
+        utils.xavier_init_weights(self)
 
     def forward(self, feature):
         enc = self.output_emb(feature.x)
@@ -136,43 +135,3 @@ class _LM(nn.Module):
     def _share_emb(self):
         self.generater.out.weight = self.output_emb.emb.weight
        
-def _init_weights(m):
-    for p in m:
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
-
-
-def init_weights(m):
-    for name, param in m.named_parameters():
-        if 'weight' in name:
-            n = param.data.shape[-1]
-            nn.init.uniform_(param.data, -math.sqrt(3/n), math.sqrt(3/n))
-            # nn.init.normal_(param.data, mean=0, std=0.01)
-        else:
-            nn.init.constant_(param.data, 0)
-
-
-def count_parameters(m):
-    return sum(p.numel() for p in m.parameters() if p.requires_grad)
-
- 
-
-def build_word2vec(corpus_fname, vec_fname, vocab_fname, 
-        max_vocab_size, trim_rule=utils.vocab_zh_trim_rule, emb_dim=100):
-    """
-    no need utils.vocab_zh_trim_rule for char embedding
-    """
-    import gensim
-    lss = gensim.models.word2vec.LineSentence(corpus_fname) 
-    # skip-gram is more accuracy for most words, but CBOW is better for name similarity
-    model = gensim.models.Word2Vec(lss, 
-            max_final_vocab=max_vocab_size, size=emb_dim,
-            trim_rule=trim_rule)
-    model.wv.save_word2vec_format(vec_fname, vocab_fname)
-    return model
-
-
-def load_embeddings_and_vocab(vec_fname, vocab_fname):
-    import gensim
-    model = gensim.models.KeyedVectors.load_word2vec_format(vec_fname, vocab_fname)
-    return torch.tensor(model.vectors), model.vocab

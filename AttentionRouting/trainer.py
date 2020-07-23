@@ -61,28 +61,26 @@ class Trainer:
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
         parser.add_argument('--n_epochs', default=10, type=int, required=False, help='')
         parser.add_argument('--n_epochs_early_stage', default=0, type=int, required=False, help='')
-        parser.add_argument('--clip_grad', default=1, type=int, required=False, help='')
         parser.add_argument('--batch_size', default=128, type=int, required=False, help='')
         parser.add_argument('--limit_example_length', default=256, type=int, required=False, help='')
         parser.add_argument('--max_seq_length', default=300, type=int, required=False, help='')
+        parser.add_argument('--max_context_size', default=10, type=int, required=False, help='')
         parser.add_argument('--shuffle_data', action='store_true', required=False, help='')
         parser.add_argument('--max_vocab_size', default=40000, type=int, required=False, help='')
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
-        parser.add_argument('--enc_bidi', action='store_true', required=False, help='')
-        parser.add_argument('--enc_num_layers', default=4, type=int, required=False, help='')
-        parser.add_argument('--dec_num_layers', default=4, type=int, required=False, help='')
-        parser.add_argument('--enc_emb_dim', default=100, type=int, required=False, help='')
-        parser.add_argument('--dec_emb_dim', default=100, type=int, required=False, help='')
-        parser.add_argument('--enc_hid_dim', default=64, type=int, required=False, help='')
-        parser.add_argument('--dec_hid_dim', default=64, type=int, required=False, help='')
-        parser.add_argument('--attn_dim', default=8, type=int, required=False, help='')
         parser.add_argument('--enc_dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--dec_dropout', default=0.1, type=float, required=False, help='')
+        parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
+        parser.add_argument('--n_head', default=8, type=int, required=False, help='')
+        parser.add_argument('--d_model', default=512, type=int, required=False, help='')
+        parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
+        parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
+        parser.add_argument('--clip_grad', default=1, type=int, required=False, help='')
 
         parser.add_argument('--model_path', default='models/', type=str, required=False, help='')
         parser.add_argument('--pretrained_path', type=str, required=False, help='')
@@ -91,13 +89,6 @@ class Trainer:
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
-
-        parser.add_argument('--max_context_size', default=10, type=int, required=False, help='')
-        parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
-        parser.add_argument('--n_head', default=8, type=int, required=False, help='')
-        parser.add_argument('--d_model', default=512, type=int, required=False, help='')
-        parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
-        parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
 
         args = parser.parse_args()
         if args.config_file != '':
@@ -122,9 +113,6 @@ class Trainer:
                 not os.path.exists(args.vec_fname) 
                 or not os.path.exists(args.vocab_fname)
         ):
-            # XXX: datasets.retokenize all the chinese old datasets first 
-            # 现成的已分词数据分词质量不好，造成word2vec效果下降，如小提琴的most_similar完全错误
-            # TODO: try token to letter or subwords
             print('Pretraining word2vec...')
             models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, args.d_model)
 
@@ -133,7 +121,7 @@ class Trainer:
             print('Loading word2vec...')
             embeddings, gensim_vocab = models.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
             embeddings = embeddings.to(self.device)
-        self.vocab = datasets.Vocab(gensim_vocab, args.data_path)
+        self.vocab = utils.Vocab(gensim_vocab, args.data_path)
         self.input_dim = len(self.vocab)
         # if special_tokens did not include in pretrain_emb, append zeros, disable emb_freeze
         if args.pretrain_emb:
@@ -154,16 +142,16 @@ class Trainer:
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length)
-            ds = datasets.PersonaDataset(
+            ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
-                    collate_fn=gb_lm, shuffle=False) 
+                    collate_fn=gb_lm, shuffle=True) 
         else:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
-            ds = datasets.PersonaDataset(
+            ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_char')
@@ -172,14 +160,14 @@ class Trainer:
 
         self.valid_iter = None
         self.test_iter = None
-       #ds = datasets.PersonaDataset(
+       #ds = utils.PersonaDataset(
        #        self.vocab, args.max_seq_length, 
        #        data_path=args.data_path, cache_path=args.cache_path, 
        #        limit_length=args.limit_example_length, mode='valid')
        #self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
        #        collate_fn=gb, shuffle=args.shuffle_data) 
 
-       #ds = datasets.PersonaDataset(
+       #ds = utils.PersonaDataset(
        #        self.vocab, args.max_seq_length, 
        #        data_path=args.data_path, cache_path=args.cache_path, 
        #        limit_length=args.limit_example_length, mode='test')
@@ -370,6 +358,9 @@ class Trainer:
 
         return epoch_loss / len(data_iter)
 
+    # resuming vs Warmstarting(transfer learning)?
+    # it just have difference of optimizer state_dict
+    # https://pytorch.org/tutorials/beginner/saving_loading_models.html#saving-loading-a-general-checkpoint-for-inference-and-or-resuming-training
     def save_model(self, epoch, stage=''):
         model_path = os.path.join(self.args.model_path, 
                 'model_{}_epoch{}'.format(stage, epoch + 1))
@@ -379,7 +370,6 @@ class Trainer:
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.args.pretrained_path))
-        self.model.eval()
 
 
 def epoch_time(start_time: int, end_time: int):
@@ -390,20 +380,6 @@ def epoch_time(start_time: int, end_time: int):
 
 
 if __name__ == '__main__':
-    # all keys and values must in word2vecs,
-    # it means they are appeared in corpus when pretrain_emb, or training data
-    # TODO: remove profile order dependence
-    profiles = OrderedDict(
-            姓名='张',
-            #姓名='张三丰',
-            #年龄='三岁',
-            性别='男孩',
-            #爱好='动漫',
-            #特长='钢琴',
-            #体重='60',
-            地址='北京',
-            星座='双子座',
-    )
     trainer = Trainer()
     trainer.run()
 

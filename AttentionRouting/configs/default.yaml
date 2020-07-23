@@ -5,7 +5,6 @@ seed: 42
 n_epochs: 10
 n_epochs_early_stage: 10
 # n_epochs_early_stage: 0
-clip_grad: 1
 # batch_size: 64
 # for LM
 batch_size: 1024
@@ -17,8 +16,7 @@ max_seq_length: 15
 max_context_size: 6
 # max_context_size: 2
 shuffle_data: True
-# pretrain_emb must include special_tokens? see Transformers library
-# english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
+# in word emb mode, english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
 max_vocab_size: 42000
 # pretrain char LM 440674938 n_token with 14023 n_vocab, data are [AssignPersona weibo, tieba, douban]
 pretrain_emb: True
@@ -34,6 +32,7 @@ attn_alpha: 1
 
 lr: 1.5e-4
 weight_decay: 0.05
+clip_grad: 1
 
 model_path: models/
 pretrained_path: models/model_lm_epoch9/model.pt

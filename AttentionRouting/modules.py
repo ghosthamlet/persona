@@ -8,7 +8,6 @@ import utils
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 # FIXME: fix old code, all combined dim with view, the new dim should be dim0 * dim1, not dim0 + dim1
@@ -36,7 +35,7 @@ class ContextEmb(nn.Module):
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.pos_encoder = PositionalEncoding(emb_dim)
+        self.pos_encoder = utils.PositionalEncoding(emb_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, feature):
@@ -107,7 +106,7 @@ class OutputEmb(nn.Module):
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.pos_encoder = PositionalEncoding(emb_dim)
+        self.pos_encoder = utils.PositionalEncoding(emb_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, output):
@@ -115,24 +114,7 @@ class OutputEmb(nn.Module):
         emb = self.dropout(emb + self.pos_encoder(emb))
 
         return emb                
-
  
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=5000):
-        super().__init__()
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        x = self.pe[:x.size(0), :]
-        return x
-
  
 class TransformerEncoder(nn.Module):
     def __init__(

@@ -153,7 +153,7 @@ class Trainer:
 
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
-                    max_seq_length=args.max_seq_length*args.max_context_size)
+                    max_seq_length=args.max_seq_length)
             ds = datasets.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 

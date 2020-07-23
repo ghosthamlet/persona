@@ -13,26 +13,6 @@ import utils
 import modules
 
 
-class LM(nn.Module):
-    def __init__(
-        self,
-        output_emb,
-        decoder,
-        generater,
-    ):
-        super().__init__()
-
-        self.output_emb = output_emb
-        self.decoder = decoder
-        self.generater = generater
-
-        _init_weights(self.parameters())
-
-    def forward(self, feature):
-        enc = self.output_emb(feature.x)
-        out = self.decoder(enc, tgt_mask=feature.x_mask) 
-        return self.generater(out)
-
 
 class AR(nn.Module):
     def __init__(
@@ -53,7 +33,7 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
 
-        # TODO: share input output embedding and pre_softmax
+        self._share_emb()
         self._share_encoder_decoder()
         _init_weights(self.parameters())
 
@@ -81,7 +61,8 @@ class AR(nn.Module):
                 persona_pad_mask=feature.persona_pad_mask) 
 
         enc_lm = self.output_emb(feature.lm.x)
-        out_lm = self.decoder(enc_lm, tgt_mask=feature.lm.x_mask) 
+        out_lm = self.resp_decoder(enc_lm, tgt_mask=feature.lm.x_mask,
+                tgt_key_padding_mask=feature.lm.x_pad_mask) 
 
         return self.generate(out), self.generate(out_lm)
 
@@ -109,6 +90,11 @@ class AR(nn.Module):
 
         return outs
 
+    def _share_emb(self):
+        self.context_emb.emb = self.output_emb.emb
+        self.persona_emb.emb = self.output_emb.emb
+        self.generater.out.weight = self.output_emb.emb.weight
+
     def _share_encoder_decoder(self):
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
             d_layer = self.resp_decoder.layers[i]
@@ -119,6 +105,37 @@ class AR(nn.Module):
             layer.norm2 = d_layer.norm2
 
 
+class LM(AR):
+    def forward(self, feature):
+        enc = self.output_emb(feature.x)
+        out = self.resp_decoder(enc, tgt_mask=feature.x_mask) 
+        return self.generater(out)
+ 
+
+class _LM(nn.Module):
+    def __init__(
+        self,
+        output_emb,
+        decoder,
+        generater,
+    ):
+        super().__init__()
+
+        self.output_emb = output_emb
+        self.decoder = decoder
+        self.generater = generater
+
+        self._share_emb()
+        _init_weights(self.parameters())
+
+    def forward(self, feature):
+        enc = self.output_emb(feature.x)
+        out = self.decoder(enc, tgt_mask=feature.x_mask) 
+        return self.generater(out)
+
+    def _share_emb(self):
+        self.generater.out.weight = self.output_emb.emb.weight
+       
 def _init_weights(m):
     for p in m:
         if p.dim() > 1:
@@ -142,6 +159,9 @@ def count_parameters(m):
 
 def build_word2vec(corpus_fname, vec_fname, vocab_fname, 
         max_vocab_size, trim_rule=utils.vocab_zh_trim_rule, emb_dim=100):
+    """
+    no need utils.vocab_zh_trim_rule for char embedding
+    """
     import gensim
     lss = gensim.models.word2vec.LineSentence(corpus_fname) 
     # skip-gram is more accuracy for most words, but CBOW is better for name similarity
@@ -149,6 +169,7 @@ def build_word2vec(corpus_fname, vec_fname, vocab_fname,
             max_final_vocab=max_vocab_size, size=emb_dim,
             trim_rule=trim_rule)
     model.wv.save_word2vec_format(vec_fname, vocab_fname)
+    return model
 
 
 def load_embeddings_and_vocab(vec_fname, vocab_fname):

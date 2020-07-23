@@ -4,15 +4,18 @@ device: cuda
 seed: 42
 n_epochs: 10
 n_epochs_early_stage: 10
+# n_epochs_early_stage: 0
 clip_grad: 1
-# batch_size: 128
+# batch_size: 64
 # for LM
-batch_size: 64
-limit_example_length: 10000
+batch_size: 512
+limit_example_length: 1000000
 # most weibo are short 
-# lm context size is equal max_seq_length * max_context_size
+# lm context size is equal max_seq_length
 max_seq_length: 15
+# must be even, and >= 2
 max_context_size: 6
+# max_context_size: 2
 shuffle_data: True
 # pretrain_emb must include special_tokens? see Transformers library
 # english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
@@ -33,12 +36,12 @@ lr: 1.5e-4
 weight_decay: 0.05
 
 model_path: models/
-pretrained_path:
+pretrained_path: models/model_lm_epoch9/model.pt
 # data_path: tmp/
 data_path: datas/
 cache_path: caches/
 corpus_fname:
-vec_fname: models/vec-512a.txt
-vocab_fname: models/vocab-512a.txt
+vec_fname: models/vec-char.txt
+vocab_fname: models/vocab-char.txt
 
 

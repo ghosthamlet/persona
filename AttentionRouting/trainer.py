@@ -149,6 +149,7 @@ class Trainer:
     def build_dataloaders(self):
         args = self.args
         gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
+        gb_lm = lambda batch: datasets.generate_lm_batch(batch, self.pad_idx)
 
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
@@ -158,14 +159,14 @@ class Trainer:
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
-                    collate_fn=datasets.generate_lm_batch, shuffle=False) 
+                    collate_fn=gb_lm, shuffle=False) 
         else:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
             ds = datasets.PersonaDataset(
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
-                    data_processer=dp, mode='train')
+                    data_processer=dp, mode='train_char')
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
 
@@ -213,7 +214,9 @@ class Trainer:
 
         self.best_model = None
         if args.n_epochs_early_stage > 0:
-            self.model = models.LM(output_emb, resp_decoder, generater).to(self.device)
+            self.model = models.LM(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater).to(self.device)
             self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
@@ -235,6 +238,8 @@ class Trainer:
             # pytorch module will auto init_weights with uniform
             # self.model.apply(models.init_weights)
         else:
+            print()
+            print(f'Load pretrained model {args.pretrained_path}...')
             self.load_model()
 
     def build_loss_fns(self):
@@ -327,11 +332,12 @@ class Trainer:
 
             utils.feature_to_device(feature, self.device)
 
+            alpha = 0.5
             out, out_lm = self.model(feature)
             loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
                     feature.resp[1:].view(-1))
-            loss += self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
-                    feature.lm.y.view(-1))
+            loss += alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
+                                feature.lm.y.view(-1))
             # utils.print_backward_graph(loss)
             loss.backward()
 

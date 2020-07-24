@@ -1,4 +1,10 @@
 
+import os
+import math
+import time
+import itertools
+from filelock import FileLock
+
 import torch
 import torch.nn as nn
 from torch.utils.data.dataset import Dataset
@@ -213,7 +219,18 @@ def feature_to_device(feature, device):
         else:
             feature_to_device(v, device)
  
+         
+PAD = '<PAD>'
+SOS = '<SOS>'
+EOS = '<EOS>'
+UNK = '<UNK>'
+SEP = '<SEP>'
+SPE1 = '<SPE1>'
+SPE2 = '<SPE2>'
+PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK, 
+        SEP, SPE1, SPE2]
 
+ 
 class Vocab:
     def __init__(
         self,
@@ -288,6 +305,8 @@ class Vocab:
         return len(self.stoi_map)
 
     def stoi(self, s):
+        # assert s in self.stoi_map, 'Char %s not exists!' % s
+
         return self.stoi_map.get(s, self.stoi_map[UNK])[0]
 
     def itos(self, i):

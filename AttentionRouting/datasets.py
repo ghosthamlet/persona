@@ -3,7 +3,6 @@ import os
 import json
 import time
 import itertools
-from filelock import FileLock
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -15,16 +14,6 @@ import utils
 import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
-
-PAD = '<PAD>'
-SOS = '<SOS>'
-EOS = '<EOS>'
-UNK = '<UNK>'
-SEP = '<SEP>'
-SPE1 = '<SPE1>'
-SPE2 = '<SPE2>'
-PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK, 
-        SEP, SPE1, SPE2]
 
 
 class ChatDataProcesser:

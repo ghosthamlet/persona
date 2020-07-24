@@ -119,7 +119,7 @@ class Trainer:
         embeddings, gensim_vocab = None, None
         if args.pretrain_emb:
             print('Loading word2vec...')
-            embeddings, gensim_vocab = models.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
+            embeddings, gensim_vocab = utils.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
             embeddings = embeddings.to(self.device)
         self.vocab = utils.Vocab(gensim_vocab, args.data_path)
         self.input_dim = len(self.vocab)
@@ -131,7 +131,7 @@ class Trainer:
                 append = torch.zeros(self.input_dim - elen, embeddings.shape[1]).to(self.device)
                 embeddings = torch.cat([embeddings, append], dim=0)
 
-        self.pad_idx = self.vocab.stoi(datasets.PAD)
+        self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = embeddings
                                                                                          
     def build_dataloaders(self):
@@ -180,9 +180,9 @@ class Trainer:
         input_dim = self.input_dim
         pad_idx = self.pad_idx
         embeddings = self.embeddings
-        sep_idx = self.vocab.stoi(datasets.SEP)
-        spe1_idx = self.vocab.stoi(datasets.SPE1)
-        spe2_idx = self.vocab.stoi(datasets.SPE2)
+        sep_idx = self.vocab.stoi(utils.SEP)
+        spe1_idx = self.vocab.stoi(utils.SPE1)
+        spe2_idx = self.vocab.stoi(utils.SPE2)
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.d_model, args.emb_freeze,
@@ -208,7 +208,7 @@ class Trainer:
             self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
-            print(f'The model has {models.count_parameters(self.model):,} trainable parameters')
+            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
         else:
             self.model = models.AR(
                     context_emb, persona_emb, output_emb,
@@ -217,7 +217,7 @@ class Trainer:
             self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
-            print(f'The model has {models.count_parameters(self.model):,} trainable parameters')
+            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
 
 

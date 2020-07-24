@@ -8,7 +8,7 @@ n_epochs_early_stage: 10
 # batch_size: 64
 # for LM
 batch_size: 1024
-limit_example_length: 
+limit_example_length: 10000
 # most weibo are short 
 # lm context size is equal max_seq_length
 max_seq_length: 15
@@ -35,7 +35,7 @@ weight_decay: 0.05
 clip_grad: 1
 
 model_path: models/
-pretrained_path: models/model_lm_epoch9/model.pt
+pretrained_path:
 # data_path: tmp/
 data_path: datas/
 cache_path: caches/

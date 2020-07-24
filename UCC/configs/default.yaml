@@ -3,11 +3,11 @@
 device: cuda
 seed: 42
 n_epochs: 10
-n_epochs_early_stage: 10
-# n_epochs_early_stage: 0
-# batch_size: 64
+# n_epochs_early_stage: 10
+n_epochs_early_stage: 0
+batch_size: 64
 # for LM
-batch_size: 1024
+# batch_size: 1024
 limit_example_length: 10000
 # most weibo are short 
 # lm context size is equal max_seq_length

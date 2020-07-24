@@ -1,0 +1,245 @@
+\def\year{2020}\relax
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article} %DO NOT CHANGE THIS
+\usepackage{times}  %Required
+\usepackage{helvet}  %Required
+\usepackage{courier}  %Required
+\usepackage{url}  %Required
+\usepackage{graphicx}  %Required
+\usepackage{natbib}
+
+\usepackage{amsmath}
+\usepackage{IEEEtrantools}
+
+%% install LaTex: http://www.tug.org/texlive/quickinstall.html
+%% For chinese: https://tex.stackexchange.com/questions/17611/how-does-one-type-chinese-in-latex
+% \usepackage{CJKutf8}
+% \AtBeginDvi{\input{zhwinfonts}}
+% \begin{document}
+% \begin{CJK*}{UTF8}{gbsn}
+%   chinese texts
+% \clearpage\end{CJK*}
+% \end{document}
+
+\usepackage{CJKutf8}
+\AtBeginDvi{\input{zhwinfonts}}
+
+% all custom newcommand should begin with prefix: K
+\newcommand{\KModelName}{UCC模型}
+\newcommand{\KFactorNoused}{\underline{时间、对话环境、对方地点、发言者地点}}
+
+\frenchspacing  %Required
+% \setlength{\pdfpagewidth}{8.5in}  %Required
+% \setlength{\pdfpageheight}{11in}  %Required
+\setcounter{secnumdepth}{0}  
+
+\begin{document}
+\begin{CJK*}{UTF8}{gbsn}
+
+\title{更像人而不是更智能：对话系统的统一}
+\author{Jing Bo Hu, Qiang Han \& Hua Wei Liu \\
+HuggingFace  Inc.\\
+{\tt \{hu,gvvvv,liu\}@163.com} \\}
+
+\maketitle
+\begin{abstract}
+  \ldots
+\end{abstract}
+
+\section{简介}
+所有对话系统除了闭合领域外包括闲聊、开放领域都需要一个统一的理论框架，以厘清目前人机对话研究领域各自为阵的混乱局面，建立简洁清晰可执行的一致的研究基础和比较完整的人机对话模型。
+
+目前研究方向主要的两个问题：一、智能体追求更多技能更多知识，更加趋向全能的机器智能，而不是能力有限且千差万别的人类智能；二、智能体没有身份，没有个性与情绪，或者这些人类必不可少的特征被当作相互无关的独立存在而被分开研究与训练，要么就是只关心学习其浮浅的外在表示而完全忽略其内在的特质与起因，如移情对话模型（没有产生移情的内在特质及起因，移情模型只有皮肉而没有灵魂，并只能依靠巨大的数据集和模型才可能在各种情境下表现的足够好，显得无比笨拙迟钝而且不可信——就像你看到了魔术的幕后而对它嗤之以鼻那样，这个问题同样存在于其他人类特征细分模型上），同样导致机器化。这与人机对话最初愿望背道而驰，我们大多数时候需要对话的对象本质上应该是更像人类，具备人类各要素的智能体——即使它没有任何专业知识和技能只像个6岁小孩或30岁的文盲，而不是一部能模仿人类说话的万能机器或大百科全书。
+人工智能的基础设施与计算能力类似于先天智能业已具备，随着知识和经验的增长，后天的智能也自然随之增长。
+
+为此，针对以上两个问题，我们提出一个具体的解决方案，首先介绍理论框架，其次是模型与训练方法，最后是与其他基线模型的对比实验及结果的定量与定性分析。
+
+\section{相关论文}
+
+\section{背景}
+
+\section{理论框架}
+
+\KModelName在生成回复时模仿人类对话中可能受到的多种影响因素，这些因素都将作为条件控制输入模型，以牺牲对话质量为代价时可缺省部分或全部。
+
+% 通过上下文可以自动推断出主题，但作为显式特征易于控制
+因素包括：上下文、多主题、\KFactorNoused、双方熟悉程度、对方特征、发言者特征、对方情绪、发言者情绪、发言者记忆，
+
+% 与对方关系 特征太复杂，暂缺
+特征包括：姓名、性别、年龄、职业、学历、爱好、个性、出生地址、所在地址、(如何利用自监督实现预测时自由增加新的特征，如父母兄弟名字等等)。
+
+除了情绪与记忆外，所有因素都是相对输入数据静态不变的，输入数据变化，它们才产生改变，
+
+发言者情绪在首次数据输入后，将随着聊天过程由模型动态修改，
+
+发言者情绪影响因素包括：上下文、多主题、对话环境、发言者健康状况、双方熟悉程度、对方特征、对方情绪、发言者特征(不同特征有不同权重，如个性权重最大)、上次发言者情绪、发言者记忆，
+
+发言者记忆是发言者所有对话记录，包括与不同对方不同时间的对话记录，按主次分层为：短期工作记忆、长期潜意识记忆，
+
+考虑到因素：\KFactorNoused，这些在对话中对回复影响力度不如其他因素，且为数据集标记这些属性很不容易，目前缺乏类似开放数据集，所以本论文暂不引入这些，留待将来研究。
+
+以上部分或全部因素在巨大的深度学习模型中也许能自动形成于潜在空间，即使如此，也会需要极大量对话数据及大型模型加上漫长的训练时间，才有可能得到期望的效果，而且这些潜在空间的特征都是隐式的，难于解释和直接调校控制。然而通过我们的\KModelName，所有对话受制因素都可显式指定，生成的发言易于解释及控制，并可在需要时替换成不同模态的信息输入，因而能使对话生成系统更具实用性并适用于更广阔的应用范围。
+
+\section{模型}
+模型涉及很多不同的特征输入，架构设计应尽量减少标记数据的使用，因而需要充分利用word2vec、上下文表示嵌入、预训练模型、元学习、自监督、文本数据增强与合成等等技术。
+
+模型包括多个模块：发言者特征模块、发言者情绪模块、发言者记忆模块、主题模块、编码模块、对话生成模块，所有模块需要联合训练，但每个模块内部模型可较容易的切换成不同模型，以利于分别研究和增强。
+
+
+\section{训练}
+
+\section{实验}
+
+\section{结果}
+
+\section{总结}
+
+总之，人类的各种特征是相互关联且互相影响的，我们不可能要求机器像人的同时而缺乏人类必要的特征（如果这些特征是分别研究最后组合部署的，它们内部权重参数不具备本质上的相互关联，不算是一个实际的整体），我们需要把这些特征当成一个整体来研究。
+
+性格特征：
+Introversion extroversion 
+内向　外向
+
+实验步骤：
+数据预处理
+  性格特征：
+    word2vec聚类, 句子均值或加值聚类，doc2vec聚类
+
+  身份特征问话分类数据：
+    也许在问话分类同时对答案进行POS或语法树解析分类，然后替换相应的语法元素
+
+  Speed:
+      shorter seq
+      new optim: lamb
+      rezero
+      albert
+      finetune: adapter layer
+      fastai
+      tinybert
+  Acc:
+      hug face
+      lost in chat
+      archtecture
+      pretrain objective: denoise
+  Datasets:
+      pretrain datasets change to [AssignPersona weibo, tieba, douban] with short seq
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+Option with ** prefix is prefered by following experiments
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+LM:
+**adamw
+ Epoch: 01 | Time: 0m 33s
+	Train Loss: 4.235 | Train PPL:  69.071
+-----------------------------------------------------------------------------------------
+lamb
+ Epoch: 01 | Time: 0m 34s
+	Train Loss: 4.259 | Train PPL:  70.709
+
+-----------------------------------------------------------------------------------------
+MAIN:
+**adamw
+Epoch: 01 | Time: 10m 27s
+    Train Loss: 6.361 | Train PPL: 578.656
+         Val. Loss: 1.000 |  Val. PPL:   2.718
+
+lamb
+-----------------------------------------------------------------------------------------
+Epoch: 01 | Time: 10m 54s
+	Train Loss: 8.150 | Train PPL: 3463.910
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+adamw is better for most time.
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+REZERO:
+standard, no pretrain:
+Epoch: 01 | Time: 10m 33s
+	Train Loss: 7.726 | Train PPL: 2266.670
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+rezero no share resweight, no pretrain:
+Epoch: 01 | Time: 10m 21s
+	Train Loss: 7.718 | Train PPL: 2248.748
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+
+-----------------------------------------------------------------------------------------
+rezero share resweight, no pretrain:
+Epoch: 01 | Time: 10m 14s
+	Train Loss: 7.731 | Train PPL: 2277.823
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+
+-----------------------------------------------------------------------------------------
+standard resdual + 0.1memory + 0.1persona, no pretrain (more stable then rezero version):
+Epoch: 01 | Time: 10m 30s
+	Train Loss: 7.695 | Train PPL: 2196.725
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+**rezero resdual + 0.1memory + 0.1persona, share resweight, no pretrain:
+Epoch: 01 | Time: 10m 18s
+	Train Loss: 7.658 | Train PPL: 2116.874
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+use all params except emb share:
+Epoch: 01 | Time: 10m 31s
+	Train Loss: 7.639 | Train PPL: 2077.168
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+ALBERT:
+**share all layers:
+-----------------------------------------------------------------------------------------
+Epoch: 01 | Time: 10m 10s
+	Train Loss: 7.691 | Train PPL: 2189.560
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+
+LARGE:
+-----------------------------------------------------------------------------------------
+16 header:
+Epoch: 01 | Time: 10m 52s
+	Train Loss: 7.688 | Train PPL: 2182.149
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+12 layer with max_context_size 2 (baseline max_context_size 6 overflow memory):
+Epoch: 01 | Time: 10m 11s
+	Train Loss: 7.719 | Train PPL: 2249.882
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+
+
+身份特征问话分类：
+
+
+http://nlpprogress.com/english/dialogue.html
+
+https://ai.quantumstat.com/
+https://parl.ai/projects/
+https://github.com/atselousov/transformer\_chatbot
+https://github.com/ricsinaruto/Seq2seqChatbots/wiki/Chatbot-and-Related-Research-Paper-Notes-with-Images
+
+
+datasets:
+Chinese Emotional Conversation Generation
+http://coai.cs.tsinghua.edu.cn/hml/challenge/dataset\_description/
+
+
+PCCM复杂模型的简单数据集可以通过profile标签提取出对应的具体profile值形成复杂数据，如positive name标签提取出：张三丰
+然后用更简单的类似ProfileFusion模型训练
+
+\clearpage\end{CJK*}
+\end{document}

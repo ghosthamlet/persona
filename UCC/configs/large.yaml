@@ -9,8 +9,7 @@ n_epochs_early_stage: 10
 #batch_size: 64
 # for LM
 batch_size: 1280
-limit_example_length: 2000000
-# most weibo are short 
+limit_example_length:
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -18,7 +17,6 @@ max_context_size: 6
 shuffle_data: True
 # in word emb mode, english letter will removed in max_vocab_size by utils.vocab_zh_trim_rule
 max_vocab_size: 42000
-# pretrain char LM 440674938 n_token with 14023 n_vocab, data are [AssignPersona weibo, tieba, douban]
 pretrain_emb: True
 
 emb_freeze: True
@@ -35,7 +33,7 @@ weight_decay: 0.05
 clip_grad: 1
 
 model_path: models/
-pretrained_path:
+pretrained_path: models/model_lm_epoch9/model.pt
 # data_path: tmp/
 data_path: datas/
 cache_path: caches/

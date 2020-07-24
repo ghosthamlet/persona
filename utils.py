@@ -264,6 +264,7 @@ class Vocab:
             self.itos_map[i] = k
             i += 1
 
+    # TODO: read data from the exists vocab file
     # TODO: add max_vocab_size
     def __init(
         self,

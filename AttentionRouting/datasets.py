@@ -10,6 +10,7 @@ import sys
 # for import parent utils
 sys.path.append('../')
 import utils
+from utils import UNK, SEP, SOS, EOS, SPE1, SPE2
 
 import torch
 from torch import Tensor

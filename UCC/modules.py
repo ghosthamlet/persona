@@ -129,7 +129,11 @@ class TransformerEncoder(nn.Module):
         super().__init__()
         self.num_layers = num_layers
 
-        encoder_layers = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
+        use_rezero = True
+        if use_rezero:
+            encoder_layers = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout)
+        else:
+            encoder_layers = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
 
     def forward(self, emb, mask=None):
@@ -152,11 +156,13 @@ class TransformerDecoderLayer(nn.Module):
         self.linear2 = nn.Linear(dim_feedforward, d_model)
         self.dropout2 = nn.Dropout(dropout)
         self.attn_alpha = attn_alpha
-        self.cls = nn.Linear(d_model, dim_feedforward)
+        if self.attn_alpha is None:
+            self.cls = nn.Linear(d_model, dim_feedforward)
 
         self.dropout = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
+        self.resweight = nn.Parameter(torch.Tensor([0]))
 
         self.activation = nn.modules.transformer._get_activation_fn(activation)
 
@@ -173,8 +179,27 @@ class TransformerDecoderLayer(nn.Module):
        #tgt = tgt + self.dropout2(tgt2)
        #tgt = self.norm2(tgt)
 
-        # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-        if True:
+        use_rezero = True
+        if use_rezero:
+            attn_t = 0
+            attn_c = 0
+            attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
+                                  key_padding_mask=tgt_key_padding_mask)[0]
+            if persona is not None and memory is not None:
+                attn_t = self.multihead_attn(tgt, persona, persona, 
+                        key_padding_mask=persona_pad_mask)[0]
+                attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                        key_padding_mask=memory_key_padding_mask)[0]
+            alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
+            attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+            if persona is not None and memory is not None:
+                attn_merge = tgt + 0.1*attn_t + 0.1*attn_c + self.dropout(attn_merge) * self.resweight
+            else:
+                attn_merge = tgt + self.dropout(attn_merge) * self.resweight
+
+            tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+            tgt = attn_merge + self.dropout2(tgt2) * self.resweight
+        elif True:
             # must start with small lr 1.5e-4
             attn_t = 0
             attn_c = 0
@@ -187,8 +212,15 @@ class TransformerDecoderLayer(nn.Module):
                         key_padding_mask=memory_key_padding_mask)[0]
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
             attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
-            attn_merge = tgt + self.dropout(attn_merge)
+            if persona is not None and memory is not None:
+                attn_merge = tgt + 0.1*attn_t + 0.1*attn_c + self.dropout(attn_merge)
+            else:
+                attn_merge = tgt + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
+ 
+            tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+            tgt = attn_merge + self.dropout2(tgt2)
+            tgt = self.norm2(tgt)
         else:
             # this can start with large lr 0.05
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
@@ -204,11 +236,156 @@ class TransformerDecoderLayer(nn.Module):
             attn_merge = attn_prev + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
  
-        tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
-        tgt = attn_merge + self.dropout2(tgt2)
-        tgt = self.norm2(tgt)
+            tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+            tgt = attn_merge + self.dropout2(tgt2)
+            tgt = self.norm2(tgt)
 
         return tgt, alpha
+
+ 
+# adapt from https://github.com/majumderb/rezero
+# https://nbviewer.jupyter.org/github/tbachlechner/ReZero-examples/blob/master/ReZero-Deep_Fast_Transformer.ipynb
+from torch.nn.parameter import Parameter
+from torch.nn.init import xavier_uniform_
+from torch.nn.init import constant_
+from torch.nn.init import xavier_normal_
+from torch.nn.modules.module import Module
+from torch.nn.modules.activation import MultiheadAttention
+from torch.nn.modules.container import ModuleList
+from torch.nn.init import xavier_uniform_
+from torch.nn.modules.dropout import Dropout
+from torch.nn.modules.linear import Linear
+
+class RZTXEncoderLayer(Module):
+    r"""RZTXEncoderLayer is made up of self-attn and feedforward network with
+    residual weights for faster convergece.
+    This encoder layer is based on the paper "ReZero is All You Need:
+    Fast Convergence at Large Depth".
+    Thomas Bachlechner∗, Bodhisattwa Prasad Majumder∗, Huanru Henry Mao∗,
+    Garrison W. Cottrell, Julian McAuley. 2020.
+    Args:
+        d_model: the number of expected features in the input (required).
+        nhead: the number of heads in the multiheadattention models (required).
+        dim_feedforward: the dimension of the feedforward network model (default=2048).
+        dropout: the dropout value (default=0.1).
+        activation: the activation function of intermediate layer, relu or gelu (default=relu).
+        use_res_init: Use residual initialization
+    Examples::
+        >>> encoder_layer = RZTXEncoderLayer(d_model=512, nhead=8)
+        >>> src = torch.rand(10, 32, 512)
+        >>> out = encoder_layer(src)
+    """
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation='relu'):
+        super().__init__()
+
+        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
+        # Implementation of Feedforward model
+        self.linear1 = Linear(d_model, dim_feedforward)
+        self.dropout = Dropout(dropout)
+        self.linear2 = Linear(dim_feedforward, d_model)
+        self.dropout1 = Dropout(dropout)
+        self.dropout2 = Dropout(dropout)
+        self.resweight = nn.Parameter(torch.Tensor([0]))
+
+        if activation == "relu":
+            self.activation = F.relu
+        elif activation == "gelu":
+            self.activation = F.gelu
+
+    def __setstate__(self, state):
+        if 'activation' not in state:
+            state['activation'] = F.relu
+        super().__setstate__(state)
+
+    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+        # type: (Tensor, Optional[Tensor], Optional[Tensor]) -> Tensor
+        r"""Pass the input through the encoder layer.
+        Args:
+            src: the sequence to the encoder layer (required).
+            src_mask: the mask for the src sequence (optional).
+            src_key_padding_mask: the mask for the src keys per batch (optional).
+        Shape:
+            see the docs in PyTroch Transformer class.
+        """
+        # Self attention layer
+        src2 = src
+        src2 = self.self_attn(src2, src2, src2, attn_mask=src_mask,
+                              key_padding_mask=src_key_padding_mask)
+        src2 = src2[0] # no attention weights
+        src2 = src2 * self.resweight
+        src = src + self.dropout1(src2)
+
+        # Pointiwse FF Layer
+        src2 = src            
+        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
+        src2 = src2 * self.resweight
+        src = src + self.dropout2(src2)
+        return src
+
+class RZTXDecoderLayer(nn.Module):
+    r"""RZTXDecoderLayer is made up of self-attn and feedforward network with
+    residual weights for faster convergece.
+    This encoder layer is based on the paper "ReZero is All You Need:
+    Fast Convergence at Large Depth".
+    Thomas Bachlechner∗, Bodhisattwa Prasad Majumder∗, Huanru Henry Mao∗,
+    Garrison W. Cottrell, Julian McAuley. 2020.
+    Args:
+        d_model: the number of expected features in the input (required).
+        nhead: the number of heads in the multiheadattention models (required).
+        dim_feedforward: the dimension of the feedforward network model (default=2048).
+        dropout: the dropout value (default=0.1).
+        activation: the activation function of intermediate layer, relu or gelu (default=relu).
+        use_res_init: Use residual initialization
+    Examples::
+        >>> decoder_layer = RZTXDecoderLayer(d_model=512, nhead=8)
+        >>> src = torch.rand(10, 32, 512)
+        >>> out = decoder_layer(src)
+    """
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+        super().__init__()
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        # Implementation of Feedforward model
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
+        self.resweight = nn.Parameter(torch.Tensor([0]))
+
+        if activation == "relu":
+            self.activation = F.relu
+        elif activation == "gelu":
+            self.activation = F.gelu
+
+    def forward(self, tgt, memory, tgt_mask=None, memory_mask=None,
+                tgt_key_padding_mask=None, memory_key_padding_mask=None):
+        r"""Pass the inputs (and mask) through the decoder layer.
+        Args:
+            tgt: the sequence to the decoder layer (required).
+            memory: the sequnce from the last layer of the encoder (required).
+            tgt_mask: the mask for the tgt sequence (optional).
+            memory_mask: the mask for the memory sequence (optional).
+            tgt_key_padding_mask: the mask for the tgt keys per batch (optional).
+            memory_key_padding_mask: the mask for the memory keys per batch (optional).
+        Shape:
+            see the docs in PyTroch Transformer class.
+        """
+        tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
+                              key_padding_mask=tgt_key_padding_mask)[0]
+        tgt = tgt + self.dropout1(tgt2) * self.resweight
+        tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
+                                   key_padding_mask=memory_key_padding_mask)[0]
+        tgt = tgt + self.dropout2(tgt2) * self.resweight
+
+        if hasattr(self, "activation"):
+            tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
+        else:  # for backward compatibility
+            tgt2 = self.linear2(self.dropout(F.relu(self.linear1(tgt))))
+        tgt = tgt + self.dropout3(tgt2) * self.resweight
+        return tgt
 
 
 class TransformerDecoder(nn.Module):
@@ -253,3 +430,4 @@ class Generater(nn.Module):
 
     def forward(self, enc):
         return self.out(enc)
+

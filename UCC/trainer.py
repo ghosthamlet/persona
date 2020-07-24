@@ -23,6 +23,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, ConcatDataset
 
+import torch_optimizer as toptim
+
 
 class Trainer:
     def __init__(self):
@@ -90,6 +92,7 @@ class Trainer:
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
 
+        # TODO: let commandline temp args override args in config_file
         args = parser.parse_args()
         if args.config_file != '':
             parser.set_defaults(**yaml.load(open(args.config_file)))
@@ -206,6 +209,7 @@ class Trainer:
                     context_emb, persona_emb, output_emb,
                     post_encoder, resp_decoder, generater).to(self.device)
             self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+            #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
             print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
@@ -215,6 +219,7 @@ class Trainer:
                     post_encoder, resp_decoder, generater
                     ).to(self.device)
             self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+            #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
             print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
@@ -237,7 +242,7 @@ class Trainer:
         for epoch in range(self.args.n_epochs_early_stage):
             start_time = time.time()
 
-            train_loss = self.train_lm()
+            train_loss = self.train_lm(epoch)
             self.save_model(epoch, 'lm')
 
             end_time = time.time()
@@ -260,7 +265,7 @@ class Trainer:
         for epoch in range(self.args.n_epochs):
             start_time = time.time()
 
-            train_loss = self.train(early_stage=False)
+            train_loss = self.train(epoch)
             valid_loss = self.eval()
  
             # if valid_loss < best_val_loss:
@@ -283,11 +288,12 @@ class Trainer:
         test_loss = self.eval(self.test_iter)
         print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
-    def train_lm(self):
+    def train_lm(self, epoch):
         self.model.train()
 
         epoch_loss = 0
-        for _, feature in enumerate(self.train_iter):
+        for i, feature in enumerate(self.train_iter):
+            start_time = time.time()
             self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
@@ -303,19 +309,23 @@ class Trainer:
 
             iloss = loss.item()
             epoch_loss += iloss
-            print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
+
+            end_time = time.time()
+            secs = end_time - start_time
+            print(f'Step {i}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(self.train_iter)
  
 
-    def train(self, data_iter=None, early_stage=False):
+    def train(self, epoch, data_iter=None):
         self.model.train()
 
         if data_iter is None:
             data_iter = self.train_iter
 
         epoch_loss = 0
-        for _, feature in enumerate(data_iter):
+        for i, feature in enumerate(data_iter):
+            start_time = time.time()
             self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
@@ -334,7 +344,10 @@ class Trainer:
 
             iloss = loss.item()
             epoch_loss += iloss
-            print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
+
+            end_time = time.time()
+            secs = end_time - start_time
+            print(f'Step {i}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(data_iter)
 

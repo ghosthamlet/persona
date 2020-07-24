@@ -34,6 +34,7 @@ class AR(nn.Module):
 
         self._share_emb()
         self._share_encoder_decoder()
+        self._share_layers()
         utils.xavier_init_weights(self)
 
     def forward(self, feature):
@@ -102,6 +103,25 @@ class AR(nn.Module):
             layer.linear2 = d_layer.linear2
             layer.norm1 = d_layer.norm1
             layer.norm2 = d_layer.norm2
+            layer.resweight = d_layer.resweight
+
+    def _share_layers(self):
+        layer0 = self.resp_decoder.layers[0]
+        for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
+            d_layer = self.resp_decoder.layers[i]
+            d_layer.multihead_attn = layer0.multihead_attn
+            d_layer.linear1 = layer0.linear1
+            d_layer.linear2 = layer0.linear2
+            d_layer.norm1 = layer0.norm1
+            d_layer.norm2 = layer0.norm2
+            d_layer.resweight = layer0.resweight
+ 
+            layer.self_attn = layer0.multihead_attn
+            layer.linear1 = layer0.linear1
+            layer.linear2 = layer0.linear2
+            layer.norm1 = layer0.norm1
+            layer.norm2 = layer0.norm2
+            layer.resweight = layer0.resweight
 
 
 class LM(AR):

@@ -8,7 +8,7 @@ n_epochs_early_stage: 10
 # batch_size: 64
 # for LM
 batch_size: 1024
-limit_example_length: 
+limit_example_length: 10000
 # most weibo are short 
 # lm context size is equal max_seq_length
 max_seq_length: 15

@@ -90,6 +90,7 @@ class Trainer:
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
 
+        # TODO: let commandline temp args override args in config_file
         args = parser.parse_args()
         if args.config_file != '':
             parser.set_defaults(**yaml.load(open(args.config_file)))

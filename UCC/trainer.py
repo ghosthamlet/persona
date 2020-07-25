@@ -149,6 +149,8 @@ class Trainer:
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
+            print('---------------------------------')
+            print('datasets len:', len(ds))
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb_lm, shuffle=True) 
         else:
@@ -158,6 +160,8 @@ class Trainer:
                     self.vocab, args.max_seq_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_char')
+            print('---------------------------------')
+            print('datasets len:', len(ds))
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
 

@@ -4,7 +4,7 @@ device: cuda
 seed: 42
 n_epochs: 1
 # for LM
-n_epochs_early_stage: 10
+n_epochs_early_stage: 5
 #n_epochs_early_stage: 0
 #batch_size: 64
 # for LM
@@ -34,9 +34,11 @@ weight_decay: 0.05
 clip_grad: 1
 
 model_path: models/
-pretrained_path:
-# 31476781
-#pretrained_path: models/model_lm_epoch5_all/model.pt
+pretrained_path: 
+# no_clip_grad
+#pretrained_path: models/model_lm_epoch4_all/model.pt
+# 31476781 based on 2m
+#pretrained_path: models/model_lm_epoch5_2m_all/model.pt
 #pretrained_path: models/model_lm_epoch9_2m/model.pt
 # data_path: tmp/
 data_path: datas/

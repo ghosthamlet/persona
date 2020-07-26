@@ -1,5 +1,6 @@
 
 import os
+import shutil
 import random
 import math
 import time
@@ -308,7 +309,8 @@ class Trainer:
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            if self.args.clip_grad is not None:
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
             self.optimizer.step()
 
             iloss = loss.item()
@@ -338,12 +340,14 @@ class Trainer:
             out, out_lm = self.model(feature)
             loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
                     feature.resp[1:].view(-1))
-            loss += alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
+            loss_lm = alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
                                 feature.lm.y.view(-1))
+            loss += loss_lm
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            if self.args.clip_grad is not None:
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
             self.optimizer.step()
 
             iloss = loss.item()
@@ -384,6 +388,8 @@ class Trainer:
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         torch.save(self.model.state_dict(), model_path + '/model.pt')
+        shutil.copyfile(self.args.config_file, 
+                model_path + '/' + os.path.basename(self.args.config_file))
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.args.pretrained_path))

@@ -8,6 +8,9 @@ from filelock import FileLock
 import torch
 import torch.nn as nn
 from torch.utils.data.dataset import Dataset
+from torch.utils.data import DataLoader
+
+from prefetch_generator import BackgroundGenerator
 
  
 class PositionalEncoding(nn.Module):
@@ -372,6 +375,12 @@ class PersonaDataset(Dataset):
     def __getitem__(self, i):
         return self.features[i]
        
+ 
+class DataLoaderX(DataLoader):
+
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__()) 
+
  
 def generate_square_subsequent_mask(sz):
     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)

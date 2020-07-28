@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, ConcatDataset
 
 import torch_optimizer as toptim
+import transformers
 
 
 class Trainer:
@@ -80,10 +81,15 @@ class Trainer:
         parser.add_argument('--d_model', default=512, type=int, required=False, help='')
         parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
+        parser.add_argument('--adapter_d_ff', default=2048, type=int, required=False, help='')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
         parser.add_argument('--clip_grad', default=1, type=int, required=False, help='')
+        parser.add_argument('--use_scheduler', default=False, type=bool, required=False, help='')
+        parser.add_argument('--warmup_steps', default=2000, type=int, required=False, help='')
+        parser.add_argument('--gradient_accumulation', default=1, type=int, required=False, help='')
+        parser.add_argument('--adapter_finetune', default=False, type=bool, required=False, help='')
 
         parser.add_argument('--model_path', default='models/', type=str, required=False, help='')
         parser.add_argument('--pretrained_path', type=str, required=False, help='')
@@ -163,6 +169,7 @@ class Trainer:
                     data_processer=dp, mode='train_char')
             print('---------------------------------')
             print('datasets len:', len(ds))
+            # when Dataset is stream, try utils.DataLoaderX (prefetch_generator), https://github.com/IgorSusmelj/pytorch-styleguide/issues/5
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
 
@@ -201,10 +208,12 @@ class Trainer:
                 pad_idx, args.enc_dropout, embeddings)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
-                args.n_head, args.num_layers, args.enc_dropout)
+                args.n_head, args.num_layers, args.enc_dropout,
+                'relu', args.adapter_finetune, args.adapter_d_ff)
 
         resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
-                args.attn_alpha, args.d_ff, args.dec_dropout)
+                args.attn_alpha, args.d_ff, args.dec_dropout, 
+                'relu', args.adapter_finetune, args.adapter_d_ff)
         resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
         generater = modules.Generater(args.d_model, output_dim)
 
@@ -221,14 +230,23 @@ class Trainer:
         else:
             self.model = models.AR(
                     context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater
+                    post_encoder, resp_decoder, generater,
+                    args.adapter_finetune,
                     ).to(self.device)
-            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+            self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
+            #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
             print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
+        #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
+        #self.scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, 2)
+        # XXX: scheduler will run once at start, even if has no scheduler.step()
+        if args.use_scheduler:
+            total_steps = int(len(self.train_iter.dataset) * args.n_epochs 
+                    / args.batch_size / args.gradient_accumulation)
+            self.scheduler = transformers.get_linear_schedule_with_warmup(self.optimizer, 
+                    num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
 
 
         if args.pretrained_path is None:
@@ -297,7 +315,7 @@ class Trainer:
         self.model.train()
 
         epoch_loss = 0
-        for i, feature in enumerate(self.train_iter):
+        for batch_idx, feature in enumerate(self.train_iter):
             start_time = time.time()
             self.optimizer.zero_grad()
 
@@ -318,7 +336,7 @@ class Trainer:
 
             end_time = time.time()
             secs = end_time - start_time
-            print(f'Step {i}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
+            print(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(self.train_iter)
  
@@ -330,9 +348,8 @@ class Trainer:
             data_iter = self.train_iter
 
         epoch_loss = 0
-        for i, feature in enumerate(data_iter):
+        for batch_idx, feature in enumerate(data_iter):
             start_time = time.time()
-            self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
 
@@ -343,19 +360,27 @@ class Trainer:
             loss_lm = alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
                                 feature.lm.y.view(-1))
             loss += loss_lm
+            if self.args.gradient_accumulation > 1:
+                loss = loss / self.args.gradient_accumulation
+            #    # accuracy = accuracy / self.args.gradient_accumulation
             # utils.print_backward_graph(loss)
             loss.backward()
-
-            if self.args.clip_grad is not None:
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
-            self.optimizer.step()
-
             iloss = loss.item()
             epoch_loss += iloss
 
-            end_time = time.time()
-            secs = end_time - start_time
-            print(f'Step {i}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
+            if self.args.clip_grad is not None:
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+
+            if (batch_idx + 1) % self.args.gradient_accumulation == 0:
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
+                if self.args.use_scheduler:
+                    self.scheduler.step()
+
+                end_time = time.time()
+                secs = end_time - start_time
+                print(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(data_iter)
 
@@ -392,7 +417,8 @@ class Trainer:
                 model_path + '/' + os.path.basename(self.args.config_file))
 
     def load_model(self):
-        self.model.load_state_dict(torch.load(self.args.pretrained_path))
+        self.model.load_state_dict(torch.load(self.args.pretrained_path), 
+                strict=not self.args.adapter_finetune)
 
 
 def epoch_time(start_time: int, end_time: int):

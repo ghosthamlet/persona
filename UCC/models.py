@@ -22,6 +22,7 @@ class AR(nn.Module):
         post_encoder,
         resp_decoder,
         generater,
+        adapter_finetune,
     ):
         super().__init__()
 
@@ -31,6 +32,7 @@ class AR(nn.Module):
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
         self.generater = generater
+        self.adapter_finetune = adapter_finetune
 
         self._share_emb()
         self._share_encoder_decoder()
@@ -105,6 +107,10 @@ class AR(nn.Module):
             layer.norm2 = d_layer.norm2
             layer.resweight = d_layer.resweight
 
+            if self.adapter_finetune:
+                layer.ada_linear1 = d_layer.ada_linear1
+                layer.ada_linear2 = d_layer.ada_linear2
+
     def _share_layers(self):
         layer0 = self.resp_decoder.layers[0]
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
@@ -122,6 +128,10 @@ class AR(nn.Module):
             layer.norm1 = layer0.norm1
             layer.norm2 = layer0.norm2
             layer.resweight = layer0.resweight
+
+            if self.adapter_finetune:
+                layer.ada_linear1 = d_layer.ada_linear1
+                layer.ada_linear2 = d_layer.ada_linear2
 
 
 class LM(AR):

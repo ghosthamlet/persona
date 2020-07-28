@@ -100,6 +100,7 @@ HuggingFace  Inc.\\
 Introversion extroversion 
 内向　外向
 
+% USE ~/work/AI/etracker/ for experiment track
 实验步骤：
 数据预处理
   性格特征：
@@ -114,7 +115,7 @@ Introversion extroversion
       rezero
       albert 
 
-      https://github.com/IgorSusmelj/pytorch-styleguide/issues/5
+      % prefetch_generator: https://github.com/IgorSusmelj/pytorch-styleguide/issues/5
       GPT2-chitchat
       gradient acc:
          loss.backward() 
@@ -125,6 +126,7 @@ Introversion extroversion
             print('Total loss: ', total_loss)
             total_loss = 0.0
       finetune: adapter layer
+      factor ff?
       factor emb?
       Training FlauBERT
       fastai
@@ -248,6 +250,7 @@ LM:
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
+
 FINETUNE, 100000 examples same as above all:
 -----------------------------------------------------------------------------------------
 LM with 2000000 pretrain 10 epochs:
@@ -272,13 +275,60 @@ loss too large, failed to train
 -----------------------------------------------------------------------------------------
 FINETUNE, 100000 examples, with clip_grad :
 ----------------------------------------------------------------------------------------
-LM with all pretrain 4 epochs (same as above all without clip_grad):
+**LM with all pretrain 4 epochs (LM same as above all without clip_grad):
 Epoch: 01 | Time: 10m 9s
 	Train Loss: 6.045 | Train PPL: 421.879
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
 LM huge data pretrain cause large weight distribution, so finetune must use clip_grad
 -----------------------------------------------------------------------------------------
-LM with all pretrain 4 epochs with clip_grad:
+**LM with all pretrain 4 epochs with clip_grad:
+Epoch: 01 | Time: 10m 2s
+	Train Loss: 6.267 | Train PPL: 526.747
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+transformers.get_linear_schedule_with_warmup:
+Epoch: 01 | Time: 10m 12s
+	Train Loss: 6.831 | Train PPL: 926.332
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+**transformers.AdamW:
+Epoch: 01 | Time: 10m 11s
+	Train Loss: 6.115 | Train PPL: 452.545
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+prefetch_generator:
+Epoch: 01 | Time: 10m 14s
+	Train Loss: 6.115 | Train PPL: 452.545
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+gradient_accumulation??:
+Epoch: 01 | Time: 9m 56s
+	Train Loss: 2.414 * 3(gradient_accumulation) | Train PPL:  11.182
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+Epoch: 01 | Time: 10m 15s
+        Train Loss: 1.219 * 6(gradient_accumulation) | Train PPL:   3.384
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+gelu:
+Epoch: 01 | Time: 10m 5s
+	Train Loss: 6.178 | Train PPL: 482.134
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+adapter layer:
+loss too high, maybe pretrain data and steps not enough
+maybe remove rezero and share layers for pretrain
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

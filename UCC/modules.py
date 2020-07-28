@@ -124,14 +124,18 @@ class TransformerEncoder(nn.Module):
         n_hid,
         n_head,
         num_layers,
-        dropout
+        dropout,
+        attn_act,
+        adapter_finetune, 
+        adapter_d_ff,
     ):
         super().__init__()
         self.num_layers = num_layers
 
         use_rezero = True
         if use_rezero:
-            encoder_layers = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout)
+            encoder_layers = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout,
+                   attn_act, adapter_finetune, adapter_d_ff)
         else:
             encoder_layers = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
@@ -147,7 +151,8 @@ class TransformerDecoderLayer(nn.Module):
     """
 
     def __init__(self, d_model, nhead, attn_alpha,
-            dim_feedforward=2048, dropout=0.1, activation="relu"):
+            dim_feedforward=2048, dropout=0.1, activation="relu",
+            adapter_finetune=False, adapter_d_ff=2048):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -163,6 +168,24 @@ class TransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.resweight = nn.Parameter(torch.Tensor([0]))
+ 
+        self.adapter_finetune = adapter_finetune
+        if self.adapter_finetune:
+            self.ada_linear1 = Linear(d_model, adapter_d_ff)
+            self.ada_dropout1 = Dropout(dropout)
+            self.ada_linear2 = Linear(adapter_d_ff, d_model)
+            self.ada_dropout2 = Dropout(dropout)
+
+            self.multihead_attn.requires_grad_(False)
+            #self.multihead_attn.in_proj_weight.requires_grad = False
+            #self.multihead_attn.in_proj_bias.requires_grad = False
+            self.linear1.requires_grad_(False)
+            self.linear2.requires_grad_(False)
+            #self.linear1.weight.requires_grad = False
+            #self.linear1.bias.requires_grad = False
+            #self.linear2.weight.requires_grad = False
+            #self.linear2.bias.requires_grad = False
+            #self.resweight.requires_grad = False
 
         self.activation = nn.modules.transformer._get_activation_fn(activation)
 
@@ -199,6 +222,12 @@ class TransformerDecoderLayer(nn.Module):
 
             tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
             tgt = attn_merge + self.dropout2(tgt2) * self.resweight
+ 
+            if self.adapter_finetune:
+                src2 = tgt            
+                src2 = self.ada_linear2(self.ada_dropout1(self.activation(self.ada_linear1(src2))))
+                src2 = src2 * self.resweight
+                src = tgt + self.ada_dropout2(src2)
         elif True:
             # must start with small lr 1.5e-4
             attn_t = 0
@@ -275,7 +304,9 @@ class RZTXEncoderLayer(Module):
         >>> src = torch.rand(10, 32, 512)
         >>> out = encoder_layer(src)
     """
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation='relu'):
+    def __init__(self, d_model, nhead, 
+            dim_feedforward=2048, dropout=0.1, activation='relu', 
+            adapter_finetune=False, adapter_d_ff=2048):
         super().__init__()
 
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -287,6 +318,24 @@ class RZTXEncoderLayer(Module):
         self.dropout2 = Dropout(dropout)
         self.resweight = nn.Parameter(torch.Tensor([0]))
 
+        self.adapter_finetune = adapter_finetune
+        if self.adapter_finetune:
+            self.ada_linear1 = Linear(d_model, adapter_d_ff)
+            self.ada_dropout1 = Dropout(dropout)
+            self.ada_linear2 = Linear(adapter_d_ff, d_model)
+            self.ada_dropout2 = Dropout(dropout)
+
+            self.self_attn.requires_grad_(False)
+            #self.self_attn.in_proj_weight.requires_grad = False
+            #self.self_attn.in_proj_bias.requires_grad = False
+            self.linear1.requires_grad_(False)
+            self.linear2.requires_grad_(False)
+            #self.linear1.weight.requires_grad = False
+            #self.linear1.bias.requires_grad = False
+            #self.linear2.weight.requires_grad = False
+            #self.linear2.bias.requires_grad = False
+            #self.resweight.requires_grad = False
+             
         if activation == "relu":
             self.activation = F.relu
         elif activation == "gelu":
@@ -320,6 +369,13 @@ class RZTXEncoderLayer(Module):
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
         src2 = src2 * self.resweight
         src = src + self.dropout2(src2)
+
+        if self.adapter_finetune:
+            src2 = src            
+            src2 = self.ada_linear2(self.ada_dropout1(self.activation(self.ada_linear1(src2))))
+            src2 = src2 * self.resweight
+            src = src + self.ada_dropout2(src2)
+ 
         return src
 
 class RZTXDecoderLayer(nn.Module):

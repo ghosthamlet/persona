@@ -297,4 +297,3 @@ def build_corpus(raw_fname, corpus_fname):
     with open(corpus_fname) as f:
         f.write('\n'.join(datas_str))
 
-

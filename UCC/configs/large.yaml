@@ -4,13 +4,13 @@ device: cuda
 seed: 42
 n_epochs: 1
 # for LM
-#n_epochs_early_stage: 1
-n_epochs_early_stage: 0
-batch_size: 64
+n_epochs_early_stage: 4
+#n_epochs_early_stage: 0
+#batch_size: 64
 # for LM
-#batch_size: 1280
-limit_example_length: 100000
-#limit_example_length: 
+batch_size: 1280
+#limit_example_length: 100000
+limit_example_length: 
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -40,6 +40,7 @@ adapter_finetune: False
 
 model_path: models/
 # lm clip_grad
+#pretrained_path:
 pretrained_path: models/model_lm_epoch4_all/model.pt
 # 31476781 based on 2m
 #pretrained_path: models/model_lm_epoch5_2m_all/model.pt

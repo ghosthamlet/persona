@@ -33,6 +33,7 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
         self.adapter_finetune = adapter_finetune
+        self.factor_ff = False
 
         self._share_emb()
         self._share_encoder_decoder()
@@ -107,6 +108,10 @@ class AR(nn.Module):
             layer.norm2 = d_layer.norm2
             layer.resweight = d_layer.resweight
 
+            if self.factor_ff:
+                layer.fac_linear1 = d_layer.fac_linear1
+                layer.fac_linear2 = d_layer.fac_linear2
+
             if self.adapter_finetune:
                 layer.ada_linear1 = d_layer.ada_linear1
                 layer.ada_linear2 = d_layer.ada_linear2
@@ -129,9 +134,13 @@ class AR(nn.Module):
             layer.norm2 = layer0.norm2
             layer.resweight = layer0.resweight
 
+            if self.factor_ff:
+                layer.fac_linear1 = layer0.fac_linear1
+                layer.fac_linear2 = layer0.fac_linear2
+
             if self.adapter_finetune:
-                layer.ada_linear1 = d_layer.ada_linear1
-                layer.ada_linear2 = d_layer.ada_linear2
+                layer.ada_linear1 = layer0.ada_linear1
+                layer.ada_linear2 = layer0.ada_linear2
 
 
 class LM(AR):

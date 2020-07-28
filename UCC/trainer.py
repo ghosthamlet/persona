@@ -221,8 +221,11 @@ class Trainer:
         if args.n_epochs_early_stage > 0:
             self.model = models.LM(
                     context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater).to(self.device)
-            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+                    post_encoder, resp_decoder, generater,
+                    args.adapter_finetune,
+                    ).to(self.device)
+            self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
+            #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
@@ -417,8 +420,13 @@ class Trainer:
                 model_path + '/' + os.path.basename(self.args.config_file))
 
     def load_model(self):
-        self.model.load_state_dict(torch.load(self.args.pretrained_path), 
-                strict=not self.args.adapter_finetune)
+        # tmp for load pretrain LM model before factor ff
+        #state_dict = torch.load(self.args.pretrained_path)
+        #state_dict = {k: v 
+        #        for k, v in state_dict.items() 
+        #        if 'linear1' not in k and 'linear2' not in k}
+
+        self.model.load_state_dict(state_dict, strict=False)
 
 
 def epoch_time(start_time: int, end_time: int):

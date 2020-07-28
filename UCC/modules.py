@@ -156,9 +156,17 @@ class TransformerDecoderLayer(nn.Module):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.factor_ff = True
+        if self.factor_ff:
+            in_ff = int(dim_feedforward/4)
+            self.linear1 = nn.Linear(d_model, in_ff)
+            self.fac_linear1 = nn.Linear(in_ff, in_ff)
+            self.fac_linear2 = nn.Linear(in_ff, in_ff)
+            self.linear2 = nn.Linear(in_ff, d_model)
+        else:
+            self.linear1 = nn.Linear(d_model, dim_feedforward)
+            self.linear2 = nn.Linear(dim_feedforward, d_model)
         self.dropout1 = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
         self.dropout2 = nn.Dropout(dropout)
         self.attn_alpha = attn_alpha
         if self.attn_alpha is None:
@@ -220,8 +228,14 @@ class TransformerDecoderLayer(nn.Module):
             else:
                 attn_merge = tgt + self.dropout(attn_merge) * self.resweight
 
-            tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
-            tgt = attn_merge + self.dropout2(tgt2) * self.resweight
+            if self.factor_ff:
+                tgt2 = self.fac_linear1(self.dropout1(self.activation(self.linear1(attn_merge))))
+                tgt = attn_merge + self.dropout2(tgt2) * self.resweight
+                tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt))))
+                tgt = tgt + self.dropout2(tgt2) * self.resweight
+            else:
+                tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+                tgt = attn_merge + self.dropout2(tgt2) * self.resweight
  
             if self.adapter_finetune:
                 src2 = tgt            
@@ -311,9 +325,17 @@ class RZTXEncoderLayer(Module):
 
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
-        self.linear1 = Linear(d_model, dim_feedforward)
+        self.factor_ff = True
+        if self.factor_ff:
+            in_ff = int(dim_feedforward/4)
+            self.linear1 = nn.Linear(d_model, in_ff)
+            self.fac_linear1 = nn.Linear(in_ff, in_ff)
+            self.fac_linear2 = nn.Linear(in_ff, in_ff)
+            self.linear2 = nn.Linear(in_ff, d_model)
+        else:
+            self.linear1 = Linear(d_model, dim_feedforward)
+            self.linear2 = Linear(dim_feedforward, d_model)
         self.dropout = Dropout(dropout)
-        self.linear2 = Linear(dim_feedforward, d_model)
         self.dropout1 = Dropout(dropout)
         self.dropout2 = Dropout(dropout)
         self.resweight = nn.Parameter(torch.Tensor([0]))
@@ -365,10 +387,16 @@ class RZTXEncoderLayer(Module):
         src = src + self.dropout1(src2)
 
         # Pointiwse FF Layer
-        src2 = src            
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
-        src2 = src2 * self.resweight
-        src = src + self.dropout2(src2)
+        if self.factor_ff:
+            src2 = self.fac_linear1(self.dropout(self.activation(self.linear1(src))))
+            src = src + self.dropout2(src2 * self.resweight)
+            src2 = self.linear2(self.dropout(self.activation(self.fac_linear2(src))))
+            src = src + self.dropout2(src2 * self.resweight)
+        else:
+            src2 = src            
+            src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
+            src2 = src2 * self.resweight
+            src = src + self.dropout2(src2)
 
         if self.adapter_finetune:
             src2 = src            

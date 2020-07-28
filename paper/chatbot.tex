@@ -126,7 +126,7 @@ Introversion extroversion
             print('Total loss: ', total_loss)
             total_loss = 0.0
       finetune: adapter layer
-      factor ff?
+      factor ff
       factor emb?
       Training FlauBERT
       fastai
@@ -309,7 +309,7 @@ Epoch: 01 | Time: 10m 14s
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-gradient_accumulation??:
+??gradient_accumulation:
 Epoch: 01 | Time: 9m 56s
 	Train Loss: 2.414 * 3(gradient_accumulation) | Train PPL:  11.182
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
@@ -329,6 +329,24 @@ Epoch: 01 | Time: 10m 5s
 adapter layer:
 loss too high, maybe pretrain data and steps not enough
 maybe remove rezero and share layers for pretrain
+-----------------------------------------------------------------------------------------
+adapter layer without pretrain (transformer block random weights):
+Epoch: 01 | Time: 10m 49s
+	Train Loss: 8.102 | Train PPL: 3299.585
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+**factor ff without pretrain:
+Epoch: 01 | Time: 8m 40s
+	Train Loss: 7.707 | Train PPL: 2223.593
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+**factor ff, repretrained 1 epoch LM base on early full ff pretrain:
+(after small part model arch change, no need to repretrain from scratch,
+the compatible model part can be loaded to repretrain)
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

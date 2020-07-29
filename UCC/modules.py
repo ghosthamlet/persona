@@ -24,6 +24,7 @@ class ContextEmb(nn.Module):
         input_dim,
         emb_dim, 
         emb_freeze, 
+        d_model,
         pad_idx,
         dropout,
         embeddings=None 
@@ -36,6 +37,7 @@ class ContextEmb(nn.Module):
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.pos_encoder = utils.PositionalEncoding(emb_dim)
+        self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, feature):
@@ -66,6 +68,7 @@ class ContextEmb(nn.Module):
             emb = fn(emb, self.spe2_idx, 1)
 
         emb = emb + self.pos_encoder(emb)
+        emb = self.proj(emb)
         emb = self.dropout(emb)
 
         return emb
@@ -77,6 +80,7 @@ class PersonaEmb(nn.Module):
         input_dim,
         emb_dim, 
         emb_freeze, 
+        d_model,
         pad_idx,
         embeddings=None 
     ):
@@ -84,10 +88,12 @@ class PersonaEmb(nn.Module):
         self.emb_dim = emb_dim
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.proj = nn.Linear(emb_dim, d_model)
 
     def forward(self, persona):
         # seq_len(k;v) X batch_size X emb_dim
         emb = self.emb(persona) * math.sqrt(self.emb_dim)
+        emb = self.proj(emb)
 
         return emb                
 
@@ -98,6 +104,7 @@ class OutputEmb(nn.Module):
         input_dim,
         emb_dim, 
         emb_freeze, 
+        d_model,
         pad_idx,
         dropout,
         embeddings=None 
@@ -107,11 +114,14 @@ class OutputEmb(nn.Module):
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.pos_encoder = utils.PositionalEncoding(emb_dim)
+        self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, output):
         emb = self.emb(output) * math.sqrt(self.emb_dim)
-        emb = self.dropout(emb + self.pos_encoder(emb))
+        emb = emb + self.pos_encoder(emb)
+        emb = self.proj(emb)
+        emb = self.dropout(emb)
 
         return emb                
  
@@ -159,10 +169,14 @@ class TransformerDecoderLayer(nn.Module):
         self.factor_ff = True
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
-            self.linear1 = nn.Linear(d_model, in_ff)
-            self.fac_linear1 = nn.Linear(in_ff, in_ff)
-            self.fac_linear2 = nn.Linear(in_ff, in_ff)
-            self.linear2 = nn.Linear(in_ff, d_model)
+           #self.linear1 = nn.Linear(d_model, in_ff)
+           #self.fac_linear1 = nn.Linear(in_ff, in_ff)
+           #self.fac_linear2 = nn.Linear(in_ff, in_ff)
+           #self.linear2 = nn.Linear(in_ff, d_model)
+            self.linear1 = nn.Linear(d_model, 100)
+            self.fac_linear1 = nn.Linear(100, dim_feedforward)
+            self.fac_linear2 = nn.Linear(dim_feedforward, 100)
+            self.linear2 = nn.Linear(100, d_model)
         else:
             self.linear1 = nn.Linear(d_model, dim_feedforward)
             self.linear2 = nn.Linear(dim_feedforward, d_model)
@@ -229,10 +243,13 @@ class TransformerDecoderLayer(nn.Module):
                 attn_merge = tgt + self.dropout(attn_merge) * self.resweight
 
             if self.factor_ff:
-                tgt2 = self.fac_linear1(self.dropout1(self.activation(self.linear1(attn_merge))))
+               #tgt2 = self.fac_linear1(self.dropout1(self.activation(self.linear1(attn_merge))))
+               #tgt = attn_merge + self.dropout2(tgt2) * self.resweight
+               #tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt))))
+               #tgt = tgt + self.dropout2(tgt2) * self.resweight
+                tgt2 = self.dropout1(self.fac_linear1(self.activation(self.linear1(attn_merge))))
+                tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt2))))
                 tgt = attn_merge + self.dropout2(tgt2) * self.resweight
-                tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt))))
-                tgt = tgt + self.dropout2(tgt2) * self.resweight
             else:
                 tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
                 tgt = attn_merge + self.dropout2(tgt2) * self.resweight
@@ -328,10 +345,14 @@ class RZTXEncoderLayer(Module):
         self.factor_ff = True
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
-            self.linear1 = nn.Linear(d_model, in_ff)
-            self.fac_linear1 = nn.Linear(in_ff, in_ff)
-            self.fac_linear2 = nn.Linear(in_ff, in_ff)
-            self.linear2 = nn.Linear(in_ff, d_model)
+           #self.linear1 = nn.Linear(d_model, in_ff)
+           #self.fac_linear1 = nn.Linear(in_ff, in_ff)
+           #self.fac_linear2 = nn.Linear(in_ff, in_ff)
+           #self.linear2 = nn.Linear(in_ff, d_model)
+            self.linear1 = nn.Linear(d_model, 100)
+            self.fac_linear1 = nn.Linear(100, dim_feedforward)
+            self.fac_linear2 = nn.Linear(dim_feedforward, 100)
+            self.linear2 = nn.Linear(100, d_model)
         else:
             self.linear1 = Linear(d_model, dim_feedforward)
             self.linear2 = Linear(dim_feedforward, d_model)
@@ -388,9 +409,12 @@ class RZTXEncoderLayer(Module):
 
         # Pointiwse FF Layer
         if self.factor_ff:
-            src2 = self.fac_linear1(self.dropout(self.activation(self.linear1(src))))
-            src = src + self.dropout2(src2 * self.resweight)
-            src2 = self.linear2(self.dropout(self.activation(self.fac_linear2(src))))
+           #src2 = self.fac_linear1(self.dropout(self.activation(self.linear1(src))))
+           #src = src + self.dropout2(src2 * self.resweight)
+           #src2 = self.linear2(self.dropout(self.activation(self.fac_linear2(src))))
+           #src = src + self.dropout2(src2 * self.resweight)
+            src2 = self.dropout1(self.fac_linear1(self.activation(self.linear1(src))))
+            src2 = self.linear2(self.dropout(self.activation(self.fac_linear2(src2))))
             src = src + self.dropout2(src2 * self.resweight)
         else:
             src2 = src            

@@ -153,7 +153,7 @@ class Trainer:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length)
             ds = utils.PersonaDataset(
-                    self.vocab, args.max_seq_length, 
+                    self.vocab, args.max_seq_length, args.limit_example_length,
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
             print('---------------------------------')
@@ -164,7 +164,7 @@ class Trainer:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
             ds = utils.PersonaDataset(
-                    self.vocab, args.max_seq_length, 
+                    self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_char')
             print('---------------------------------')
@@ -176,14 +176,14 @@ class Trainer:
         self.valid_iter = None
         self.test_iter = None
        #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, 
+       #        self.vocab, args.max_seq_length, args.limit_example_length, 
        #        data_path=args.data_path, cache_path=args.cache_path, 
        #        limit_length=args.limit_example_length, mode='valid')
        #self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
        #        collate_fn=gb, shuffle=args.shuffle_data) 
 
        #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, 
+       #        self.vocab, args.max_seq_length, args.limit_example_length, 
        #        data_path=args.data_path, cache_path=args.cache_path, 
        #        limit_length=args.limit_example_length, mode='test')
        #self.test_iter = DataLoader(ds, batch_size=args.batch_size,
@@ -200,12 +200,12 @@ class Trainer:
         spe2_idx = self.vocab.stoi(utils.SPE2)
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
-                input_dim, args.d_model, args.emb_freeze,
-                pad_idx, args.enc_dropout, embeddings)
-        persona_emb = modules.PersonaEmb(input_dim, args.d_model, args.emb_freeze,
-                pad_idx, embeddings)
-        output_emb = modules.OutputEmb(input_dim, args.d_model, args.emb_freeze,
-                pad_idx, args.enc_dropout, embeddings)
+                input_dim, args.emb_dim, args.emb_freeze, 
+                args.d_model, pad_idx, args.enc_dropout, embeddings)
+        persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
+                args.d_model, pad_idx, embeddings)
+        output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
+                args.d_model, pad_idx, args.enc_dropout, embeddings)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
                 args.n_head, args.num_layers, args.enc_dropout,
@@ -421,10 +421,10 @@ class Trainer:
 
     def load_model(self):
         # tmp for load pretrain LM model before factor ff
-        #state_dict = torch.load(self.args.pretrained_path)
-        #state_dict = {k: v 
-        #        for k, v in state_dict.items() 
-        #        if 'linear1' not in k and 'linear2' not in k}
+        state_dict = torch.load(self.args.pretrained_path)
+       #state_dict = {k: v 
+       #        for k, v in state_dict.items() 
+       #        if 'linear1' not in k and 'linear2' not in k}
 
         self.model.load_state_dict(state_dict, strict=False)
 

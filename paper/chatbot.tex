@@ -127,17 +127,20 @@ Introversion extroversion
             total_loss = 0.0
       finetune: adapter layer
       factor ff
-      factor emb?
+      factor emb
       Training FlauBERT
+      tinybert
       fastai
       ELECTRA
-      tinybert
+      No pretrain, pretrain is for small labeled datasets and for reuse to finetune different targets, if we have large labeled datasets and just one target,
+        maybe just train labeled data(joint with pretrain objective) longer is fine
   Acc:
       hug face
       lost in chat
       T5
       P2
       PEE
+      GPT2 BPE, GPT pretrain
       archtecture
       pretrain objective: denoise
   Datasets:
@@ -244,8 +247,9 @@ Epoch: 01 | Time: 10m 11s
 
 PRETRAIN:
 -----------------------------------------------------------------------------------------
-LM:
-
+LM base on 4 epochs all without ff weights:
+Epoch: 01 | Time: 135m 35s
+	Train Loss: 4.116 | Train PPL:  61.325
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
@@ -338,19 +342,26 @@ Epoch: 01 | Time: 10m 49s
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
 **factor ff without pretrain:
-Epoch: 01 | Time: 8m 40s
-	Train Loss: 7.707 | Train PPL: 2223.593
+Epoch: 01 | Time: 8m 1s
+	Train Loss: 7.766 | Train PPL: 2358.529
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-**factor ff, repretrained 1 epoch LM base on early full ff pretrain:
+**factor ff, repretrained 1 epoch LM base on early 4 epochs full ff pretrain:
 (after small part model arch change, no need to repretrain from scratch,
 the compatible model part can be loaded to repretrain)
+Epoch: 01 | Time: 8m 39s
+	Train Loss: 6.134 | Train PPL: 461.388
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
+factor emb without pretrain:
 
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 
 
 身份特征问话分类：

@@ -33,7 +33,7 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
         self.adapter_finetune = adapter_finetune
-        self.factor_ff = False
+        self.factor_ff = True
 
         self._share_emb()
         self._share_encoder_decoder()

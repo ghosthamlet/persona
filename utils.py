@@ -331,17 +331,19 @@ class PersonaDataset(Dataset):
         self,
         vocab,
         max_seq_length,
+        limit_example_length,
         data_path,
         cache_path,
         data_processer,
         mode='train',
-        overwrite_cache=True,
+        overwrite_cache=False,
     ):
         # Load data features from cache or dataset file
         cached_features_file = os.path.join(
             cache_path,
-            "cached_{}_{}".format(
+            "cached_{}_{}_{}".format(
                 mode, str(max_seq_length),
+                str(limit_example_length or 'all'),
             ),
         )
         
@@ -365,7 +367,7 @@ class PersonaDataset(Dataset):
                     mode=mode,
                 ))
                 start = time.time()
-                # torch.save(self.features, cached_features_file)
+                torch.save(self.features, cached_features_file)
                 # ^ This seems to take a lot of time so I want to investigate why and how we can improve.
                 print("Saving features into cached file %s [took %.3f s]" % (cached_features_file, time.time() - start))
 

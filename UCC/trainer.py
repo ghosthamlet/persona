@@ -74,8 +74,7 @@ class Trainer:
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
-        parser.add_argument('--enc_dropout', default=0.1, type=float, required=False, help='')
-        parser.add_argument('--dec_dropout', default=0.1, type=float, required=False, help='')
+        parser.add_argument('--dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
         parser.add_argument('--n_head', default=8, type=int, required=False, help='')
         parser.add_argument('--d_model', default=512, type=int, required=False, help='')
@@ -133,12 +132,12 @@ class Trainer:
             embeddings = embeddings.to(self.device)
         self.vocab = utils.Vocab(gensim_vocab, args.data_path)
         self.input_dim = len(self.vocab)
-        # if special_tokens did not include in pretrain_emb, append zeros, disable emb_freeze
         if args.pretrain_emb:
             elen = embeddings.shape[0]
             if self.input_dim > elen:
                 args.emb_freeze = False
-                append = torch.zeros(self.input_dim - elen, embeddings.shape[1]).to(self.device)
+                append = torch.nn.init.kaiming_uniform_(
+                        torch.zeros(self.input_dim - elen, embeddings.shape[1])).to(self.device)
                 embeddings = torch.cat([embeddings, append], dim=0)
 
         self.pad_idx = self.vocab.stoi(utils.PAD)
@@ -201,21 +200,21 @@ class Trainer:
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
-                args.d_model, pad_idx, args.enc_dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings)
         persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings)
         output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.enc_dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
-                args.n_head, args.num_layers, args.enc_dropout,
+                args.n_head, args.num_layers, args.dropout,
                 'relu', args.adapter_finetune, args.adapter_d_ff)
 
         resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
-                args.attn_alpha, args.d_ff, args.dec_dropout, 
+                args.attn_alpha, args.d_ff, args.dropout, 
                 'relu', args.adapter_finetune, args.adapter_d_ff)
         resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
-        generater = modules.Generater(args.d_model, output_dim)
+        generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
 
         self.best_model = None
         if args.n_epochs_early_stage > 0:

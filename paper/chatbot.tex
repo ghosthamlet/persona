@@ -132,7 +132,8 @@ Introversion extroversion
       tinybert
       fastai
       ELECTRA
-      No pretrain, pretrain is for small labeled datasets and for reuse to finetune different targets, if we have large labeled datasets and just one target,
+      No pretrain, pretrain is for small labeled datasets and for reuse to finetune different targets, 
+        if we have large labeled datasets and just one target,
         maybe just train labeled data(joint with pretrain objective) longer is fine
   Acc:
       hug face
@@ -357,11 +358,21 @@ Epoch: 01 | Time: 8m 39s
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-factor emb without pretrain:
-
+**factor emb 200dim without pretrain without tying and factor pre_softmax:
+(proj before dropout perform a bit better)
+(tying and factor pre_softmax will increase much loss)
+(pretrained embeddings has few effects)
+Epoch: 01 | Time: 8m 4s
+	Train Loss: 7.591 | Train PPL: 1980.477
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
+No pretrain, train all 4 epochs:
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+
 
 
 身份特征问话分类：

@@ -95,8 +95,9 @@ class AR(nn.Module):
 
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
+        #self.context_emb.proj.weight = self.output_emb.proj.weight
         self.persona_emb.emb.weight = self.output_emb.emb.weight
-        self.generater.out.weight = self.output_emb.emb.weight
+        #self.persona_emb.proj.weight = self.output_emb.proj.weight
 
     def _share_encoder_decoder(self):
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):

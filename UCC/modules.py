@@ -82,6 +82,7 @@ class PersonaEmb(nn.Module):
         emb_freeze, 
         d_model,
         pad_idx,
+        dropout,
         embeddings=None 
     ):
         super().__init__()
@@ -89,11 +90,13 @@ class PersonaEmb(nn.Module):
 
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.proj = nn.Linear(emb_dim, d_model)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, persona):
         # seq_len(k;v) X batch_size X emb_dim
         emb = self.emb(persona) * math.sqrt(self.emb_dim)
         emb = self.proj(emb)
+        emb = self.dropout(emb)
 
         return emb                
 
@@ -529,6 +532,7 @@ class TransformerDecoder(nn.Module):
 class Generater(nn.Module):
     def __init__(
         self,
+        emb_dim,
         d_model,
         output_dim
     ):

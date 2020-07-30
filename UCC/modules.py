@@ -1,5 +1,6 @@
 
 import math
+import random
 import sys
 # for import parent utils
 sys.path.append('../')
@@ -189,6 +190,7 @@ class TransformerDecoderLayer(nn.Module):
         if self.attn_alpha is None:
             self.cls = nn.Linear(d_model, dim_feedforward)
 
+        self.pre_norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -226,6 +228,7 @@ class TransformerDecoderLayer(nn.Module):
        #                           key_padding_mask=memory_key_padding_mask)[0]
        #tgt = tgt + self.dropout2(tgt2)
        #tgt = self.norm2(tgt)
+        tgt = self.pre_norm(tgt)
 
         use_rezero = True
         if use_rezero:
@@ -313,7 +316,6 @@ from torch.nn.init import xavier_uniform_
 from torch.nn.init import constant_
 from torch.nn.init import xavier_normal_
 from torch.nn.modules.module import Module
-from torch.nn.modules.activation import MultiheadAttention
 from torch.nn.modules.container import ModuleList
 from torch.nn.init import xavier_uniform_
 from torch.nn.modules.dropout import Dropout
@@ -343,7 +345,7 @@ class RZTXEncoderLayer(Module):
             adapter_finetune=False, adapter_d_ff=2048):
         super().__init__()
 
-        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.factor_ff = True
         if self.factor_ff:
@@ -363,6 +365,7 @@ class RZTXEncoderLayer(Module):
         self.dropout1 = Dropout(dropout)
         self.dropout2 = Dropout(dropout)
         self.resweight = nn.Parameter(torch.Tensor([0]))
+        self.pre_norm = nn.LayerNorm(d_model)
 
         self.adapter_finetune = adapter_finetune
         if self.adapter_finetune:
@@ -402,6 +405,8 @@ class RZTXEncoderLayer(Module):
         Shape:
             see the docs in PyTroch Transformer class.
         """
+        src = self.pre_norm(src)
+
         # Self attention layer
         src2 = src
         src2 = self.self_attn(src2, src2, src2, attn_mask=src_mask,

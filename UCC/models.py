@@ -108,6 +108,7 @@ class AR(nn.Module):
             layer.norm1 = d_layer.norm1
             layer.norm2 = d_layer.norm2
             layer.resweight = d_layer.resweight
+            layer.pre_norm = d_layer.pre_norm
 
             if self.factor_ff:
                 layer.fac_linear1 = d_layer.fac_linear1
@@ -134,6 +135,7 @@ class AR(nn.Module):
             layer.norm1 = layer0.norm1
             layer.norm2 = layer0.norm2
             layer.resweight = layer0.resweight
+            layer.pre_norm = layer0.pre_norm
 
             if self.factor_ff:
                 layer.fac_linear1 = layer0.fac_linear1

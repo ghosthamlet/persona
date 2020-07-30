@@ -9,8 +9,8 @@ n_epochs_early_stage: 0
 batch_size: 64
 # for LM
 #batch_size: 1280
-limit_example_length: 
-#limit_example_length: 100000
+#limit_example_length: 
+limit_example_length: 100000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -29,7 +29,8 @@ d_ff: 2048
 attn_alpha: 1
 adapter_d_ff: 2048
 
-lr: 1.5e-4
+#lr: 1.5e-4
+lr: 0.2e-2
 weight_decay: 0.05
 clip_grad: 1
 use_scheduler: False

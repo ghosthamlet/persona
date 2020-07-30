@@ -23,6 +23,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, ConcatDataset
+import torch.utils.checkpoint as torch_cp
 
 import torch_optimizer as toptim
 import transformers
@@ -59,7 +60,7 @@ class Trainer:
     def parse_args(self):
         parser = argparse.ArgumentParser()
 
-        parser.add_argument('--config_file', default='configs/default.yaml', type=str, required=False, 
+        parser.add_argument('--config_file', default='configs/large.yaml', type=str, required=False, 
             help='Provide config in config_file or as other commandline args')
         parser.add_argument('--device', default='cuda', type=str, required=False, help='use cpu for easy debug')
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
@@ -74,6 +75,7 @@ class Trainer:
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
+        parser.add_argument('--emb_dim', default=200, type=int, required=False, help='')
         parser.add_argument('--dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
         parser.add_argument('--n_head', default=8, type=int, required=False, help='')
@@ -356,6 +358,7 @@ class Trainer:
             utils.feature_to_device(feature, self.device)
 
             alpha = 0.5
+            # out, out_lm = torch_cp.checkpoint(self.model, feature)
             out, out_lm = self.model(feature)
             loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
                     feature.resp[1:].view(-1))
@@ -435,7 +438,39 @@ def epoch_time(start_time: int, end_time: int):
     return elapsed_mins, elapsed_secs
 
 
+def lr_finder():
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import torch_lr_finder
+    matplotlib.use('WebAgg') 
+
+    class TrainIter(torch_lr_finder.TrainDataLoaderIter): 
+        def inputs_labels_from_batch(self, batch_data): 
+            utils.feature_to_device(batch_data, 'cuda') 
+            return (batch_data, (batch_data.resp, batch_data.lm)) 
+
+    def loss_fn(outputs, target):
+        alpha = 0.5
+        out, out_lm = outputs
+        loss = t.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
+                target[0][1:].view(-1))
+        loss_lm = alpha * t.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
+                            target[1].y.view(-1))
+        return loss + loss_lm
+
+    t = Trainer()
+    lr = torch_lr_finder.LRFinder(t.model, t.optimizer, loss_fn, device='cuda')
+    lr.range_test(TrainIter(t.train_iter), end_lr=100, num_iter=100)
+    lr.plot()
+    lr.reset()
+    # plt.savefig("mygraph.png")
+    # plt.show()
+    print(lr.history)
+
 if __name__ == '__main__':
+    #lr_finder()
+    #exit()
+
     trainer = Trainer()
     trainer.run()
 

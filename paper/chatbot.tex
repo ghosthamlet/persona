@@ -129,7 +129,8 @@ Introversion extroversion
       factor ff
       factor emb
       Training FlauBERT: pre-norm before attention
-      ?fastai
+      lr_finder
+      ?fastai: OneCycle, progressive unfreezing, test time argumentation, ...
       ?No pretrain, pretrain is for small labeled datasets and for reuse to finetune different targets, 
         if we have large labeled datasets and just one target,
         maybe just train labeled data(joint with pretrain objective) longer is fine
@@ -137,13 +138,15 @@ Introversion extroversion
       hug face
       lost in chat
       T5
-      P2
-      PEE
       Meena: Conv2D
       ELECTRA
       GPT2 BPE, GPT pretrain
-      archtecture
+      Mask Persona Language Model: 
+        self surperize pretrain or add auolxss loss by mask random persona value
       pretrain objective: denoise
+      P2
+      PEE
+      archtecture
   Datasets:
       pretrain char LM 440674938 n_token with 14023 n_vocab with short seq, data are [AssignPersona weibo, tieba, douban]
 
@@ -375,7 +378,11 @@ Epoch: 01 | Time: 8m 10s
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-lr_finder lr: 0.2e-2 (all before are 1.5e-4)
+lr_finder lr: 0.2e-2 with lr_scheduler.ReduceLROnPlateau 
+(all before are 1.5e-4 no lr_scheduler)
+Epoch: 01 | Time: 8m 6s
+	Train Loss: 6.820 | Train PPL: 916.251
+	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

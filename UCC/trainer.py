@@ -243,14 +243,18 @@ class Trainer:
                     weight_decay=args.weight_decay)
             print(self.model)
             print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
-        #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
-        #self.scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, 2)
-        # XXX: scheduler will run once at start, even if has no scheduler.step()
         if args.use_scheduler:
-            total_steps = int(len(self.train_iter.dataset) * args.n_epochs 
-                    / args.batch_size / args.gradient_accumulation)
-            self.scheduler = transformers.get_linear_schedule_with_warmup(self.optimizer, 
-                    num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
+            #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
+            #self.scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, 2)
+            if args.warmup_steps == 0:
+                self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
+                        mode='min', factor=0.5, min_lr=1.5e-4, patience=60, verbose=True)
+            else:
+                # XXX: scheduler will run once at start, even if has no scheduler.step()
+                total_steps = int(len(self.train_iter.dataset) * args.n_epochs 
+                        / args.batch_size / args.gradient_accumulation)
+                self.scheduler = transformers.get_linear_schedule_with_warmup(self.optimizer, 
+                        num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
 
 
         if args.pretrained_path is None:
@@ -381,7 +385,7 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 if self.args.use_scheduler:
-                    self.scheduler.step()
+                    self.scheduler.step(iloss)
 
                 end_time = time.time()
                 secs = end_time - start_time

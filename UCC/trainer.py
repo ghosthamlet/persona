@@ -174,21 +174,23 @@ class Trainer:
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
 
-        self.valid_iter = None
-        self.test_iter = None
-       #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, args.limit_example_length, 
-       #        data_path=args.data_path, cache_path=args.cache_path, 
-       #        limit_length=args.limit_example_length, mode='valid')
-       #self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
-       #        collate_fn=gb, shuffle=args.shuffle_data) 
+            dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
+                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+            ds = utils.PersonaDataset(
+                    self.vocab, args.max_seq_length, args.limit_example_length, 
+                    data_path=args.data_path, cache_path=args.cache_path, 
+                    data_processer=dp, mode='valid_char')
+            self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
+                    collate_fn=gb, shuffle=args.shuffle_data) 
 
-       #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, args.limit_example_length, 
-       #        data_path=args.data_path, cache_path=args.cache_path, 
-       #        limit_length=args.limit_example_length, mode='test')
-       #self.test_iter = DataLoader(ds, batch_size=args.batch_size,
-       #        collate_fn=gb, shuffle=args.shuffle_data)
+            dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
+                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+            ds = utils.PersonaDataset(
+                    self.vocab, args.max_seq_length, args.limit_example_length, 
+                    data_path=args.data_path, cache_path=args.cache_path, 
+                    data_processer=dp, mode='test_char')
+            self.test_iter = DataLoader(ds, batch_size=args.batch_size,
+                    collate_fn=gb, shuffle=args.shuffle_data)
 
     def build_model(self):
         args = self.args
@@ -297,12 +299,10 @@ class Trainer:
             start_time = time.time()
 
             train_loss = self.train(epoch)
-            valid_loss = self.eval()
+            valid_loss = self.eval(self.valid_iter)
  
-            # if valid_loss < best_val_loss:
-                # best_val_loss = valid_loss
-            if train_loss < best_val_loss:
-                best_val_loss = train_loss
+            if valid_loss < best_val_loss:
+                best_val_loss = valid_loss
                 self.best_model = self.model
                 self.save_model(epoch)
 
@@ -393,21 +393,22 @@ class Trainer:
 
         return epoch_loss / len(data_iter)
 
-    def eval(self, data_iter=None):
+    def eval(self, data_iter):
         self.model.eval()
-        return 1
-
-        if data_iter is None:
-            data_iter = self.test_iter
 
         epoch_loss = 0
         with torch.no_grad():
-            for _, (X, y, key) in enumerate(data_iter):
-                f_out, j, b_out = self.model(X, y, teacher_forcing_ratio=0)
+            for _, feature in enumerate(data_iter):
 
-                out = out[1:].view(-1, out.shape[-1])
-                y = y[1:].view(-1)
-                loss = self.loss_fn(out, y)
+                utils.feature_to_device(feature, self.device)
+
+                alpha = 0.5
+                out, out_lm = self.model(feature)
+                loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
+                        feature.resp[1:].view(-1))
+                loss_lm = alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
+                                    feature.lm.y.view(-1))
+                loss += loss_lm
 
                 epoch_loss += loss.item()
 

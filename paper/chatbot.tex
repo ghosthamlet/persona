@@ -152,9 +152,15 @@ Introversion extroversion
       P2
       PEE
       ELECTRA
+      different loss for predict similar output, 
+        other like cross entropy for predict exact output,
+        for chatbot or LM we should no need to predict exact output same as target. 
       archtecture
+      activation function
+      optimizer
   Datasets:
       pretrain char LM 440674938 n_token with 14023 n_vocab with short seq, data are [AssignPersona weibo, tieba, douban]
+      persona chat data was deduplicated 
 
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
@@ -389,6 +395,9 @@ Epoch: 01 | Time: 8m 10s
 Epoch: 01 | Time: 8m 6s
 	Train Loss: 6.820 | Train PPL: 916.251
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
+Epoch: 01 | Time: 11m 9s
+	Train Loss: 6.836 | Train PPL: 931.176
+	 Val. Loss: 6.537 |  Val. PPL: 690.193
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ n_epochs_early_stage: 0
 batch_size: 64
 # for LM
 #batch_size: 1280
-limit_example_length: 
+limit_example_length: 1000000
 #limit_example_length: 100000
 # lm context size is equal max_seq_length
 max_seq_length: 15

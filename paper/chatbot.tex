@@ -134,18 +134,24 @@ Introversion extroversion
       ?No pretrain, pretrain is for small labeled datasets and for reuse to finetune different targets, 
         if we have large labeled datasets and just one target,
         maybe just train labeled data(joint with pretrain objective) longer is fine
+      ?gradient checkpoint
+
+      所有模型内部即模型架构的微调，对整体性能影响不大，即不会改变loss landscape，只能影响模型运行速度
   Acc:
+      模型输入与输出位置即模型内部以外位置的调整，不论大小，或模型内部较大的修改，都主要可能影响性能
       hug face
       lost in chat
       T5
-      Meena: Conv2D
-      ELECTRA
+      BERT/ROBERT/AlBERT pretrained chinese model feature, merge or direct use as inputs
+      ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
+      Meena: Conv2D
       Mask Persona Language Model: 
-        self surperize pretrain or add auolxss loss by mask random persona value
+        self surperize pretrain or add auxiliary loss by mask random persona value
       pretrain objective: denoise
       P2
       PEE
+      ELECTRA
       archtecture
   Datasets:
       pretrain char LM 440674938 n_token with 14023 n_vocab with short seq, data are [AssignPersona weibo, tieba, douban]
@@ -371,14 +377,14 @@ Epoch: 01 | Time: 8m 4s
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-pre-norm before attention:
+**pre-norm before attention:
 Epoch: 01 | Time: 8m 10s
 	Train Loss: 7.422 | Train PPL: 1673.100
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-lr_finder lr: 0.2e-2 with lr_scheduler.ReduceLROnPlateau 
+**lr_finder lr: 0.2e-2 with lr_scheduler.ReduceLROnPlateau 
 (all before are 1.5e-4 no lr_scheduler)
 Epoch: 01 | Time: 8m 6s
 	Train Loss: 6.820 | Train PPL: 916.251

@@ -40,7 +40,7 @@ adapter_finetune: False
 
 model_path: models/
 # lm clip_grad
-pretrained_path: 
+pretrained_fname: 
 #pretrained_path: models/model_lm_epoch4_all_factor_ff_epoch1/model.pt
 #pretrained_path: models/model_lm_epoch4_all/model.pt
 # 31476781 based on 2m

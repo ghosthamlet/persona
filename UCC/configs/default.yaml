@@ -36,7 +36,7 @@ weight_decay: 0.05
 clip_grad: 1
 
 model_path: models/
-pretrained_path:
+pretrained_fname:
 # data_path: tmp/
 data_path: datas/
 cache_path: caches/

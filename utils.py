@@ -1,9 +1,12 @@
 
 import os
 import math
+import random
 import time
 import itertools
 from filelock import FileLock
+
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -11,6 +14,20 @@ from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
 
 from prefetch_generator import BackgroundGenerator
+
+
+def get_device(require_device):
+    return torch.device('cuda' if torch.cuda.is_available() and require_device == 'cuda' else 'cpu')
+
+ 
+def set_random_seed(seed, device):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    if device == 'cuda':
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
  
 class PositionalEncoding(nn.Module):

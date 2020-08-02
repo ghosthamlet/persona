@@ -34,8 +34,8 @@ class Trainer:
         args = self.parse_args()
         self.args = args
         self.best_valid_loss = float('inf')
-        self.device = torch.device('cuda' if torch.cuda.is_available() and args.device == 'cuda' else 'cpu')
-        self.set_random_seed()
+        self.device = utils.get_device(args.device)
+        utils.set_random_seed(self.seed, self.device)
 
         self.ensure_deps()
 
@@ -48,15 +48,6 @@ class Trainer:
         print('Build loss fns...')
         self.build_loss_fns()
 
-    def set_random_seed(self):
-        torch.manual_seed(self.args.seed)
-        random.seed(self.args.seed)
-        np.random.seed(self.args.seed)
-
-        if self.device == 'cuda':
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
-         
     def parse_args(self):
         parser = argparse.ArgumentParser()
 
@@ -93,7 +84,7 @@ class Trainer:
         parser.add_argument('--adapter_finetune', default=False, type=bool, required=False, help='')
 
         parser.add_argument('--model_path', default='models/', type=str, required=False, help='')
-        parser.add_argument('--pretrained_path', type=str, required=False, help='')
+        parser.add_argument('--pretrained_fname', type=str, required=False, help='')
         parser.add_argument('--data_path', default='datas/', type=str, required=False, help='')
         parser.add_argument('--cache_path', default='caches/', type=str, required=False, help='')
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')

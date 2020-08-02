@@ -300,6 +300,7 @@ Epoch: 01 | Time: 10m 9s
 	Train Loss: 6.045 | Train PPL: 421.879
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
 LM huge data pretrain cause large weight distribution, so finetune must use clip_grad
+pretrain may be disable clip_grad for reach large probability space.
 -----------------------------------------------------------------------------------------
 **LM with all pretrain 4 epochs with clip_grad:
 Epoch: 01 | Time: 10m 2s
@@ -383,14 +384,14 @@ Epoch: 01 | Time: 8m 4s
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-**pre-norm before attention:
+**pre-norm before attention no pretrain:
 Epoch: 01 | Time: 8m 10s
 	Train Loss: 7.422 | Train PPL: 1673.100
 	 Val. Loss: 1.000 |  Val. PPL:   2.718
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-**lr_finder lr: 0.2e-2 with lr_scheduler.ReduceLROnPlateau 
+**lr_finder lr: 0.2e-2 with lr_scheduler.ReduceLROnPlateau no pretrain:
 (all before are 1.5e-4 no lr_scheduler)
 Epoch: 01 | Time: 8m 6s
 	Train Loss: 6.820 | Train PPL: 916.251
@@ -398,6 +399,15 @@ Epoch: 01 | Time: 8m 6s
 Epoch: 01 | Time: 11m 9s
 	Train Loss: 6.836 | Train PPL: 931.176
 	 Val. Loss: 6.537 |  Val. PPL: 690.193
+Epoch: 02 | Time: 11m 6s
+	Train Loss: 6.354 | Train PPL: 574.999
+	 Val. Loss: 6.413 |  Val. PPL: 609.473
+| Test Loss: 6.411 | Test PPL: 608.236 |
+1000000 data
+Epoch: 02 | Time: 84m 5s
+	Train Loss: 5.910 | Train PPL: 368.582
+	 Val. Loss: 5.802 |  Val. PPL: 330.999
+| Test Loss: 5.802 | Test PPL: 330.975 |
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

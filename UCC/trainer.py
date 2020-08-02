@@ -361,6 +361,7 @@ class Trainer:
 
             utils.feature_to_device(feature, self.device)
 
+            # TODO: move to loss method
             alpha = 0.5
             # out, out_lm = torch_cp.checkpoint(self.model, feature)
             out, out_lm = self.model(feature)
@@ -402,6 +403,7 @@ class Trainer:
 
                 utils.feature_to_device(feature, self.device)
 
+                # TODO: move to loss method
                 alpha = 0.5
                 out, out_lm = self.model(feature)
                 loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
@@ -454,6 +456,7 @@ def lr_finder():
             utils.feature_to_device(batch_data, 'cuda') 
             return (batch_data, (batch_data.resp, batch_data.lm)) 
 
+    # TODO: move to loss method
     def loss_fn(outputs, target):
         alpha = 0.5
         out, out_lm = outputs

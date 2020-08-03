@@ -1,0 +1,16 @@
+ 
+# use cpu for easy debug
+device: cuda
+seed: 42
+batch_size: 64
+limit_example_length: 100000
+# lm context size is equal max_seq_length
+max_seq_length: 15
+# must be even, and >= 2
+max_context_size: 6
+
+pretrained_fname: models/model__epoch1/model.pt
+data_path: datas/
+cache_path: caches/
+
+ 

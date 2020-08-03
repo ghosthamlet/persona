@@ -82,6 +82,7 @@ class Trainer:
         parser.add_argument('--warmup_steps', default=2000, type=int, required=False, help='')
         parser.add_argument('--gradient_accumulation', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_finetune', default=False, type=bool, required=False, help='')
+        parser.add_argument('--alpha', default=0.5, type=float, required=False, help='LM loss weight')
 
         parser.add_argument('--model_path', default='models/', type=str, required=False, help='')
         parser.add_argument('--pretrained_fname', type=str, required=False, help='')
@@ -187,55 +188,26 @@ class Trainer:
         args = self.args
         output_dim = self.input_dim
         input_dim = self.input_dim
-        pad_idx = self.pad_idx
-        embeddings = self.embeddings
-        sep_idx = self.vocab.stoi(utils.SEP)
-        spe1_idx = self.vocab.stoi(utils.SPE1)
-        spe2_idx = self.vocab.stoi(utils.SPE2)
-
-        context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
-                input_dim, args.emb_dim, args.emb_freeze, 
-                args.d_model, pad_idx, args.dropout, embeddings)
-        persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings)
-        output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings)
-
-        post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
-                args.n_head, args.num_layers, args.dropout,
-                'relu', args.adapter_finetune, args.adapter_d_ff)
-
-        resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
-                args.attn_alpha, args.d_ff, args.dropout, 
-                'relu', args.adapter_finetune, args.adapter_d_ff)
-        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
-        generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
 
         self.best_model = None
+        self.model = models.AR.build(args, input_dim, 
+                output_dim, self.vocab, self.embeddings)
+
         if args.n_epochs_early_stage > 0:
-            self.model = models.LM(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater,
-                    args.adapter_finetune,
-                    ).to(self.device)
             self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
             #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
+            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
         else:
-            self.model = models.AR(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater,
-                    args.adapter_finetune,
-                    ).to(self.device)
             self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
             #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
             print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
+            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
+
         if args.use_scheduler:
             #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
             #self.scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, 2)
@@ -248,15 +220,14 @@ class Trainer:
                         / args.batch_size / args.gradient_accumulation)
                 self.scheduler = transformers.get_linear_schedule_with_warmup(self.optimizer, 
                         num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
-
-
-        if args.pretrained_path is None:
+ 
+        if args.pretrained_fname is None:
             pass
             # pytorch module will auto init_weights with uniform
             # self.model.apply(models.init_weights)
         else:
             print()
-            print(f'Load pretrained model {args.pretrained_path}...')
+            print(f'Load pretrained model {args.pretrained_fname}...')
             self.load_model()
 
     def build_loss_fns(self):
@@ -352,20 +323,16 @@ class Trainer:
 
             utils.feature_to_device(feature, self.device)
 
-            # TODO: move to loss method
-            alpha = 0.5
             # out, out_lm = torch_cp.checkpoint(self.model, feature)
             out, out_lm = self.model(feature)
-            loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
-                    feature.resp[1:].view(-1))
-            loss_lm = alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
-                                feature.lm.y.view(-1))
-            loss += loss_lm
+            loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+            loss = loss + self.args.alpha * loss_lm
             if self.args.gradient_accumulation > 1:
                 loss = loss / self.args.gradient_accumulation
-            #    # accuracy = accuracy / self.args.gradient_accumulation
+                # accuracy = accuracy / self.args.gradient_accumulation
             # utils.print_backward_graph(loss)
             loss.backward()
+
             iloss = loss.item()
             epoch_loss += iloss
 
@@ -394,14 +361,9 @@ class Trainer:
 
                 utils.feature_to_device(feature, self.device)
 
-                # TODO: move to loss method
-                alpha = 0.5
                 out, out_lm = self.model(feature)
-                loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
-                        feature.resp[1:].view(-1))
-                loss_lm = alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
-                                    feature.lm.y.view(-1))
-                loss += loss_lm
+                loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+                loss = loss + self.args.alpha * loss_lm
 
                 epoch_loss += loss.item()
 
@@ -416,12 +378,12 @@ class Trainer:
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         torch.save(self.model.state_dict(), model_path + '/model.pt')
-        shutil.copyfile(self.args.config_file, 
-                model_path + '/' + os.path.basename(self.args.config_file))
+        shutil.copyfile(self.args.config_file, model_path + '/config.yml')
+        shutil.copyfile(self.args.vocab_fname, model_path + '/vocab')
 
     def load_model(self):
         # tmp for load pretrain LM model before factor ff
-        state_dict = torch.load(self.args.pretrained_path)
+        state_dict = torch.load(self.args.pretrained_fname)
        #state_dict = {k: v 
        #        for k, v in state_dict.items() 
        #        if 'linear1' not in k and 'linear2' not in k}
@@ -447,15 +409,12 @@ def lr_finder():
             utils.feature_to_device(batch_data, 'cuda') 
             return (batch_data, (batch_data.resp, batch_data.lm)) 
 
-    # TODO: move to loss method
     def loss_fn(outputs, target):
         alpha = 0.5
         out, out_lm = outputs
-        loss = t.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
-                target[0][1:].view(-1))
-        loss_lm = alpha * t.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
-                            target[1].y.view(-1))
-        return loss + loss_lm
+        loss, loss_lm = models.AR.loss(t.out_loss_fn, out, out_lm, target[0], target[1].y)
+        loss = loss + alpha * loss_lm
+        return loss
 
     t = Trainer()
     lr = torch_lr_finder.LRFinder(t.model, t.optimizer, loss_fn, device='cuda')

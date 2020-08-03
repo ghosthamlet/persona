@@ -2,19 +2,7 @@
 import collections
 
 from torchtext.data.metrics import bleu_score
-
-
-def f1_score(precision, recall):
-  # predicted_classes = torch.argmax(y_pred, dim=1) == 0
-  # target_classes = self.get_vector(y_batch)
-  # target_true += torch.sum(target_classes == 0).float()
-  # predicted_true += torch.sum(predicted_classes).float()
-  # correct_true += torch.sum(
-  #     predicted_classes == target_classes * predicted_classes == 0).float()
-  # recall = correct_true / target_true
-  # precision = correct_true / predicted_true
-
-    return 2 * precission * recall / (precision + recall)
+from pytorch_lightning.metrics.functional import f1_score
 
 
 def distinct_score(output, gram_type=1):

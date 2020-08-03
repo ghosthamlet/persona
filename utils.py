@@ -488,7 +488,7 @@ def top_filtering(logits, top_k=0., top_p=0.9, threshold=-float('Inf'), filter_v
     return logits
 
 
-def sample_sequence(personality, history, tokenizer, model, args, current_output=None):
+def sample_sequence(feature, vocab, model, args, current_output=None):
     """Copy from https://github.com/huggingface/transfer-learning-conv-ai/blob/master/interact.py
 
     Examples:
@@ -506,19 +506,14 @@ def sample_sequence(personality, history, tokenizer, model, args, current_output
        >>>      out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
        >>>      print(out_text)
     """
-    special_tokens_ids = tokenizer.convert_tokens_to_ids(SPECIAL_TOKENS)
+    special_tokens_ids = [vocab.stoi(k) for k in PRESET_SPECIAL_TOKENS]
     if current_output is None:
         current_output = []
 
     for i in range(args.max_length):
-        instance = build_input_from_segments(personality, history, current_output, tokenizer, with_eos=False)
+        feature = build_input_from_segments(feature, current_output, vocab, with_eos=False)
 
-        input_ids = torch.tensor(instance["input_ids"], device=args.device).unsqueeze(0)
-        token_type_ids = torch.tensor(instance["token_type_ids"], device=args.device).unsqueeze(0)
-
-        logits = model(input_ids, token_type_ids=token_type_ids)
-        if isinstance(logits, tuple):  # for gpt2 and maybe others
-            logits = logits[0]
+        logits, _ = model(feature)
         logits = logits[0, -1, :] / args.temperature
         logits = top_filtering(logits, top_k=args.top_k, top_p=args.top_p)
         probs = F.softmax(logits, dim=-1)
@@ -527,7 +522,7 @@ def sample_sequence(personality, history, tokenizer, model, args, current_output
         if i < args.min_length and prev.item() in special_tokens_ids:
             while prev.item() in special_tokens_ids:
                 if probs.max().item() == 1:
-                    warnings.warn("Warning: model generating special token with probability 1.")
+                    print("Warning: model generating special token with probability 1.")
                     break  # avoid infinitely looping over special token
                 prev = torch.multinomial(probs, num_samples=1)
 
@@ -537,3 +532,6 @@ def sample_sequence(personality, history, tokenizer, model, args, current_output
 
     return current_output
 
+
+def build_input_from_segments(feature, current_output, vocab, with_eos=False):
+    return feature

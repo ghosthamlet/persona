@@ -145,6 +145,57 @@ class AR(nn.Module):
                 layer.ada_linear1 = layer0.ada_linear1
                 layer.ada_linear2 = layer0.ada_linear2
 
+    def build(
+        args, 
+        input_dim,
+        output_dim,
+        vocab,
+        embeddings=None
+    ):
+        pad_idx = vocab.stoi(utils.PAD)
+        sep_idx = vocab.stoi(utils.SEP)
+        spe1_idx = vocab.stoi(utils.SPE1)
+        spe2_idx = vocab.stoi(utils.SPE2)
+
+        context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
+                input_dim, args.emb_dim, args.emb_freeze, 
+                args.d_model, pad_idx, args.dropout, embeddings)
+        persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
+                args.d_model, pad_idx, args.dropout, embeddings)
+        output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
+                args.d_model, pad_idx, args.dropout, embeddings)
+
+        post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
+                args.n_head, args.num_layers, args.dropout,
+                'relu', args.adapter_finetune, args.adapter_d_ff)
+
+        resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
+                args.attn_alpha, args.d_ff, args.dropout, 
+                'relu', args.adapter_finetune, args.adapter_d_ff)
+        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
+        generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
+
+        if args.n_epochs_early_stage > 0:
+            model = models.LM(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater,
+                    args.adapter_finetune,
+                    ).to(self.device)
+        else:
+            model = models.AR(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater,
+                    args.adapter_finetune,
+                    ).to(self.device)
+
+        return model
+
+    def loss(loss_fn, out, out_lm, resp, lm_y):
+        loss = loss_fn(out[:-1].view(-1, out.shape[-1]), resp[1:].view(-1))
+        loss_lm = loss_fn(out_lm.view(-1, out.shape[-1]), lm_y.view(-1))
+
+        return loss, loss_lm
+
 
 class LM(AR):
     def forward(self, feature):

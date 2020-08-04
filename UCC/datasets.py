@@ -233,9 +233,9 @@ def generate_batch(batch, pad_idx):
     tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
     tags_pad = tags_pad.view(-1, 2, int(tags_pad.shape[1]/2)).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
-    src_pad_mask = (context_pad == pad_idx).T
-    tgt_pad_mask = (resp_pad == pad_idx).T
-    tgt_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
+    context_pad_mask = (context_pad == pad_idx).T
+    resp_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
+    resp_pad_mask = (resp_pad == pad_idx).T
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
     persona_pad_mask = (persona_pad == pad_idx).T
     if char_emb:
@@ -258,9 +258,9 @@ def generate_batch(batch, pad_idx):
             resp=resp_pad,
             persona=persona_pad,
 
-            context_pad_mask=src_pad_mask,
-            resp_mask=tgt_mask,
-            resp_pad_mask=tgt_pad_mask,
+            context_pad_mask=context_pad_mask,
+            resp_mask=resp_mask,
+            resp_pad_mask=resp_pad_mask,
             persona_pad_mask=persona_pad_mask,
 
             lm=lm,

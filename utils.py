@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 
 from prefetch_generator import BackgroundGenerator
 
@@ -508,30 +509,46 @@ def sample_sequence(feature, vocab, model, args, current_output=None):
     """
     special_tokens_ids = [vocab.stoi(k) for k in PRESET_SPECIAL_TOKENS]
     if current_output is None:
-        current_output = []
+        sos_idx = vocab.stoi(SOS)
+        current_output = [[sos_idx] for _ in range(feature.context.shape[1])]
 
-    for i in range(args.max_length):
+    for seq_i in range(args.max_seq_length):
         feature = build_input_from_segments(feature, current_output, vocab, with_eos=False)
 
-        logits, _ = model(feature)
-        logits = logits[0, -1, :] / args.temperature
-        logits = top_filtering(logits, top_k=args.top_k, top_p=args.top_p)
-        probs = F.softmax(logits, dim=-1)
+        batch_logits, _ = model(feature)
+        for batch_idx in range(batch_logits.shape[1]):
+            logits = batch_logits[-1, batch_idx, :] / args.temperature
+            logits = top_filtering(logits, top_k=args.top_k, top_p=args.top_p)
+            probs = F.softmax(logits, dim=-1)
 
-        prev = torch.topk(probs, 1)[1] if args.no_sample else torch.multinomial(probs, 1)
-        if i < args.min_length and prev.item() in special_tokens_ids:
-            while prev.item() in special_tokens_ids:
-                if probs.max().item() == 1:
-                    print("Warning: model generating special token with probability 1.")
-                    break  # avoid infinitely looping over special token
-                prev = torch.multinomial(probs, num_samples=1)
+            prev = torch.topk(probs, 1)[1] if args.no_sample else torch.multinomial(probs, 1)
+            if seq_i < args.min_seq_length and prev.item() in special_tokens_ids:
+                while prev.item() in special_tokens_ids:
+                    if probs.max().item() == 1:
+                        print("Warning: model generating special token with probability 1.")
+                        break  # avoid infinitely looping over special token
+                    prev = torch.multinomial(probs, num_samples=1)
 
-        if prev.item() in special_tokens_ids:
-            break
-        current_output.append(prev.item())
+            if prev.item() in special_tokens_ids:
+                break
+            current_output[batch_idx].append(prev.item())
 
-    return current_output
+    pad_idx = vocab.stoi(PAD)
+    padded = pad_sequence(list(map(torch.tensor, current_output)), 
+            padding_value=pad_idx)
+    return current_output, padded
 
 
 def build_input_from_segments(feature, current_output, vocab, with_eos=False):
+    pad_idx = vocab.stoi(PAD)
+
+    resp_pad = pad_sequence(list(map(torch.tensor, current_output)), 
+            padding_value=pad_idx)
+    resp_mask = generate_square_subsequent_mask(resp_pad.shape[0])
+    resp_pad_mask = (resp_pad == pad_idx).T
+
+    feature.resp = resp_pad
+    feature.resp_mask = resp_mask
+    feature.resp_mask = resp_pad_mask
+
     return feature

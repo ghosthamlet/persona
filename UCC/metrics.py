@@ -6,6 +6,12 @@ from pytorch_lightning.metrics.functional import f1_score
 
 
 def distinct_score(output, gram_type=1):
+    scores = [distinct_score_single(v, gram_type) for v in output]
+
+    return scores / len(scores)
+ 
+
+def distinct_score_single(output, gram_type=1):
     """Paper: https://arxiv.org/pdf/1510.03055.pdf
 
     Degree of diversity by calculating the number of distinct unigrams 

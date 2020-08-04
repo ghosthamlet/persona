@@ -176,17 +176,17 @@ class AR(nn.Module):
         generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
 
         if args.n_epochs_early_stage > 0:
-            model = models.LM(
+            model = LM(
                     context_emb, persona_emb, output_emb,
                     post_encoder, resp_decoder, generater,
                     args.adapter_finetune,
-                    ).to(self.device)
+                    )
         else:
-            model = models.AR(
+            model = AR(
                     context_emb, persona_emb, output_emb,
                     post_encoder, resp_decoder, generater,
                     args.adapter_finetune,
-                    ).to(self.device)
+                    )
 
         return model
 

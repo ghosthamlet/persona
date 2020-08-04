@@ -38,6 +38,12 @@ class Evaler:
         parser.add_argument('--max_seq_length', default=300, type=int, required=False, help='')
         parser.add_argument('--max_context_size', default=10, type=int, required=False, help='')
 
+        parser.add_argument('--min_seq_length', default=10, type=int, required=False, help='')
+        parser.add_argument('--temperature', default=0.7, type=float, required=False, help='Sampling softmax temperature')
+        parser.add_argument('--top_k', default=0, type=int, required=False, help='Filter top-k tokens before sampling (<=0: no filtering)')
+        parser.add_argument('--top_p', default=0.9, type=float, required=False, help='Nucleus filtering (top-p) before sampling (<=0.0: no filtering)')
+        parser.add_argument('--no_sample', action='store_true', required=False, help='')
+
         parser.add_argument('--pretrained_fname', default='models/model__epoch1/', type=str, required=False, help='')
         parser.add_argument('--data_path', default='datas/', type=str, required=False, help='')
         parser.add_argument('--cache_path', default='caches/', type=str, required=False, help='')
@@ -80,7 +86,7 @@ class Evaler:
         input_dim = self.input_dim
 
         self.model = models.AR.build(self.model_config, input_dim, 
-                output_dim, self.vocab)
+                output_dim, self.vocab).to(self.device)
 
         print(f'Load pretrained model {args.pretrained_fname}...')
         self.load_model()
@@ -91,6 +97,7 @@ class Evaler:
         total_bleu = 0
         total_f1 = 0
         total_dist1 = 0
+        total_dist2 = 0
         total_loss = 0
         with torch.no_grad():
             for batch_idx, feature in enumerate(self.test_iter):
@@ -101,29 +108,33 @@ class Evaler:
                 loss = loss + self.model_config.alpha * loss_lm
                 total_loss += loss.item()
 
-                target = copy.deepcopy(feature.resp[1:].view(-1))
-                # feature may be changed
-                pred = utils.sample_sequence(feature, self.vocab, self.model, self.args)
+                target = copy.deepcopy(feature.resp[1:])
+                # feature will be changed
+                pred, pred_padded = utils.sample_sequence(feature, self.vocab, self.model, self.args)
 
-                bleu = metrics.bleu_score(pred, target)
-                f1 = metrics.f1_score(pred, target)
-                dist1 = metrics.distinct_score(pred)
+                bleu = metrics.bleu_score(pred_padded[:-1].tolist(), [[v] for v in target.tolist()])
+                f1 = metrics.f1_score(pred_padded[:-1], target)
+                dist1 = metrics.distinct_score([v[:-1] for v in pred])
+                dist2 = metrics.distinct_score([v[:-1] for v in pred], 2)
 
                 total_bleu += bleu
                 total_f1 += f1
                 total_dist1 += dist1
+                total_dist2 += dist2
 
         l = len(self.test_iter)
         bleu = total_bleu/l
         f1 = total_f1/l
         dist1 = total_dist1/l
+        dist2 = total_dist2/l
         # https://stackoverflow.com/questions/59209086/calculate-perplexity-in-pytorch
         # see per-word perplexity:
         # https://github.com/huggingface/transfer-learning-conv-ai/blob/master/convai_evaluation.py#L161
         # https://github.com/facebookresearch/ParlAI/blob/56d46551190a7ffaedccd13534412d43bc7076e5/parlai/scripts/eval_ppl.py
         ppl = math.exp(total_loss/l)
 
-        print(f'\tBleu: {bleu:.3f} | F1: {f1:.3f} | Dist1: {dist1:.3f} | PPL: {ppl:7.3f}')
+        print(f'\tBleu: {bleu:.3f} | F1: {f1:.3f} | '
+              f'Dist1: {dist1:.3f} | Dist2: {dist2:.3f} | PPL: {ppl:7.3f}')
 
     def load_model_config(self):
         return yaml.load(open(self.get_model_deps_file('config.yml')))

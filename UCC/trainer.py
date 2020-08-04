@@ -35,7 +35,7 @@ class Trainer:
         self.args = args
         self.best_valid_loss = float('inf')
         self.device = utils.get_device(args.device)
-        utils.set_random_seed(self.seed, self.device)
+        utils.set_random_seed(self.args.seed, self.device)
 
         self.ensure_deps()
 
@@ -191,7 +191,7 @@ class Trainer:
 
         self.best_model = None
         self.model = models.AR.build(args, input_dim, 
-                output_dim, self.vocab, self.embeddings)
+                output_dim, self.vocab, self.embeddings).to(self.device)
 
         if args.n_epochs_early_stage > 0:
             self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,

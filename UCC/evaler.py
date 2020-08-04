@@ -1,6 +1,10 @@
 
 import os
 import copy
+import time
+import math
+import argparse
+import yaml
 import sys
 # for import parent utils
 sys.path.append('../')
@@ -8,6 +12,11 @@ import utils
 
 import models
 import metrics
+import datasets
+
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 
 
 class Evaler:
@@ -15,7 +24,7 @@ class Evaler:
         args = self.parse_args()
         self.args = args
         self.device = utils.get_device(args.device)
-        utils.set_random_seed(self.seed, self.device)
+        utils.set_random_seed(self.args.seed, self.device)
 
         self.model_config = self.load_model_config()
 
@@ -25,6 +34,8 @@ class Evaler:
         self.build_dataloaders()
         print('Build model...')
         self.build_model()
+        print('Build loss fns...')
+        self.build_loss_fns()
 
     def parse_args(self):
         parser = argparse.ArgumentParser()
@@ -91,6 +102,9 @@ class Evaler:
         print(f'Load pretrained model {args.pretrained_fname}...')
         self.load_model()
 
+    def build_loss_fns(self):
+        self.out_loss_fn = nn.CrossEntropyLoss(ignore_index=self.pad_idx)
+
     def run(self):
         self.model.eval()
 
@@ -99,6 +113,8 @@ class Evaler:
         total_dist1 = 0
         total_dist2 = 0
         total_loss = 0
+
+        print('Run eval...')
         with torch.no_grad():
             for batch_idx, feature in enumerate(self.test_iter):
                 utils.feature_to_device(feature, self.device)
@@ -108,14 +124,28 @@ class Evaler:
                 loss = loss + self.model_config.alpha * loss_lm
                 total_loss += loss.item()
 
+                # target include w1, w2...[EOS], len: max_seq_length + 1
                 target = copy.deepcopy(feature.resp[1:])
                 # feature will be changed
                 pred, pred_padded = utils.sample_sequence(feature, self.vocab, self.model, self.args)
 
-                bleu = metrics.bleu_score(pred_padded[:-1].tolist(), [[v] for v in target.tolist()])
-                f1 = metrics.f1_score(pred_padded[:-1], target)
-                dist1 = metrics.distinct_score([v[:-1] for v in pred])
-                dist2 = metrics.distinct_score([v[:-1] for v in pred], 2)
+                pred_tokens = [[self.vocab.itos(k) for k in ks]
+                               for ks in pred]
+                target_tokens = [[[self.vocab.itos(k) for k in ks]]
+                                 for ks in target.T.tolist()]
+                print('----------------------------------')
+                print('Pred: ', ''.join([self.vocab.itos(k)
+                                 for k in pred_padded.T.tolist()[0]]))
+                print('Target: ', ''.join(target_tokens[0][0]))
+                print('Pred: ', ''.join([self.vocab.itos(k)
+                                 for k in pred_padded.T.tolist()[-1]]))
+                print('Target: ', ''.join(target_tokens[-1][0]))
+                print('----------------------------------')
+                bleu = metrics.bleu_score(pred_tokens, target_tokens)
+                f1 = metrics.f1_score(pred_padded.T.to('cpu'), target.T.to('cpu'))
+                # dist1 = metrics.distinct_score([v[:-1] for v in pred])
+                dist1 = metrics.distinct_score(pred_tokens)
+                dist2 = metrics.distinct_score(pred_tokens, 2)
 
                 total_bleu += bleu
                 total_f1 += f1
@@ -133,11 +163,20 @@ class Evaler:
         # https://github.com/facebookresearch/ParlAI/blob/56d46551190a7ffaedccd13534412d43bc7076e5/parlai/scripts/eval_ppl.py
         ppl = math.exp(total_loss/l)
 
-        print(f'\tBleu: {bleu:.3f} | F1: {f1:.3f} | '
+        print(f'\tBleu: {bleu:.8f} | F1: {f1:.8f} | '
               f'Dist1: {dist1:.3f} | Dist2: {dist2:.3f} | PPL: {ppl:7.3f}')
 
     def load_model_config(self):
-        return yaml.load(open(self.get_model_deps_file('config.yml')))
+        class Args:
+            pass
+
+        args = Args()
+        d = yaml.load(open(self.get_model_deps_file('config.yml')))
+        for k, v in d.items():
+            setattr(args, k, v)
+
+        return args
+
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.args.pretrained_fname))

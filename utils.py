@@ -3,6 +3,7 @@ import os
 import math
 import random
 import time
+import logging
 import itertools
 from filelock import FileLock
 
@@ -10,6 +11,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
@@ -507,9 +509,10 @@ def sample_sequence(feature, vocab, model, args, current_output=None):
        >>>      out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
        >>>      print(out_text)
     """
+    sos_idx = vocab.stoi(SOS)
+    eos_idx = vocab.stoi(EOS)
     special_tokens_ids = [vocab.stoi(k) for k in PRESET_SPECIAL_TOKENS]
     if current_output is None:
-        sos_idx = vocab.stoi(SOS)
         current_output = [[sos_idx] for _ in range(feature.context.shape[1])]
 
     for seq_i in range(args.max_seq_length):
@@ -525,17 +528,26 @@ def sample_sequence(feature, vocab, model, args, current_output=None):
             if seq_i < args.min_seq_length and prev.item() in special_tokens_ids:
                 while prev.item() in special_tokens_ids:
                     if probs.max().item() == 1:
+                        if current_output[batch_idx][-1] != eos_idx:
+                            current_output[batch_idx].append(eos_idx)
                         print("Warning: model generating special token with probability 1.")
                         break  # avoid infinitely looping over special token
                     prev = torch.multinomial(probs, num_samples=1)
 
             if prev.item() in special_tokens_ids:
-                break
-            current_output[batch_idx].append(prev.item())
+                if current_output[batch_idx][-1] != eos_idx:
+                    current_output[batch_idx].append(eos_idx)
+                continue
+            if current_output[batch_idx][-1] != eos_idx:
+                current_output[batch_idx].append(prev.item())
 
+    current_output = [vs[1:] if vs[-1] == eos_idx else vs[1:] + [eos_idx]
+                      for vs in current_output]
     pad_idx = vocab.stoi(PAD)
-    padded = pad_sequence(list(map(torch.tensor, current_output)), 
-            padding_value=pad_idx)
+    padded = [vs + [pad_idx] * (args.max_seq_length+1 - len(vs))
+              for vs in current_output]
+    padded = torch.tensor(padded).T
+
     return current_output, padded
 
 
@@ -547,8 +559,30 @@ def build_input_from_segments(feature, current_output, vocab, with_eos=False):
     resp_mask = generate_square_subsequent_mask(resp_pad.shape[0])
     resp_pad_mask = (resp_pad == pad_idx).T
 
-    feature.resp = resp_pad
-    feature.resp_mask = resp_mask
-    feature.resp_mask = resp_pad_mask
+    device = feature.context.device
+    feature.resp = resp_pad.to(device)
+    feature.resp_mask = resp_mask.to(device)
+    feature.resp_pad_mask = resp_pad_mask.to(device)
 
     return feature
+
+ 
+def create_logger(log_path):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s')
+
+    file_handler = logging.FileHandler(filename=log_path)
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    return logger
+     

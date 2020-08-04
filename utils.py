@@ -493,6 +493,7 @@ def top_filtering(logits, top_k=0., top_p=0.9, threshold=-float('Inf'), filter_v
 
 def sample_sequence(feature, vocab, model, args, current_output=None):
     """Copy from https://github.com/huggingface/transfer-learning-conv-ai/blob/master/interact.py
+    For beam search see: https://github.com/atselousov/transformer_chatbot/blob/agent/model/transformer_model.py
 
     Examples:
        >>>  history = []

@@ -173,7 +173,7 @@ class Trainer:
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='valid_char')
             self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
-                    collate_fn=gb, shuffle=args.shuffle_data) 
+                    collate_fn=gb, shuffle=False) 
 
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                         max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
@@ -182,7 +182,7 @@ class Trainer:
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='test_char')
             self.test_iter = DataLoader(ds, batch_size=args.batch_size,
-                    collate_fn=gb, shuffle=args.shuffle_data)
+                    collate_fn=gb, shuffle=False)
 
     def build_model(self):
         args = self.args

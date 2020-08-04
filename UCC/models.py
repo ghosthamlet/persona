@@ -14,6 +14,10 @@ import modules
 
 
 class AR(nn.Module):
+    """
+    Much simpler transformer implemention:
+    https://github.com/atselousov/transformer_chatbot/blob/agent/model/transformer_module.py
+    """
     def __init__(
         self,
         context_emb,
@@ -145,6 +149,7 @@ class AR(nn.Module):
                 layer.ada_linear1 = layer0.ada_linear1
                 layer.ada_linear2 = layer0.ada_linear2
 
+    @staticmethod
     def build(
         args, 
         input_dim,
@@ -190,6 +195,7 @@ class AR(nn.Module):
 
         return model
 
+    @staticmethod
     def loss(loss_fn, out, out_lm, resp, lm_y):
         loss = loss_fn(out[:-1].view(-1, out.shape[-1]), resp[1:].view(-1))
         loss_lm = loss_fn(out_lm.view(-1, out.shape[-1]), lm_y.view(-1))

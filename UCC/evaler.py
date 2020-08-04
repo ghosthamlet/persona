@@ -88,7 +88,7 @@ class Evaler:
                 data_path=args.data_path, cache_path=args.cache_path, 
                 data_processer=dp, mode='test_char')
         self.test_iter = DataLoader(ds, batch_size=args.batch_size,
-                collate_fn=gb, shuffle=True)
+                collate_fn=gb, shuffle=False)
  
     
     def build_model(self):

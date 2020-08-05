@@ -6,11 +6,12 @@ n_epochs: 2
 # for LM
 #n_epochs_early_stage: 1
 n_epochs_early_stage: 0
-batch_size: 64
+batch_size: 8
+#batch_size: 64
 # for LM
 #batch_size: 1280
-limit_example_length: 1000000
-#limit_example_length: 100000
+#limit_example_length: 1000000
+limit_example_length: 100000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -18,6 +19,9 @@ max_context_size: 6
 shuffle_data: True
 max_vocab_size: 42000
 pretrain_emb: True
+pretrain_feature: True
+#pretrain_feature_model_name: voidful/albert_chinese_base
+pretrain_feature_model_name: voidful/albert_chinese_large
 
 emb_freeze: False
 emb_dim: 200
@@ -50,6 +54,7 @@ pretrained_fname:
 # data_path: tmp/
 data_path: datas/
 cache_path: caches/
+log_path: logs/
 corpus_fname:
 vec_fname: models/vec-char-200.txt
 vocab_fname: models/vocab-char-200.txt

@@ -142,7 +142,7 @@ Introversion extroversion
       hug face
       lost in chat
       T5
-      BERT/ROBERT/AlBERT pretrained chinese model feature, merge or direct use as inputs
+      ROBERT/AlBERT/ELECTRA pretrained chinese model feature, merge or direct use as inputs
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
       Meena: Conv2D
@@ -404,6 +404,18 @@ Epoch: 02 | Time: 11m 6s
 	Train Loss: 6.354 | Train PPL: 574.999
 	 Val. Loss: 6.413 |  Val. PPL: 609.473
 | Test Loss: 6.411 | Test PPL: 608.236 |
+(after tune datasets context to include all dialog, size larger then before 100000)
+**Epoch: 01 | Time: 12m 56s
+	Train Loss: 6.830 | Train PPL: 925.472
+	 Val. Loss: 6.544 |  Val. PPL: 695.064
+(LM auxiliary task removed context seq)
+**Epoch: 01 | Time: 9m 22s
+	Train Loss: 6.998 | Train PPL: 1094.685
+	 Val. Loss: 6.690 |  Val. PPL: 804.099
+(batch_size 8 pretrain_feature voidful/albert_chinese_large)
+
+(batch_size 8 no pretrain_feature)
+
 1000000 data
 Epoch: 02 | Time: 84m 5s
 	Train Loss: 5.910 | Train PPL: 368.582

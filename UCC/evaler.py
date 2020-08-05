@@ -26,15 +26,17 @@ class Evaler:
         self.device = utils.get_device(args.device)
         utils.set_random_seed(self.args.seed, self.device)
 
+        self.logger = utils.create_logger(self.args.log_path, 'evaler')
+
         self.model_config = self.load_model_config()
 
-        print('Load vocab...')
+        self.logger.info('Load vocab...')
         self.build_vocab()
-        print('Build dataloaders...')
+        self.logger.info('Build dataloaders...')
         self.build_dataloaders()
-        print('Build model...')
+        self.logger.info('Build model...')
         self.build_model()
-        print('Build loss fns...')
+        self.logger.info('Build loss fns...')
         self.build_loss_fns()
 
     def parse_args(self):
@@ -58,6 +60,7 @@ class Evaler:
         parser.add_argument('--pretrained_fname', default='models/model__epoch1/', type=str, required=False, help='')
         parser.add_argument('--data_path', default='datas/', type=str, required=False, help='')
         parser.add_argument('--cache_path', default='caches/', type=str, required=False, help='')
+        parser.add_argument('--log_path', default='logs/', type=str, required=False, help='')
 
         # TODO: let commandline temp args override args in config_file
         args = parser.parse_args()

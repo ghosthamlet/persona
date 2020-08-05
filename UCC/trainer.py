@@ -27,6 +27,7 @@ import torch.utils.checkpoint as torch_cp
 
 import torch_optimizer as toptim
 import transformers
+from transformers import Pipeline, BertTokenizer, AlbertModel
 
 
 class Trainer:
@@ -37,15 +38,21 @@ class Trainer:
         self.device = utils.get_device(args.device)
         utils.set_random_seed(self.args.seed, self.device)
 
+        self.logger = utils.create_logger(self.args.log_path, 'trainer')
+
         self.ensure_deps()
 
-        print('Build vocab and embeddings...')
-        self.build_vocab_and_embeddings()
-        print('Build dataloaders...')
+        self.logger.info('Build vocab and embeddings...')
+        if self.args.pretrain_feature:
+            self.build_pretrain_feature_pipeline()
+        else:
+            self.pretrain_feature_model = None
+            self.build_vocab_and_embeddings()
+        self.logger.info('Build dataloaders...')
         self.build_dataloaders()
-        print('Build model...')
+        self.logger.info('Build model...')
         self.build_model()
-        print('Build loss fns...')
+        self.logger.info('Build loss fns...')
         self.build_loss_fns()
 
     def parse_args(self):
@@ -64,6 +71,8 @@ class Trainer:
         parser.add_argument('--shuffle_data', action='store_true', required=False, help='')
         parser.add_argument('--max_vocab_size', default=40000, type=int, required=False, help='')
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
+        parser.add_argument('--pretrain_feature', action='store_true', required=False, help='')
+        parser.add_argument('--pretrain_feature_model_name', default='', type=str, required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
         parser.add_argument('--emb_dim', default=200, type=int, required=False, help='')
@@ -88,6 +97,7 @@ class Trainer:
         parser.add_argument('--pretrained_fname', type=str, required=False, help='')
         parser.add_argument('--data_path', default='datas/', type=str, required=False, help='')
         parser.add_argument('--cache_path', default='caches/', type=str, required=False, help='')
+        parser.add_argument('--log_path', default='logs/', type=str, required=False, help='')
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
@@ -136,6 +146,26 @@ class Trainer:
 
         self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = embeddings
+
+    def build_pretrain_feature_pipeline(self):
+        mn = self.args.pretrain_feature_model_name
+        pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
+        self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        self.pretrain_feature_model.requires_grad_(False)
+        # pipeline input is raw data, we have ids, so direct use model
+        # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 
+        #        model=self.pretrain_feature_model, tokenizer=pretrain_feature_tokenizer)
+
+        # TODO: pre calc feature and save to file, it use less memory for train and faster 
+        # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
+        utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
+        self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+
+        self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
+        self.input_dim = len(self.vocab)
+        self.pad_idx = self.vocab.stoi(utils.PAD)
+        self.embeddings = None
+
                                                                                          
     def build_dataloaders(self):
         args = self.args
@@ -191,7 +221,8 @@ class Trainer:
 
         self.best_model = None
         self.model = models.AR.build(args, input_dim, 
-                output_dim, self.vocab, self.embeddings).to(self.device)
+                output_dim, self.vocab, self.embeddings,
+                self.pretrain_feature_model).to(self.device)
 
         if args.n_epochs_early_stage > 0:
             self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,

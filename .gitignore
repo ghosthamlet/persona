@@ -7,5 +7,7 @@
 data/
 model/
 runs/
+caches/
+logs/
 .ipynb_checkpoints/
 __pycache__/

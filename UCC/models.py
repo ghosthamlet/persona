@@ -27,6 +27,7 @@ class AR(nn.Module):
         resp_decoder,
         generater,
         adapter_finetune,
+        pretrain_feature_model,
     ):
         super().__init__()
 
@@ -39,7 +40,8 @@ class AR(nn.Module):
         self.adapter_finetune = adapter_finetune
         self.factor_ff = True
 
-        self._share_emb()
+        if pretrain_feature_model is None:
+            self._share_emb()
         self._share_encoder_decoder()
         self._share_layers()
         utils.xavier_init_weights(self)
@@ -77,25 +79,7 @@ class AR(nn.Module):
         return self.generater(enc)
 
     def predict(self, X):
-        max_len = y.shape[0]
-
-        post_outs, post_hid = self.encoder(X)
-        trait_enc = self.trait_encoder(profiles)
-
-        hid = post_hid
-        out = y[start]
-        rnn_outs = None
-        outs = torch.zeros(*y.shape[:2], 
-                self.resp_decoder.output_dim).to(X.device)
-        for t in range(start, end):
-            trait_fus = self.trait_fusion(hid, trait_enc)
-            out, hid, _ = self.resp_decoder(out, hid, post_outs, trait_fus)
-            outs[t] = out
-            teacher_force = random.random() < teacher_forcing_ratio
-            top1 = out.max(1)[1]
-            out = y[t] if teacher_force else top1
-
-        return outs
+        pass
 
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
@@ -155,20 +139,25 @@ class AR(nn.Module):
         input_dim,
         output_dim,
         vocab,
-        embeddings=None
+        embeddings=None,
+        pretrain_feature_model=None,
     ):
         pad_idx = vocab.stoi(utils.PAD)
         sep_idx = vocab.stoi(utils.SEP)
         spe1_idx = vocab.stoi(utils.SPE1)
         spe2_idx = vocab.stoi(utils.SPE2)
+        fn = None
+        if pretrain_feature_model is not None:
+            # don't define as layer, or the model weights will be saved to checkpoint
+            fn = lambda x, position_ids=None: pretrain_feature_model(x, position_ids=position_ids)[0]
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
-                args.d_model, pad_idx, args.dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings, fn)
         persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings, fn)
         output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings, fn)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
                 args.n_head, args.num_layers, args.dropout,
@@ -184,13 +173,13 @@ class AR(nn.Module):
             model = LM(
                     context_emb, persona_emb, output_emb,
                     post_encoder, resp_decoder, generater,
-                    args.adapter_finetune,
+                    args.adapter_finetune, fn
                     )
         else:
             model = AR(
                     context_emb, persona_emb, output_emb,
                     post_encoder, resp_decoder, generater,
-                    args.adapter_finetune,
+                    args.adapter_finetune, fn
                     )
 
         return model

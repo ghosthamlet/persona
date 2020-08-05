@@ -343,6 +343,18 @@ class Vocab:
         return [k for k, v in self.binary_lable.items() if i == v][0]
        
 
+def add_special_tokens_(model, tokenizer):
+    """ Add special tokens to the tokenizer and the model if they have not already been added. """
+    ATTR_TO_SPECIAL_TOKEN = {'bos_token': SOS, 'eos_token': EOS, 'pad_token': PAD,
+                             'sep_token': SEP, 'unk_token': UNK,
+                             'additional_special_tokens': [SPE1, SPE2]}
+    orig_num_tokens = len(tokenizer.vocab)
+    num_added_tokens = tokenizer.add_special_tokens(ATTR_TO_SPECIAL_TOKEN) # doesn't add if they are already there
+    if num_added_tokens > 0:
+        model.resize_token_embeddings(new_num_tokens=orig_num_tokens + num_added_tokens)
+                                                     
+
+# TODO: move vocab arg to ChatDataProcesser
 # use IterableDataset for lazy load
 # shuffle and sort can't work for lazy 
 # __len__ is useless for lazy load
@@ -568,14 +580,15 @@ def build_input_from_segments(feature, current_output, vocab, with_eos=False):
     return feature
 
  
-def create_logger(log_path):
-    logger = logging.getLogger(__name__)
+def create_logger(log_path, name):
+    logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(message)s')
 
-    file_handler = logging.FileHandler(filename=log_path)
+    log_fname = log_path + '/' + name + '.log'
+    file_handler = logging.FileHandler(filename=log_fname)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     logger.addHandler(file_handler)

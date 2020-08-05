@@ -66,7 +66,6 @@ class ChatDataProcesser:
                 # remove the last no resp post
                 if d_len % 2 != 0:
                     dialogs = dialogs[:d_len-1]
-                dialogs = dialogs[:self.max_context_size]
                 d_len = len(dialogs)
 
                 personas_no_tag = [
@@ -84,7 +83,7 @@ class ChatDataProcesser:
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
-                    context = [v[0].split() for v in dialogs[:i+1]]
+                    context = [v[0].split() for v in dialogs[:i+1][-self.max_context_size:]]
                     resp = dialogs[i+1][0].split()
 
                     yield context, personas_no_tag, tags, resp, persona

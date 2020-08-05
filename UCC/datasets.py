@@ -17,13 +17,35 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
 
+class ChatVocab:
+    def __init__(
+        self,
+        tokenizer
+    ):
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.tokenizer)
+
+    def stoi(self, s):
+        i = self.tokenizer.convert_tokens_to_ids(s)
+        # default unk token is changed to UNK, 
+        # so tokenizer can't get it, returned None
+        if i is None:
+            i = self.tokenizer.convert_tokens_to_ids(UNK)
+        return i
+
+    def itos(self, i):
+        return self.tokenizer.convert_ids_to_tokens(i)
+ 
+
 class ChatDataProcesser:
     def __init__(
         self,
         max_seq_length,
         max_context_size,
         limit_length=None,
-        complete_persona=True
+        complete_persona=True,
     ):
         assert max_seq_length is not None
         assert max_context_size is not None
@@ -66,7 +88,6 @@ class ChatDataProcesser:
                 # remove the last no resp post
                 if d_len % 2 != 0:
                     dialogs = dialogs[:d_len-1]
-                dialogs = dialogs[:self.max_context_size]
                 d_len = len(dialogs)
 
                 personas_no_tag = [
@@ -84,7 +105,7 @@ class ChatDataProcesser:
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
-                    context = [v[0].split() for v in dialogs[:i+1]]
+                    context = [v[0].split() for v in dialogs[:i+1][-(self.max_context_size+1):]]
                     resp = dialogs[i+1][0].split()
 
                     yield context, personas_no_tag, tags, resp, persona
@@ -132,7 +153,11 @@ class ChatDataProcesser:
             yield (icontext, list(itertools.chain(*isegs)), 
                     ipersonas_no_tag, itags, 
                     iresp, list(itertools.chain(*ipersona)), 
-                    icontext + iresp)
+                    # XXX: for lm auxiliary task
+                    # better performance
+                    # icontext + iresp)
+                    # fast and use fewer memory
+                    iresp)
 
 
 class LMDataProcesser:

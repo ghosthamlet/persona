@@ -149,7 +149,11 @@ class AR(nn.Module):
         fn = None
         if pretrain_feature_model is not None:
             # don't define as layer, or the model weights will be saved to checkpoint
-            fn = lambda x, position_ids=None: pretrain_feature_model(x, position_ids=position_ids)[0]
+                def fn(x, position_ids=None):
+                    # 'requires_grad_(False)' just for disable backward calc grad, 
+                    # add 'with torch.no_grad()' to disable save activation
+                    with torch.no_grad():
+                        return pretrain_feature_model(x, position_ids=position_ids)[0]
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
@@ -223,3 +227,4 @@ class _LM(nn.Module):
     def _share_emb(self):
         self.generater.out.weight = self.output_emb.emb.weight
        
+

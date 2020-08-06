@@ -2,12 +2,11 @@
 # use cpu for easy debug
 device: cuda
 seed: 42
-n_epochs: 2
+n_epochs: 1
 # for LM
 #n_epochs_early_stage: 1
 n_epochs_early_stage: 0
-batch_size: 8
-#batch_size: 64
+batch_size: 64
 # for LM
 #batch_size: 1280
 #limit_example_length: 1000000
@@ -20,8 +19,11 @@ shuffle_data: True
 max_vocab_size: 42000
 pretrain_emb: True
 pretrain_feature: True
-#pretrain_feature_model_name: voidful/albert_chinese_base
-pretrain_feature_model_name: voidful/albert_chinese_large
+##pretrain_feature_model_name: voidful/albert_chinese_tiny
+##pretrain_feature_model_name: voidful/albert_chinese_small
+##pretrain_feature_model_name: voidful/albert_chinese_base
+#pretrain_feature_model_name: voidful/albert_chinese_large
+pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
 
 emb_freeze: False
 emb_dim: 200
@@ -46,6 +48,7 @@ adapter_finetune: False
 model_path: models/
 # lm clip_grad
 pretrained_fname: 
+#pretrained_fname: models/model__epoch2_10w_pretrain_feature/model.pt
 #pretrained_path: models/model_lm_epoch4_all_factor_ff_epoch1/model.pt
 #pretrained_path: models/model_lm_epoch4_all/model.pt
 # 31476781 based on 2m

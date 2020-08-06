@@ -48,35 +48,35 @@ class ContextEmb(nn.Module):
 
     def forward(self, feature):
         if self.pretrain_feature_model is not None:
-            feature.context = feature.context.transpose(0, 1)
-            feature.segs = feature.segs.transpose(0, 1)
-            feature.personas_no_tag = feature.personas_no_tag.permute(2, 0, 1)
-            feature.tags = feature.tags.permute(2, 0, 1)
-            feature.personas_no_tag = feature.personas_no_tag.view(feature.personas_no_tag.shape[0], -1)
-            feature.tags = feature.tags.view(feature.tags.shape[0], -1)
+            context = feature.context.transpose(0, 1)
+            segs = feature.segs.transpose(0, 1)
+            personas_no_tag = feature.personas_no_tag.permute(2, 0, 1)
+            tags = feature.tags.permute(2, 0, 1)
+            personas_no_tag = personas_no_tag.view(personas_no_tag.shape[0], -1)
+            tags = tags.view(tags.shape[0], -1)
 
-            personas_no_tag_position_ids = torch.zeros_like(feature.personas_no_tag)
-            tags_position_ids = torch.zeros_like(feature.tags)
+            personas_no_tag_position_ids = torch.zeros_like(personas_no_tag)
+            tags_position_ids = torch.zeros_like(tags)
             persona_dim = 1
 
-            emb = self.emb(feature.context)
+            emb = self.emb(context)
 
             if True:
                 # XXX: paper no this
-                segs_emb = self.emb(feature.segs)
+                segs_emb = self.emb(segs)
 
                 # batch_size X 2 * n_persona X emb_dim
-                personas_emb = self.emb(feature.personas_no_tag, 
+                personas_emb = self.emb(personas_no_tag, 
                         position_ids=personas_no_tag_position_ids)
                 # batch_size X 2 * n_tags X emb_dim
-                tags_emb = self.emb(feature.tags,
+                tags_emb = self.emb(tags,
                         position_ids=tags_position_ids)
 
                 personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
                         -1, personas_emb.shape[2])
                 tags_emb = tags_emb.view(tags_emb.shape[0], 2, -1, tags_emb.shape[2])
 
-                feature.segs = feature.segs.transpose(0, 1)
+                segs = segs.transpose(0, 1)
                 personas_emb = personas_emb.permute(1, 2, 0, 3)
                 tags_emb = tags_emb.permute(1, 2, 0, 3)
                 emb = emb.transpose(0, 1)
@@ -86,7 +86,7 @@ class ContextEmb(nn.Module):
                 # segs spe1_idx and spe2_idx is not a must
                 # (segs == idx) can be created from iterate context
                 fn = lambda emb, idx, i: torch.where(
-                       (feature.segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                       (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
                        emb + personas_emb[i], emb)
                 emb = fn(emb, self.spe1_idx, 0)
                 emb = fn(emb, self.spe2_idx, 1)

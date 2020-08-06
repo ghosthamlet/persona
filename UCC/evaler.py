@@ -17,6 +17,7 @@ import datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from transformers import Pipeline, BertTokenizer, AlbertModel
 
 
 class Evaler:
@@ -29,9 +30,14 @@ class Evaler:
         self.logger = utils.create_logger(self.args.log_path, 'evaler')
 
         self.model_config = self.load_model_config()
+        self.args.max_seq_length = self.model_config.max_seq_length
 
         self.logger.info('Load vocab...')
-        self.build_vocab()
+        if self.model_config.pretrain_feature:
+            self.build_pretrain_feature_model()
+        else:
+            self.pretrain_feature_model = None
+            self.build_vocab()
         self.logger.info('Build dataloaders...')
         self.build_dataloaders()
         self.logger.info('Build model...')
@@ -48,8 +54,6 @@ class Evaler:
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
         parser.add_argument('--batch_size', default=128, type=int, required=False, help='')
         parser.add_argument('--limit_example_length', default=256, type=int, required=False, help='')
-        parser.add_argument('--max_seq_length', default=300, type=int, required=False, help='')
-        parser.add_argument('--max_context_size', default=10, type=int, required=False, help='')
 
         parser.add_argument('--min_seq_length', default=10, type=int, required=False, help='')
         parser.add_argument('--temperature', default=0.7, type=float, required=False, help='Sampling softmax temperature')
@@ -79,20 +83,41 @@ class Evaler:
         self.vocab = utils.Vocab(gensim_vocab, args.data_path)
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)
+
+    def build_pretrain_feature_model(self):
+        mn = self.model_config.pretrain_feature_model_name
+        pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
+        self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        self.pretrain_feature_model.requires_grad_(False)
+        # pipeline input is raw data, we have ids, so direct use model
+        # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 
+        #        model=self.pretrain_feature_model, tokenizer=pretrain_feature_tokenizer)
+
+        # TODO: pre calc feature and save to file, it use less memory for train and faster 
+        # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
+        utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
+        # FIXME: this changed args should saved to checkpoint file
+        self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        self.model_config.emb_dim = self.pretrain_feature_model.config.hidden_size
+
+        self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
+        self.input_dim = len(self.vocab)
+        self.pad_idx = self.vocab.stoi(utils.PAD)
     
     def build_dataloaders(self):
         args = self.args
+        model_config = self.model_config
         gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
 
         dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
-                    max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+                    max_seq_length=model_config.max_seq_length, 
+                    max_context_size=model_config.max_context_size)
         ds = utils.PersonaDataset(
-                self.vocab, args.max_seq_length, args.limit_example_length, 
+                self.vocab, model_config.max_seq_length, args.limit_example_length, 
                 data_path=args.data_path, cache_path=args.cache_path, 
                 data_processer=dp, mode='test_char')
         self.test_iter = DataLoader(ds, batch_size=args.batch_size,
                 collate_fn=gb, shuffle=False)
- 
     
     def build_model(self):
         args = self.args
@@ -100,7 +125,8 @@ class Evaler:
         input_dim = self.input_dim
 
         self.model = models.AR.build(self.model_config, input_dim, 
-                output_dim, self.vocab).to(self.device)
+                output_dim, self.vocab, None,
+                self.pretrain_feature_model).to(self.device)
 
         print(f'Load pretrained model {args.pretrained_fname}...')
         self.load_model()
@@ -123,7 +149,9 @@ class Evaler:
                 utils.feature_to_device(feature, self.device)
 
                 out, out_lm = self.model(feature)
+                print(out[0, 0], out_lm[0, 0])
                 loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+                print(loss, loss_lm)
                 loss = loss + self.model_config.alpha * loss_lm
                 total_loss += loss.item()
 
@@ -179,7 +207,6 @@ class Evaler:
             setattr(args, k, v)
 
         return args
-
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.args.pretrained_fname))

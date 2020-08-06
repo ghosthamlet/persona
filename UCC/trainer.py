@@ -27,7 +27,7 @@ import torch.utils.checkpoint as torch_cp
 
 import torch_optimizer as toptim
 import transformers
-from transformers import Pipeline, BertTokenizer, AlbertModel
+from transformers import Pipeline, BertTokenizer, AlbertModel, AutoTokenizer, AutoModel
 
 
 class Trainer:
@@ -44,7 +44,7 @@ class Trainer:
 
         self.logger.info('Build vocab and embeddings...')
         if self.args.pretrain_feature:
-            self.build_pretrain_feature_pipeline()
+            self.build_pretrain_feature_model()
         else:
             self.pretrain_feature_model = None
             self.build_vocab_and_embeddings()
@@ -147,10 +147,12 @@ class Trainer:
         self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = embeddings
 
-    def build_pretrain_feature_pipeline(self):
+    def build_pretrain_feature_model(self):
         mn = self.args.pretrain_feature_model_name
-        pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
-        self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        # pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
+        pretrain_feature_tokenizer = AutoTokenizer.from_pretrained(mn)
+        # self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        self.pretrain_feature_model = AutoModel.from_pretrained(mn).to(self.device)
         self.pretrain_feature_model.requires_grad_(False)
         # pipeline input is raw data, we have ids, so direct use model
         # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 
@@ -159,13 +161,13 @@ class Trainer:
         # TODO: pre calc feature and save to file, it use less memory for train and faster 
         # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
+        # FIXME: this changed args should saved to checkpoint file
         self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = None
-
                                                                                          
     def build_dataloaders(self):
         args = self.args

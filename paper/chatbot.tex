@@ -150,6 +150,7 @@ Introversion extroversion
       % Mask Persona Language Model: 
       %  self surpervize pretrain or add auxiliary loss by mask random persona value
       pretrain objective: denoise
+
       P2
       PEE
       ELECTRA
@@ -413,8 +414,28 @@ Epoch: 02 | Time: 11m 6s
 	Train Loss: 6.998 | Train PPL: 1094.685
 	 Val. Loss: 6.690 |  Val. PPL: 804.099
 (batch_size 8 pretrain_feature voidful/albert_chinese_large)
+(!!! train/valid/test Loss and PPL is great, but eval metrics are bad???)
+**Epoch: 01 | Time: 168m 18s
+	Train Loss: 5.139 | Train PPL: 170.629
+	 Val. Loss: 4.409 |  Val. PPL:  82.163
+Epoch: 02 | Time: 167m 53s
+	Train Loss: 4.076 | Train PPL:  58.929
+	 Val. Loss: 4.008 |  Val. PPL:  55.030
+**(batch_size 48 pretrain_feature hfl/chinese-electra-small-discriminator)
+(!!! train/valid/test Loss and PPL is the best, but eval metrics are bad???)
+Epoch: 01 | Time: 21m 20s
+	Train Loss: 3.378 | Train PPL:  29.323
+	 Val. Loss: 2.735 |  Val. PPL:  15.404
+| Test Loss: 2.734 | Test PPL:  15.392 |
+**(batch_size 32 pretrain_feature hfl/chinese-electra-small-discriminator finetune electra)
+Epoch: 01 | Time: 28m 40s
+	Train Loss: 8.917 | Train PPL: 7460.501
+	 Val. Loss: 8.881 |  Val. PPL: 7191.470
 
 (batch_size 8 no pretrain_feature)
+Epoch: 01 | Time: 28m 46s
+	Train Loss: 7.009 | Train PPL: 1106.760
+	 Val. Loss: 6.636 |  Val. PPL: 761.986
 
 1000000 data
 Epoch: 02 | Time: 84m 5s

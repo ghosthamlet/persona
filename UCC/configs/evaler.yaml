@@ -12,10 +12,10 @@ top_k: 0
 top_p: 0.9
 no_sample: False
 
-pretrained_fname: models/model__epoch1_10w_pretrain_feature_electra/model.pt
+#pretrained_fname: models/model__epoch1_10w_pretrain_feature_electra/model.pt
 #pretrained_fname: models/model__epoch2_10w_pretrain_feature/model.pt
 #pretrained_fname: models/model__epoch1_1m/model.pt
-#pretrained_fname: models/model__epoch1/model.pt
+pretrained_fname: models/model__epoch1/model.pt
 data_path: datas/
 cache_path: caches/
 log_path: logs/

@@ -40,14 +40,14 @@ class ContextEmb(nn.Module):
         self.pos_encoder = utils.PositionalEncoding(emb_dim)
         self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
-        self.pretrain_feature_model = pretrain_feature_model
-        if pretrain_feature_model is not None:
+        self.pretrain_feature = pretrain_feature_model is not None
+        if self.pretrain_feature:
             self.emb = pretrain_feature_model
         else:
             self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, feature):
-        if self.pretrain_feature_model is not None:
+        if self.pretrain_feature:
             context = feature.context.transpose(0, 1)
             segs = feature.segs.transpose(0, 1)
             personas_no_tag = feature.personas_no_tag.permute(2, 0, 1)
@@ -61,37 +61,36 @@ class ContextEmb(nn.Module):
 
             emb = self.emb(context)
 
-            if True:
-                # XXX: paper no this
-                segs_emb = self.emb(segs)
+            # segs_emb = self.emb(segs)
 
-                # batch_size X 2 * n_persona X emb_dim
-                personas_emb = self.emb(personas_no_tag, 
-                        position_ids=personas_no_tag_position_ids)
-                # batch_size X 2 * n_tags X emb_dim
-                tags_emb = self.emb(tags,
-                        position_ids=tags_position_ids)
+            # batch_size X 2 * n_persona X emb_dim
+            personas_emb = self.emb(personas_no_tag, 
+                    position_ids=personas_no_tag_position_ids)
+            # batch_size X 2 * n_tags X emb_dim
+            tags_emb = self.emb(tags,
+                    position_ids=tags_position_ids)
 
-                personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
-                        -1, personas_emb.shape[2])
-                tags_emb = tags_emb.view(tags_emb.shape[0], 2, -1, tags_emb.shape[2])
+            personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
+                    -1, personas_emb.shape[2])
+            tags_emb = tags_emb.view(tags_emb.shape[0], 2, -1, tags_emb.shape[2])
+            segs = segs.transpose(0, 1)
+            personas_emb = personas_emb.permute(1, 2, 0, 3)
+            tags_emb = tags_emb.permute(1, 2, 0, 3)
+            emb = emb.transpose(0, 1)
 
-                segs = segs.transpose(0, 1)
-                personas_emb = personas_emb.permute(1, 2, 0, 3)
-                tags_emb = tags_emb.permute(1, 2, 0, 3)
-                emb = emb.transpose(0, 1)
+            # 2 X batch_size X emb_dim
+            personas_emb = torch.cat([personas_emb, tags_emb], dim=persona_dim).sum(dim=persona_dim)
+            # segs spe1_idx and spe2_idx is not a must
+            # (segs == idx) can be created from iterate context
+            fn = lambda emb, idx, i: torch.where(
+                   (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                   emb + personas_emb[i], emb)
+            emb = fn(emb, self.spe1_idx, 0)
+            emb = fn(emb, self.spe2_idx, 1)
 
-                # 2 X batch_size X emb_dim
-                personas_emb = torch.cat([personas_emb, tags_emb], dim=persona_dim).sum(dim=persona_dim)
-                # segs spe1_idx and spe2_idx is not a must
-                # (segs == idx) can be created from iterate context
-                fn = lambda emb, idx, i: torch.where(
-                       (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-                       emb + personas_emb[i], emb)
-                emb = fn(emb, self.spe1_idx, 0)
-                emb = fn(emb, self.spe2_idx, 1)
-
+            emb = emb + self.pos_encoder(emb)
             emb = self.proj(emb)
+            emb = self.dropout(emb)
         else:
             # context: seq_len X batch_size
             #      seq: ..._SEP...
@@ -101,23 +100,21 @@ class ContextEmb(nn.Module):
             # tags: 2 X n_tags X batch_size (n_tags has pad, as it is different in speakers)
             emb = self.emb(feature.context) * math.sqrt(self.emb_dim)
 
-            if True:
-                # XXX: paper no this
-                segs_emb = self.emb(feature.segs)
+            # segs_emb = self.emb(feature.segs)
 
-                # 2 X n_persona X batch_size X emb_dim
-                personas_emb = self.emb(feature.personas_no_tag)
-                # 2 X n_tags X batch_size X emb_dim
-                tags_emb = self.emb(feature.tags)
-                # 2 X batch_size X emb_dim
-                personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
-                # segs spe1_idx and spe2_idx is not a must
-                # (segs == idx) can be created from iterate context
-                fn = lambda emb, idx, i: torch.where(
-                       (feature.segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-                       emb + personas_emb[i], emb)
-                emb = fn(emb, self.spe1_idx, 0)
-                emb = fn(emb, self.spe2_idx, 1)
+            # 2 X n_persona X batch_size X emb_dim
+            personas_emb = self.emb(feature.personas_no_tag)
+            # 2 X n_tags X batch_size X emb_dim
+            tags_emb = self.emb(feature.tags)
+            # 2 X batch_size X emb_dim
+            personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
+            # segs spe1_idx and spe2_idx is not a must
+            # (segs == idx) can be created from iterate context
+            fn = lambda emb, idx, i: torch.where(
+                   (feature.segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                   emb + personas_emb[i], emb)
+            emb = fn(emb, self.spe1_idx, 0)
+            emb = fn(emb, self.spe2_idx, 1)
 
             emb = emb + self.pos_encoder(emb)
             emb = self.proj(emb)
@@ -143,21 +140,24 @@ class PersonaEmb(nn.Module):
 
         self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
-        self.pretrain_feature_model = pretrain_feature_model
-        if pretrain_feature_model is not None:
+        self.pretrain_feature = pretrain_feature_model is not None
+        if self.pretrain_feature:
             self.emb = pretrain_feature_model
         else:
             self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, persona):
-        if self.pretrain_feature_model is not None:
+        if self.pretrain_feature:
             persona = persona.transpose(0, 1)
+            persona_position_ids = torch.zeros_like(persona)
 
-            # seq_len(k;v) X batch_size X emb_dim
-            emb = self.emb(persona)
-            emb = self.proj(emb)
+            # batch_size X seq_len(k;v) X emb_dim
+            emb = self.emb(persona, position_ids=persona_position_ids)
 
             emb = emb.transpose(0, 1)
+
+            emb = self.proj(emb)
+            emb = self.dropout(emb)
         else:
             # seq_len(k;v) X batch_size X emb_dim
             emb = self.emb(persona) * math.sqrt(self.emb_dim)
@@ -185,20 +185,23 @@ class OutputEmb(nn.Module):
         self.pos_encoder = utils.PositionalEncoding(emb_dim)
         self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
-        self.pretrain_feature_model = pretrain_feature_model
-        if pretrain_feature_model is not None:
+        self.pretrain_feature = pretrain_feature_model is not None
+        if self.pretrain_feature:
             self.emb = pretrain_feature_model
         else:
             self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, output):
-        if self.pretrain_feature_model is not None:
+        if self.pretrain_feature:
             output = output.transpose(0, 1)
 
             emb = self.emb(output)
-            emb = self.proj(emb)
 
             emb = emb.transpose(0, 1)
+
+            emb = emb + self.pos_encoder(emb)
+            emb = self.proj(emb)
+            emb = self.dropout(emb)
         else:
             emb = self.emb(output) * math.sqrt(self.emb_dim)
             emb = emb + self.pos_encoder(emb)

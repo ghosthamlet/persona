@@ -17,7 +17,7 @@ import datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from transformers import Pipeline, BertTokenizer, AlbertModel
+from transformers import Pipeline, BertTokenizer, AlbertModel, AutoTokenizer, AutoModel
 
 
 class Evaler:
@@ -86,8 +86,12 @@ class Evaler:
 
     def build_pretrain_feature_model(self):
         mn = self.model_config.pretrain_feature_model_name
-        pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
-        self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        if 'albert' in mn:
+            pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
+            self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+        else:
+            pretrain_feature_tokenizer = AutoTokenizer.from_pretrained(mn)
+            self.pretrain_feature_model = AutoModel.from_pretrained(mn).to(self.device) 
         self.pretrain_feature_model.requires_grad_(False)
         # pipeline input is raw data, we have ids, so direct use model
         # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 

@@ -111,7 +111,7 @@ class Evaler:
     def build_dataloaders(self):
         args = self.args
         model_config = self.model_config
-        gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
+        gb = lambda batch: datasets.generate_batch(batch, self.vocab)
 
         dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=model_config.max_seq_length, 

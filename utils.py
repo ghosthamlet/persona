@@ -243,16 +243,23 @@ def feature_to_device(feature, device):
             feature_to_device(v, device)
  
          
-PAD = '<PAD>'
-SOS = '<SOS>'
-EOS = '<EOS>'
-UNK = '<UNK>'
-SEP = '<SEP>'
-SPE1 = '<SPE1>'
-SPE2 = '<SPE2>'
+# PAD = '<PAD>'
+# SOS = '<SOS>'
+# EOS = '<EOS>'
+# UNK = '<UNK>'
+# SEP = '<SEP>'
+# SPE1 = '<SPE1>'
+# SPE2 = '<SPE2>'
+PAD = '[PAD]'
+SOS = '[BOS]'
+EOS = '[EOS]'
+UNK = '[UNK]'
+SEP = '[SEP]'
+SPE1 = '[SPE1]'
+SPE2 = '[SPE2]'
+MASK = '[MASK]'
 PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK, 
-        SEP, SPE1, SPE2]
-
+        SEP, SPE1, SPE2, MASK]
  
 class Vocab:
     def __init__(

@@ -143,6 +143,7 @@ Introversion extroversion
       lost in chat
       T5
       ROBERT/AlBERT/ELECTRA pretrained chinese model feature, merge or direct use as inputs
+      reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
       Meena: Conv2D
@@ -415,30 +416,57 @@ Epoch: 02 | Time: 11m 6s
 	 Val. Loss: 6.690 |  Val. PPL: 804.099
 (batch_size 8 pretrain_feature voidful/albert_chinese_large)
 (!!! train/valid/test Loss and PPL is great, but eval metrics are bad???)
-**Epoch: 01 | Time: 168m 18s
+Epoch: 01 | Time: 168m 18s
 	Train Loss: 5.139 | Train PPL: 170.629
 	 Val. Loss: 4.409 |  Val. PPL:  82.163
 Epoch: 02 | Time: 167m 53s
 	Train Loss: 4.076 | Train PPL:  58.929
 	 Val. Loss: 4.008 |  Val. PPL:  55.030
-**(batch_size 48 pretrain_feature hfl/chinese-electra-small-discriminator)
+(batch_size 48 pretrain_feature hfl/chinese-electra-small-discriminator)
 (!!! train/valid/test Loss and PPL is the best, but eval metrics are bad???)
 Epoch: 01 | Time: 17m 23s
 	Train Loss: 3.355 | Train PPL:  28.652
 	 Val. Loss: 2.660 |  Val. PPL:  14.301
 | Test Loss: 2.659 | Test PPL:  14.281 |
-Epoch: 01 | Time: 17m 4s
+Epoch: 01 | Time: 17m 4s % add emb pos_encoder
 	Train Loss: 3.669 | Train PPL:  39.204
 	 Val. Loss: 2.862 |  Val. PPL:  17.497
-**(batch_size 32 pretrain_feature hfl/chinese-electra-small-discriminator finetune electra)
-Epoch: 01 | Time: 28m 40s
-	Train Loss: 8.917 | Train PPL: 7460.501
-	 Val. Loss: 8.881 |  Val. PPL: 7191.470
+Epoch: 01 | Time: 17m 30s % add proj dropout
+	Train Loss: 3.786 | Train PPL:  44.096
+	 Val. Loss: 2.919 |  Val. PPL:  18.516
+Epoch: 01 | Time: 15m 30s % correct some special token
+	Train Loss: 3.882 | Train PPL:  48.526
+	 Val. Loss: 2.998 |  Val. PPL:  20.046
+| Test Loss: 2.994 | Test PPL:  19.962 |
+Epoch: 01 | Time: 15m 51s % add pad mask
+	Train Loss: 3.703 | Train PPL:  40.576
+	 Val. Loss: 2.821 |  Val. PPL:  16.789
+**(encoder pretrain_feature for output will attend to future token, % so removed)
+Epoch: 01 | Time: 14m 44s
+	Train Loss: 6.994 | Train PPL: 1089.766
+	 Val. Loss: 6.684 |  Val. PPL: 799.188
+| Test Loss: 6.685 | Test PPL: 800.066 |
+**(alpha 0.1 pretrain_feature voidful/albert_chinese_small)
+Epoch: 01 | Time: 14m 44s
+	Train Loss: 5.132 | Train PPL: 169.395
+	 Val. Loss: 4.889 |  Val. PPL: 132.859
+% pretrain_feature seems like no useful ???
+**(alpha 0.1 no pretrain_feature)
+Epoch: 01 | Time: 9m 19s
+	Train Loss: 5.132 | Train PPL: 169.287
+	 Val. Loss: 4.902 |  Val. PPL: 134.573
+Bleu: 0.00479822 | F1: 0.00018075 | Dist1: 0.865 | Dist2: 0.801 | PPL: 141.363
+**(alpha 0.1 no pretrain_feature MLM)
+Epoch: 01 | Time: 10m 34s
+	Train Loss: 4.963 | Train PPL: 142.989
+	 Val. Loss: 4.639 |  Val. PPL: 103.402
+Bleu: 0.00390583 | F1: 0.00018943 | Dist1: 0.850 | Dist2: 0.773 | PPL:  99.721
+(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
+Epoch: 01 | Time: 10m 51s
+	Train Loss: 5.513 | Train PPL: 247.898
+	 Val. Loss: 4.902 |  Val. PPL: 134.585
+Bleu: 0.00330082 | F1: 0.00019547 | Dist1: 0.867 | Dist2: 0.791 | PPL: 106.405
 
-(batch_size 8 no pretrain_feature)
-Epoch: 01 | Time: 28m 46s
-	Train Loss: 7.009 | Train PPL: 1106.760
-	 Val. Loss: 6.636 |  Val. PPL: 761.986
 
 1000000 data
 Epoch: 02 | Time: 84m 5s

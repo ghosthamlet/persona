@@ -173,8 +173,8 @@ class Trainer:
                                                                                          
     def build_dataloaders(self):
         args = self.args
-        gb = lambda batch: datasets.generate_batch(batch, self.pad_idx)
-        gb_lm = lambda batch: datasets.generate_lm_batch(batch, self.pad_idx)
+        gb = lambda batch: datasets.generate_batch(batch, self.vocab)
+        gb_lm = lambda batch: datasets.generate_lm_batch(batch, self.vocab)
 
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 

@@ -22,6 +22,7 @@ class AR(nn.Module):
         self,
         context_emb,
         persona_emb,
+        seq_emb,
         output_emb,
         post_encoder,
         resp_decoder,
@@ -33,6 +34,7 @@ class AR(nn.Module):
 
         self.context_emb = context_emb
         self.persona_emb = persona_emb
+        self.seq_emb = seq_emb
         self.output_emb = output_emb
         self.post_encoder = post_encoder
         self.resp_decoder = resp_decoder
@@ -40,37 +42,42 @@ class AR(nn.Module):
         self.adapter_finetune = adapter_finetune
         self.factor_ff = True
 
-        if pretrain_feature_model is None:
-            self._share_emb()
+        self._share_emb()
         self._share_encoder_decoder()
         self._share_layers()
         utils.xavier_init_weights(self)
 
     def forward(self, feature):
-        context_enc, persona_enc = self.encode(feature)
-        out = self.decode(feature, context_enc, persona_enc)
+        context_enc, persona_enc, x_mlm_enc = self.encode(feature)
+        out = self.decode(feature, context_enc, persona_enc, x_mlm_enc)
 
         return out
 
     def encode(self, feature):
         context_emb = self.context_emb(feature)
-        persona_emb = self.persona_emb(feature.persona)
+        persona_emb = self.persona_emb(feature.persona, feature.persona_pad_mask)
+        x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
 
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
         persona_enc = self.post_encoder(persona_emb, feature.persona_pad_mask)
+        x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
  
-        return context_enc, persona_enc
+        return context_enc, persona_enc, x_mlm_enc
 
-    def decode(self, feature, context_enc, persona_enc):
-        resp_enc = self.output_emb(feature.resp)
+    def decode(self, feature, context_enc, persona_enc, x_mlm_enc):
+        resp_enc = self.output_emb(feature.resp, 
+                feature.resp_pad_mask)
         out = self.resp_decoder(resp_enc, context_enc, persona_enc, 
                 memory_key_padding_mask=feature.context_pad_mask, 
                 tgt_mask=feature.resp_mask, 
                 tgt_key_padding_mask=feature.resp_pad_mask, 
                 persona_pad_mask=feature.persona_pad_mask) 
 
-        enc_lm = self.output_emb(feature.lm.x)
-        out_lm = self.resp_decoder(enc_lm, tgt_mask=feature.lm.x_mask,
+        enc_lm = self.output_emb(feature.lm.x, 
+                feature.lm.x_pad_mask)
+        out_lm = self.resp_decoder(enc_lm, memory=x_mlm_enc, 
+                memory_key_padding_mask=feature.lm.x_mlm_pad_mask,
+                tgt_mask=feature.lm.x_mask,
                 tgt_key_padding_mask=feature.lm.x_pad_mask) 
 
         return self.generate(out), self.generate(out_lm)
@@ -86,6 +93,7 @@ class AR(nn.Module):
         #self.context_emb.proj.weight = self.output_emb.proj.weight
         self.persona_emb.emb.weight = self.output_emb.emb.weight
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
+        self.seq_emb.emb.weight = self.output_emb.emb.weight
 
     def _share_encoder_decoder(self):
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
@@ -149,19 +157,23 @@ class AR(nn.Module):
         fn = None
         if pretrain_feature_model is not None:
             # don't define as layer, or the model weights will be saved to checkpoint
-                def fn(x, position_ids=None):
+                def fn(x, position_ids=None, attention_mask=None):
                     # 'requires_grad_(False)' just for disable backward calc grad, 
                     # add 'with torch.no_grad()' to disable save activation
                     with torch.no_grad():
-                        return pretrain_feature_model(x, position_ids=position_ids)[0]
+                        return pretrain_feature_model(
+                                x, position_ids=position_ids,
+                                attention_mask=attention_mask)[0]
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
         persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
-        output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
+        seq_emb = modules.SeqEmb(input_dim, args.emb_dim, args.emb_freeze,
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
+        output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
+                args.d_model, pad_idx, args.dropout, embeddings)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
                 args.n_head, args.num_layers, args.dropout,
@@ -175,15 +187,15 @@ class AR(nn.Module):
 
         if args.n_epochs_early_stage > 0:
             model = LM(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater,
-                    args.adapter_finetune, fn
+                    context_emb, persona_emb, seq_emb, 
+                    output_emb, post_encoder, resp_decoder, 
+                    generater, args.adapter_finetune, fn
                     )
         else:
             model = AR(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater,
-                    args.adapter_finetune, fn
+                    context_emb, persona_emb, seq_emb, 
+                    output_emb, post_encoder, resp_decoder, 
+                    generater, args.adapter_finetune, fn
                     )
 
         return model

@@ -37,61 +37,20 @@ class ContextEmb(nn.Module):
         self.spe2_idx = spe2_idx
         self.emb_dim = emb_dim
 
-        self.pos_encoder = utils.PositionalEncoding(emb_dim)
-        self.proj = nn.Linear(emb_dim, d_model)
-        self.dropout = nn.Dropout(dropout)
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.emb = pretrain_feature_model
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
-            self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.proj = nn.Linear(emb_dim, d_model)
+        self.dropout = nn.Dropout(dropout)
+        if self.pretrain_feature:
+            self.emb1 = pretrain_feature_model
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, feature):
-        if self.pretrain_feature:
-            context = feature.context.transpose(0, 1)
-            segs = feature.segs.transpose(0, 1)
-            personas_no_tag = feature.personas_no_tag.permute(2, 0, 1)
-            tags = feature.tags.permute(2, 0, 1)
-            personas_no_tag = personas_no_tag.view(personas_no_tag.shape[0], -1)
-            tags = tags.view(tags.shape[0], -1)
-
-            personas_no_tag_position_ids = torch.zeros_like(personas_no_tag)
-            tags_position_ids = torch.zeros_like(tags)
-            persona_dim = 1
-
-            emb = self.emb(context)
-
-            # segs_emb = self.emb(segs)
-
-            # batch_size X 2 * n_persona X emb_dim
-            personas_emb = self.emb(personas_no_tag, 
-                    position_ids=personas_no_tag_position_ids)
-            # batch_size X 2 * n_tags X emb_dim
-            tags_emb = self.emb(tags,
-                    position_ids=tags_position_ids)
-
-            personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
-                    -1, personas_emb.shape[2])
-            tags_emb = tags_emb.view(tags_emb.shape[0], 2, -1, tags_emb.shape[2])
-            segs = segs.transpose(0, 1)
-            personas_emb = personas_emb.permute(1, 2, 0, 3)
-            tags_emb = tags_emb.permute(1, 2, 0, 3)
-            emb = emb.transpose(0, 1)
-
-            # 2 X batch_size X emb_dim
-            personas_emb = torch.cat([personas_emb, tags_emb], dim=persona_dim).sum(dim=persona_dim)
-            # segs spe1_idx and spe2_idx is not a must
-            # (segs == idx) can be created from iterate context
-            fn = lambda emb, idx, i: torch.where(
-                   (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
-                   emb + personas_emb[i], emb)
-            emb = fn(emb, self.spe1_idx, 0)
-            emb = fn(emb, self.spe2_idx, 1)
-
-            emb = emb + self.pos_encoder(emb)
-            emb = self.proj(emb)
-            emb = self.dropout(emb)
-        else:
+        def orig_emb(feature):
             # context: seq_len X batch_size
             #      seq: ..._SEP...
             # segs: seq_len X batch_size
@@ -116,6 +75,65 @@ class ContextEmb(nn.Module):
             emb = fn(emb, self.spe1_idx, 0)
             emb = fn(emb, self.spe2_idx, 1)
 
+            return emb 
+
+        if self.pretrain_feature:
+            def new_emb(feature):
+                context = feature.context.transpose(0, 1)
+                segs = feature.segs.transpose(0, 1)
+                personas_no_tag = feature.personas_no_tag.permute(2, 0, 1)
+                tags = feature.tags.permute(2, 0, 1)
+                personas_no_tag = personas_no_tag.view(personas_no_tag.shape[0], -1)
+                tags = tags.view(tags.shape[0], -1)
+                context_pad_mask = (feature.context_pad_mask != 1).float()
+                personas_no_tag_pad_mask = (feature.personas_no_tag_pad_mask.view(
+                        feature.personas_no_tag_pad_mask.shape[0], -1) != 1).float()
+                tags_pad_mask = (feature.tags_pad_mask.view(
+                        feature.tags_pad_mask.shape[0], -1) != 1).float()
+
+                personas_no_tag_position_ids = torch.zeros_like(personas_no_tag)
+                tags_position_ids = torch.zeros_like(tags)
+                persona_dim = 1
+
+                emb = self.emb1(context, attention_mask=context_pad_mask)
+
+                # segs_emb = self.emb1(segs)
+
+                # batch_size X 2 * n_persona X emb_dim
+                personas_emb = self.emb1(personas_no_tag, 
+                        position_ids=personas_no_tag_position_ids,
+                        attention_mask=personas_no_tag_pad_mask)
+                # batch_size X 2 * n_tags X emb_dim
+                tags_emb = self.emb1(tags,
+                        position_ids=tags_position_ids,
+                        attention_mask=tags_pad_mask)
+
+                personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
+                        -1, personas_emb.shape[2])
+                tags_emb = tags_emb.view(tags_emb.shape[0], 2, -1, tags_emb.shape[2])
+                segs = segs.transpose(0, 1)
+                personas_emb = personas_emb.permute(1, 2, 0, 3)
+                tags_emb = tags_emb.permute(1, 2, 0, 3)
+                emb = emb.transpose(0, 1)
+
+                # 2 X batch_size X emb_dim
+                personas_emb = torch.cat([personas_emb, tags_emb], dim=persona_dim).sum(dim=persona_dim)
+                # segs spe1_idx and spe2_idx is not a must
+                # (segs == idx) can be created from iterate context
+                fn = lambda emb, idx, i: torch.where(
+                       (segs == idx).unsqueeze(2).repeat(1, 1, emb.shape[2]), 
+                       emb + personas_emb[i], emb)
+                emb = fn(emb, self.spe1_idx, 0)
+                emb = fn(emb, self.spe2_idx, 1)
+
+                return emb
+
+            emb = torch.cat([new_emb(feature), orig_emb(feature)], dim=2)
+            emb = emb + self.pos_encoder(emb)
+            emb = self.proj(emb)
+            emb = self.dropout(emb)
+        else:
+            emb = orig_emb(feature)
             emb = emb + self.pos_encoder(emb)
             emb = self.proj(emb)
             emb = self.dropout(emb)
@@ -138,34 +156,101 @@ class PersonaEmb(nn.Module):
         super().__init__()
         self.emb_dim = emb_dim
 
-        self.proj = nn.Linear(emb_dim, d_model)
-        self.dropout = nn.Dropout(dropout)
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.emb = pretrain_feature_model
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
-            self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-
-    def forward(self, persona):
+            self.proj = nn.Linear(emb_dim, d_model)
+        self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
-            persona = persona.transpose(0, 1)
-            persona_position_ids = torch.zeros_like(persona)
+            self.emb1 = pretrain_feature_model
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
-            # batch_size X seq_len(k;v) X emb_dim
-            emb = self.emb(persona, position_ids=persona_position_ids)
+    def forward(self, persona, persona_pad_mask):
+        def orig_emb(persona):
+            # seq_len(k;v) X batch_size X emb_dim
+            emb = self.emb(persona) * math.sqrt(self.emb_dim)
+            return emb 
 
-            emb = emb.transpose(0, 1)
+        if self.pretrain_feature:
+            def new_emb(persona, persona_pad_mask):
+                persona = persona.transpose(0, 1)
+                persona_position_ids = torch.zeros_like(persona)
+                persona_pad_mask = (persona_pad_mask != 1).float()
 
+                # batch_size X seq_len(k;v) X emb_dim
+                emb = self.emb1(persona, 
+                        position_ids=persona_position_ids,
+                        attention_mask=persona_pad_mask)
+
+                emb = emb.transpose(0, 1)
+
+                return emb
+
+            emb = torch.cat([new_emb(persona, persona_pad_mask), orig_emb(persona)], dim=2)
             emb = self.proj(emb)
             emb = self.dropout(emb)
         else:
-            # seq_len(k;v) X batch_size X emb_dim
-            emb = self.emb(persona) * math.sqrt(self.emb_dim)
+            emb = orig_emb(persona)
             emb = self.proj(emb)
             emb = self.dropout(emb)
 
         return emb                
 
+
+class SeqEmb(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        emb_dim, 
+        emb_freeze, 
+        d_model,
+        pad_idx,
+        dropout,
+        embeddings=None,
+        pretrain_feature_model=None,
+    ):
+        super().__init__()
+        self.emb_dim = emb_dim
+
+        self.pretrain_feature = pretrain_feature_model is not None
+        if self.pretrain_feature:
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
+        else:
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.proj = nn.Linear(emb_dim, d_model)
+        self.dropout = nn.Dropout(dropout)
+        if self.pretrain_feature:
+            self.emb1 = pretrain_feature_model
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+
+    def forward(self, x, x_pad_mask):
+        def orig_emb(x):
+            emb = self.emb(x) * math.sqrt(self.emb_dim)
+            return emb 
+
+        if self.pretrain_feature:
+            def new_emb(x, x_pad_mask):
+                x = x.transpose(0, 1)
+                x_pad_mask = (x_pad_mask != 1).float()
+
+                emb = self.emb1(x, 
+                        attention_mask=x_pad_mask)
+
+                emb = emb.transpose(0, 1)
+
+                return emb
+
+            emb = torch.cat([new_emb(x, x_pad_mask), orig_emb(x)], dim=2)
+        else:
+            emb = orig_emb(x)
+        emb = emb + self.pos_encoder(emb)
+        emb = self.proj(emb)
+        emb = self.dropout(emb)
+
+        return emb                
+                        
  
 class OutputEmb(nn.Module):
     def __init__(
@@ -177,7 +262,6 @@ class OutputEmb(nn.Module):
         pad_idx,
         dropout,
         embeddings=None ,
-        pretrain_feature_model=None,
     ):
         super().__init__()
         self.emb_dim = emb_dim
@@ -185,28 +269,13 @@ class OutputEmb(nn.Module):
         self.pos_encoder = utils.PositionalEncoding(emb_dim)
         self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
-        self.pretrain_feature = pretrain_feature_model is not None
-        if self.pretrain_feature:
-            self.emb = pretrain_feature_model
-        else:
-            self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
-    def forward(self, output):
-        if self.pretrain_feature:
-            output = output.transpose(0, 1)
-
-            emb = self.emb(output)
-
-            emb = emb.transpose(0, 1)
-
-            emb = emb + self.pos_encoder(emb)
-            emb = self.proj(emb)
-            emb = self.dropout(emb)
-        else:
-            emb = self.emb(output) * math.sqrt(self.emb_dim)
-            emb = emb + self.pos_encoder(emb)
-            emb = self.proj(emb)
-            emb = self.dropout(emb)
+    def forward(self, output, output_pad_mask):
+        emb = self.emb(output) * math.sqrt(self.emb_dim)
+        emb = emb + self.pos_encoder(emb)
+        emb = self.proj(emb)
+        emb = self.dropout(emb)
 
         return emb                
  
@@ -322,10 +391,15 @@ class TransformerDecoderLayer(nn.Module):
                         key_padding_mask=persona_pad_mask)[0]
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]
+            elif memory is not None:
+                attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                        key_padding_mask=memory_key_padding_mask)[0]
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
             attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
             if persona is not None and memory is not None:
                 attn_merge = tgt + 0.1*attn_t + 0.1*attn_c + self.dropout(attn_merge) * self.resweight
+            elif memory is not None:
+                attn_merge = tgt + 0.1*attn_c + self.dropout(attn_merge) * self.resweight
             else:
                 attn_merge = tgt + self.dropout(attn_merge) * self.resweight
 

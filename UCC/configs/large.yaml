@@ -19,10 +19,8 @@ shuffle_data: True
 max_vocab_size: 42000
 pretrain_emb: True
 pretrain_feature: True
-##pretrain_feature_model_name: voidful/albert_chinese_tiny
-##pretrain_feature_model_name: voidful/albert_chinese_small
-##pretrain_feature_model_name: voidful/albert_chinese_base
-#pretrain_feature_model_name: voidful/albert_chinese_large
+#pretrain_feature_model_name: voidful/albert_chinese_tiny
+#pretrain_feature_model_name: voidful/albert_chinese_small
 pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
 
 emb_freeze: False
@@ -34,7 +32,8 @@ d_model: 512
 d_ff: 2048
 attn_alpha: 1
 adapter_d_ff: 2048
-alpha: 0.5
+#alpha: 0.5
+alpha: 0.1
 
 #lr: 1.5e-4
 lr: 0.2e-2

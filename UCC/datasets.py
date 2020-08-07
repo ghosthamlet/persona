@@ -2,6 +2,7 @@
 import os
 import json
 import time
+import random
 import itertools
 from dataclasses import dataclass
 from typing import Sequence
@@ -214,21 +215,27 @@ class LMDataProcesser:
  
 @dataclass
 class LMFeature:
-    __slots__ = ['x', 'y', 'x_mask', 'x_pad_mask']
+    __slots__ = ['x', 'y', 'x_mlm', 
+            'x_mask', 'x_pad_mask',
+            'x_mlm_pad_mask']
     
     x: Tensor
     y: Tensor
+    x_mlm: Tensor
+    # y_mlm: Tensor
 
     x_mask: Tensor
     x_pad_mask: Tensor
-       
+    x_mlm_pad_mask: Tensor
+
 
 @dataclass
 class ChatFeature:
     __slots__ = ['context', 'segs', 'personas_no_tag', 
             'tags', 'resp', 'persona', 
             'context_pad_mask', 'resp_mask', 
-            'resp_pad_mask', 'persona_pad_mask', 'lm']
+            'resp_pad_mask', 'persona_pad_mask',
+            'personas_no_tag_pad_mask', 'tags_pad_mask', 'lm']
 
     context: Tensor
     segs: Tensor
@@ -243,11 +250,16 @@ class ChatFeature:
     resp_pad_mask: Tensor
     persona_pad_mask: Tensor
 
+    # for pretrain_feature
+    personas_no_tag_pad_mask: Tensor
+    tags_pad_mask: Tensor
+
     lm: LMFeature
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
-def generate_batch(batch, pad_idx):
+def generate_batch(batch, vocab):
+    pad_idx = vocab.stoi(utils.PAD)
     context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
     char_emb = True
 
@@ -258,7 +270,9 @@ def generate_batch(batch, pad_idx):
     tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
     tags_pad = tags_pad.view(-1, 2, int(tags_pad.shape[1]/2)).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
+
     context_pad_mask = (context_pad == pad_idx).T
+    tags_pad_mask = (tags_pad == pad_idx).T
     resp_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
     resp_pad_mask = (resp_pad == pad_idx).T
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
@@ -271,8 +285,9 @@ def generate_batch(batch, pad_idx):
         personas_no_tag_pad = pad_sequence(tmp, padding_value=pad_idx).permute(2, 0, 1) 
     else:
         personas_no_tag_pad = torch.tensor(personas_no_tag).permute(1, 2, 0)
+    personas_no_tag_pad_mask = (personas_no_tag_pad == pad_idx).T
 
-    lm = generate_lm_batch(lm, pad_idx, in_chat=True)
+    lm = generate_lm_batch(lm, vocab, in_chat=True)
 
     return ChatFeature(
             context=context_pad,
@@ -288,21 +303,47 @@ def generate_batch(batch, pad_idx):
             resp_pad_mask=resp_pad_mask,
             persona_pad_mask=persona_pad_mask,
 
+            personas_no_tag_pad_mask=personas_no_tag_pad_mask,
+            tags_pad_mask=tags_pad_mask,
+
             lm=lm,
     )
 
 
-def generate_lm_batch(batch, pad_idx, in_chat=False):
+def generate_lm_batch(batch, vocab, in_chat=False):
+    pad_idx = vocab.stoi(utils.PAD)
+    mask_idx = vocab.stoi(utils.MASK)
+
     if not in_chat:
+        x_mlm = None
+        x_mlm_pad_mask = None
         batch = torch.tensor(batch).T
     else:
+        x_mlm = []
+        for v in batch:
+            l = len(v)
+            if l == 3:
+                # bos + w + eos
+                x_mlm.append(v)
+                continue
+            mask = 1
+            if l > 5:
+                mask = 2
+            start = random.randint(1, l-mask-1)
+            x_mlm.append(v[0:start] + [mask_idx] + v[start+mask:])
+
         batch = pad_sequence(list(map(torch.tensor, batch)) , padding_value=pad_idx)
+        x_mlm = pad_sequence(list(map(torch.tensor, x_mlm)) , padding_value=pad_idx)
+        x_mlm_pad_mask = (x_mlm == pad_idx).T
+
     x = batch[:-1]
     y = batch[1:]
     x_mask = utils.generate_square_subsequent_mask(x.shape[0])
     x_pad_mask = (x == pad_idx).T
 
-    return LMFeature(x=x, y=y, x_mask=x_mask, x_pad_mask=x_pad_mask)
+    return LMFeature(x=x, y=y, x_mlm=x_mlm, 
+            x_mask=x_mask, x_pad_mask=x_pad_mask,
+            x_mlm_pad_mask=x_mlm_pad_mask)
 
 
 def build_corpus(raw_fname, corpus_fname):

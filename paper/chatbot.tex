@@ -144,6 +144,9 @@ Introversion extroversion
       T5
       ROBERT/AlBERT/ELECTRA pretrained chinese model feature, merge or direct use as inputs
       just use pretrain feature embeddings? then output_emb can just it too
+      init model with pretrain weights
+      jointly finetune pretrain, remove model encoder
+      finetune, share weights with model
       reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
@@ -466,13 +469,26 @@ Bleu: 0.00390583 | F1: 0.00018943 | Dist1: 0.850 | Dist2: 0.773 | PPL:  99.721
 Epoch: 01 | Time: 10m 51s
 	Train Loss: 5.513 | Train PPL: 247.898
 	 Val. Loss: 4.902 |  Val. PPL: 134.585
+Epoch: 01 | Time: 10m 34s
+	Train Loss: 5.656 | Train PPL: 285.885
+	 Val. Loss: 5.063 |  Val. PPL: 158.077
+| Test Loss: 5.064 | Test PPL: 158.224 |
 Bleu: 0.00330082 | F1: 0.00019547 | Dist1: 0.867 | Dist2: 0.791 | PPL: 106.405
 (alpha 0.1 pretrain_feature voidful/albert_chinese_small MLM)
 Epoch: 01 | Time: 16m 43s
 	Train Loss: 4.972 | Train PPL: 144.344
 	 Val. Loss: 4.639 |  Val. PPL: 103.426
-
-
+(alpha 0.5 pretrain_feature emb for input and output_emb voidful/albert_chinese_small MLM)
+Epoch: 01 | Time: 17m 46s
+	Train Loss: 5.493 | Train PPL: 243.104
+	 Val. Loss: 4.942 |  Val. PPL: 140.047
+**(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
+1000000 data
+Epoch: 01 | Time: 79m 43s
+	Train Loss: 4.748 | Train PPL: 115.346
+	 Val. Loss: 4.454 |  Val. PPL:  85.968
+| Test Loss: 4.454 | Test PPL:  85.999 |
+Bleu: 0.00554876 | F1: 0.00021227 | Dist1: 0.823 | Dist2: 0.756 | PPL:  88.789
 1000000 data
 Epoch: 02 | Time: 84m 5s
 	Train Loss: 5.910 | Train PPL: 368.582

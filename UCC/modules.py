@@ -261,18 +261,46 @@ class OutputEmb(nn.Module):
         d_model,
         pad_idx,
         dropout,
-        embeddings=None ,
+        embeddings=None,
+        pretrain_feature_model=None,
     ):
         super().__init__()
         self.emb_dim = emb_dim
 
-        self.pos_encoder = utils.PositionalEncoding(emb_dim)
-        self.proj = nn.Linear(emb_dim, d_model)
+        # XXX: pretrain_feature_model must return emb, not hidden state after self attention
+        #      or future output token will be attended
+        self.pretrain_feature = pretrain_feature_model is not None
+        if self.pretrain_feature:
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
+        else:
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
+        if self.pretrain_feature:
+            self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
 
     def forward(self, output, output_pad_mask):
-        emb = self.emb(output) * math.sqrt(self.emb_dim)
+        def orig_emb(x):
+            emb = self.emb(output) * math.sqrt(self.emb_dim)
+            return emb 
+
+        if self.pretrain_feature:
+            def new_emb(x, x_pad_mask):
+                x = x.transpose(0, 1)
+                x_pad_mask = (x_pad_mask != 1).float()
+
+                emb = self.emb1(x, 
+                        attention_mask=x_pad_mask)
+
+                emb = emb.transpose(0, 1)
+
+                return emb
+
+            emb = torch.cat([new_emb(output, output_pad_mask), orig_emb(output)], dim=2)
+        else:
+            emb = orig_emb(output)
         emb = emb + self.pos_encoder(emb)
         emb = self.proj(emb)
         emb = self.dropout(emb)

@@ -27,7 +27,8 @@ import torch.utils.checkpoint as torch_cp
 
 import torch_optimizer as toptim
 import transformers
-from transformers import Pipeline, BertTokenizer, AlbertModel, AutoTokenizer, AutoModel
+from transformers import Pipeline, BertTokenizer, AlbertModel, \
+        AutoTokenizer, AutoModel, AlbertConfig, AutoConfig
 
 
 class Trainer:
@@ -151,10 +152,16 @@ class Trainer:
         mn = self.args.pretrain_feature_model_name
         if 'albert' in mn:
             pretrain_feature_tokenizer = BertTokenizer.from_pretrained(mn)
-            self.pretrain_feature_model = AlbertModel.from_pretrained(mn).to(self.device)
+            config = AlbertConfig.from_pretrained(mn)
+            config.output_hidden_states = True
+            self.pretrain_feature_model = AlbertModel.from_pretrained(mn,
+                    config=config).to(self.device)
         else:
             pretrain_feature_tokenizer = AutoTokenizer.from_pretrained(mn)
-            self.pretrain_feature_model = AutoModel.from_pretrained(mn).to(self.device)
+            config = AutoConfig.from_pretrained(mn)
+            config.output_hidden_states = True
+            self.pretrain_feature_model = AutoModel.from_pretrained(mn,
+                    config=config).to(self.device)
         self.pretrain_feature_model.requires_grad_(False)
         # pipeline input is raw data, we have ids, so direct use model
         # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 

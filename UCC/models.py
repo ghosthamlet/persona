@@ -163,7 +163,10 @@ class AR(nn.Module):
                     with torch.no_grad():
                         return pretrain_feature_model(
                                 x, position_ids=position_ids,
-                                attention_mask=attention_mask)[0]
+                                # last layer hid
+                                # attention_mask=attention_mask)[0]
+                                # emb
+                                attention_mask=attention_mask)[1][0]
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
@@ -173,7 +176,7 @@ class AR(nn.Module):
         seq_emb = modules.SeqEmb(input_dim, args.emb_dim, args.emb_freeze,
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
         output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings)
+                args.d_model, pad_idx, args.dropout, embeddings, fn)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
                 args.n_head, args.num_layers, args.dropout,

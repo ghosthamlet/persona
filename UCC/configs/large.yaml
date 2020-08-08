@@ -6,12 +6,12 @@ n_epochs: 1
 # for LM
 #n_epochs_early_stage: 1
 n_epochs_early_stage: 0
-#batch_size: 64
-batch_size: 80
+batch_size: 64
+#batch_size: 80
 # for LM
 #batch_size: 1280
-limit_example_length: 1000000
-#limit_example_length: 100000
+#limit_example_length: 1000000
+limit_example_length: 100000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -19,9 +19,11 @@ max_context_size: 6
 shuffle_data: True
 max_vocab_size: 42000
 pretrain_emb: True
-pretrain_feature: False
+pretrain_feature: True
 #pretrain_feature_model_name: voidful/albert_chinese_tiny
+#pretrain_feature_model_name: voidful/albert_chinese_base
 #pretrain_feature_model_name: voidful/albert_chinese_small
+#pretrain_feature_model_name: voidful/albert_chinese_large
 pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
 
 emb_freeze: False

@@ -348,7 +348,7 @@ class TransformerDecoderLayer(nn.Module):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.factor_ff = True
+        self.factor_ff = False
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
            #self.linear1 = nn.Linear(d_model, in_ff)
@@ -530,7 +530,7 @@ class RZTXEncoderLayer(Module):
 
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
-        self.factor_ff = True
+        self.factor_ff = False
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
            #self.linear1 = nn.Linear(d_model, in_ff)

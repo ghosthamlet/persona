@@ -145,8 +145,10 @@ Introversion extroversion
       ROBERT/AlBERT/ELECTRA pretrained chinese model feature, merge or direct use as inputs
       just use pretrain feature embeddings? then output_emb can just it too
       init model with pretrain weights
+        electra last layer, emb weights
+        albert all layer, emb weights, this need change model to group layer share
       jointly finetune pretrain, remove model encoder
-      finetune, share weights with model
+      finetune, share weights with model, i.e. combine above two
       reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
@@ -482,6 +484,21 @@ Epoch: 01 | Time: 16m 43s
 Epoch: 01 | Time: 17m 46s
 	Train Loss: 5.493 | Train PPL: 243.104
 	 Val. Loss: 4.942 |  Val. PPL: 140.047
+**(alpha 0.5 init with pretrain_feature emb hfl/chinese-electra-small-discriminator MLM)
+% self.pretrain_feature_model.requires_grad_(False)
+Epoch: 01 | Time: 11m 0s
+	Train Loss: 5.436 | Train PPL: 229.444
+	 Val. Loss: 4.894 |  Val. PPL: 133.537
+**(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM)
+% self.pretrain_feature_model.requires_grad_(False)
+Epoch: 01 | Time: 7m 49s
+	Train Loss: 5.682 | Train PPL: 293.491
+	 Val. Loss: 4.969 |  Val. PPL: 143.933
+Epoch: 01 | Time: 7m 44s
+	Train Loss: 5.712 | Train PPL: 302.408
+	 Val. Loss: 5.029 |  Val. PPL: 152.851
+Bleu: 0.00314315 | F1: 0.00007013 | Dist1: 0.865 | Dist2: 0.766 | PPL: 160.456
+
 **(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
 1000000 data
 Epoch: 01 | Time: 79m 43s

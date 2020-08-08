@@ -1,4 +1,5 @@
 
+import copy
 import math
 import random
 
@@ -40,12 +41,17 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
         self.adapter_finetune = adapter_finetune
-        self.factor_ff = True
+        self.factor_ff = False
 
         self._share_emb()
         self._share_encoder_decoder()
         self._share_layers()
         utils.xavier_init_weights(self)
+
+        if pretrain_feature_model is not None:
+            pass
+            # self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
+            # self._init_with_pretrain_feature_model_last_layer(pretrain_feature_model)
 
     def forward(self, feature):
         context_enc, persona_enc, x_mlm_enc = self.encode(feature)
@@ -95,6 +101,11 @@ class AR(nn.Module):
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
         self.seq_emb.emb.weight = self.output_emb.emb.weight
 
+    def _init_with_pretrain_feature_model_emb(self, pretrain_feature_model):
+        m = pretrain_feature_model.embeddings
+        self.output_emb.emb.weight = m.word_embeddings.weight
+        self._share_emb()
+
     def _share_encoder_decoder(self):
         for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
             d_layer = self.resp_decoder.layers[i]
@@ -141,6 +152,34 @@ class AR(nn.Module):
                 layer.ada_linear1 = layer0.ada_linear1
                 layer.ada_linear2 = layer0.ada_linear2
 
+    def _init_with_pretrain_feature_model_last_layer(self, pretrain_feature_model):
+        m = pretrain_feature_model.encoder.layer[-1]
+        att = m.attention
+        att_self = att.self
+        att_output = att.output.dense
+        linear1 = m.intermediate.dense
+        linear2 = m.output.dense
+        norm1 = att.output.LayerNorm
+        norm2 = m.output.LayerNorm
+
+        layer0 = self.resp_decoder.layers[0]
+        layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
+            att_self.query.weight, 
+            att_self.key.weight, 
+            att_self.value.weight
+            ], dim=0))
+        layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
+            att_self.query.bias, 
+            att_self.key.bias, 
+            att_self.value.bias
+            ], dim=0))                           
+        layer0.multihead_attn.out_proj = copy.deepcopy(att_output)
+
+        layer0.linear1 = linear1
+        layer0.linear2 = linear2
+
+        self._share_layers()
+
     @staticmethod
     def build(
         args, 
@@ -157,16 +196,19 @@ class AR(nn.Module):
         fn = None
         if pretrain_feature_model is not None:
             # don't define as layer, or the model weights will be saved to checkpoint
-                def fn(x, position_ids=None, attention_mask=None):
-                    # 'requires_grad_(False)' just for disable backward calc grad, 
-                    # add 'with torch.no_grad()' to disable save activation
-                    with torch.no_grad():
-                        return pretrain_feature_model(
-                                x, position_ids=position_ids,
-                                # last layer hid
-                                # attention_mask=attention_mask)[0]
-                                # emb
-                                attention_mask=attention_mask)[1][0]
+            def fn(x, position_ids=None, attention_mask=None):
+                # 'requires_grad_(False)' just for disable backward calc grad, 
+                # add 'with torch.no_grad()' to disable save activation
+                with torch.no_grad():
+                    return pretrain_feature_model(
+                            x, position_ids=position_ids,
+                            # last layer hid
+                            # attention_mask=attention_mask)[0]
+                            # emb
+                            attention_mask=attention_mask)[1][0]
+            # FIXME: disable use feature, just init weights by pretrain_feature_model
+            #        add a config for this
+            fn = None
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
@@ -192,13 +234,13 @@ class AR(nn.Module):
             model = LM(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
-                    generater, args.adapter_finetune, fn
+                    generater, args.adapter_finetune, pretrain_feature_model
                     )
         else:
             model = AR(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
-                    generater, args.adapter_finetune, fn
+                    generater, args.adapter_finetune, pretrain_feature_model
                     )
 
         return model

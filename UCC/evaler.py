@@ -108,12 +108,22 @@ class Evaler:
         # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
         # FIXME: this changed args should saved to checkpoint file
-        self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
-        self.model_config.emb_dim = self.pretrain_feature_model.config.hidden_size
+        # for use feature
+        # self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        # self.model_config.emb_dim = self.pretrain_feature_model.config.hidden_size
+        # for use emb
+        self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
+        self.model_config.emb_dim = self.pretrain_feature_model.config.embedding_size
+
+        # for use layer weight
+        self.model_config.d_model = self.pretrain_feature_model.config.hidden_size
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)
+
+        # pretrain_feature_model emb and weight no need anymore, use trained model
+        self.pretrain_feature_model = None
     
     def build_dataloaders(self):
         args = self.args

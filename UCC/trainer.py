@@ -162,7 +162,8 @@ class Trainer:
             config.output_hidden_states = True
             self.pretrain_feature_model = AutoModel.from_pretrained(mn,
                     config=config).to(self.device)
-        self.pretrain_feature_model.requires_grad_(False)
+        # self.pretrain_feature_model.requires_grad_(False)
+        self.pretrain_feature_model.requires_grad_(True)
         # pipeline input is raw data, we have ids, so direct use model
         # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 
         #        model=self.pretrain_feature_model, tokenizer=pretrain_feature_tokenizer)
@@ -171,7 +172,15 @@ class Trainer:
         # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
         # FIXME: this changed args should saved to checkpoint file
-        self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        # for use feature
+        # self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        # for use emb
+        self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
+
+        # for use layer weight
+        self.args.d_model = self.pretrain_feature_model.config.hidden_size
+        self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
+        self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)

@@ -21,8 +21,8 @@ max_vocab_size: 42000
 pretrain_emb: True
 pretrain_feature: False
 #pretrain_feature_model_name: voidful/albert_chinese_tiny
-#pretrain_feature_model_name: voidful/albert_chinese_base
 #pretrain_feature_model_name: voidful/albert_chinese_small
+#pretrain_feature_model_name: voidful/albert_chinese_base
 #pretrain_feature_model_name: voidful/albert_chinese_large
 pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
 
@@ -30,7 +30,9 @@ emb_freeze: False
 emb_dim: 200
 dropout: 0.1
 num_layers: 6
-num_groups: 1
+# num_layers % num_groups == 0 and num_groups <= num_layers
+# real layer num is num_layers / num_groups
+num_groups: 2
 n_head: 8
 d_model: 512
 d_ff: 2048

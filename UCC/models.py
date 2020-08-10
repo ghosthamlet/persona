@@ -51,9 +51,11 @@ class AR(nn.Module):
         utils.xavier_init_weights(self)
 
         if pretrain_feature_model is not None:
-            pass
             # self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
-            # self._init_with_pretrain_feature_model_last_layer(pretrain_feature_model)
+            if pretrain_feature_model.base_model_prefix != 'albert':
+                self._init_with_pretrain_feature_model_last_layer(pretrain_feature_model)
+            else:
+                self._init_with_pretrain_feature_model_layers(pretrain_feature_model)
 
     def forward(self, feature):
         context_enc, persona_enc, x_mlm_enc = self.encode(feature)
@@ -98,14 +100,21 @@ class AR(nn.Module):
 
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
+        self.context_emb.pos_encoder.weight = self.output_emb.pos_encoder.weight
+        self.context_emb.norm = self.output_emb.norm
         #self.context_emb.proj.weight = self.output_emb.proj.weight
         self.persona_emb.emb.weight = self.output_emb.emb.weight
+        self.persona_emb.norm = self.output_emb.norm
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
         self.seq_emb.emb.weight = self.output_emb.emb.weight
+        self.seq_emb.pos_encoder.weight = self.output_emb.pos_encoder.weight
+        self.seq_emb.norm = self.output_emb.norm
 
     def _init_with_pretrain_feature_model_emb(self, pretrain_feature_model):
         m = pretrain_feature_model.embeddings
         self.output_emb.emb.weight = m.word_embeddings.weight
+        self.output_emb.pos_encoder.weight = m.position_embeddings.weight
+        self.output_emb.norm = m.LayerNorm
         self._share_emb()
 
     def _share_encoder_decoder(self):
@@ -155,32 +164,61 @@ class AR(nn.Module):
                 layer.ada_linear2 = layer0.ada_linear2
 
     def _init_with_pretrain_feature_model_last_layer(self, pretrain_feature_model):
-        m = pretrain_feature_model.encoder.layer[-1]
-        att = m.attention
-        att_self = att.self
-        att_output = att.output.dense
-        linear1 = m.intermediate.dense
-        linear2 = m.output.dense
-        norm1 = att.output.LayerNorm
-        norm2 = m.output.LayerNorm
+        def fn(from_layer, to_layer):
+            m = pretrain_feature_model.encoder.layer[from_layer]
+            att = m.attention
+            att_self = att.self
+            att_output = att.output.dense
+            linear1 = m.intermediate.dense
+            linear2 = m.output.dense
+            norm1 = att.output.LayerNorm
+            norm2 = m.output.LayerNorm
 
-        layer0 = self.resp_decoder.layers[0]
-        layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
-            att_self.query.weight, 
-            att_self.key.weight, 
-            att_self.value.weight
-            ], dim=0))
-        layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
-            att_self.query.bias, 
-            att_self.key.bias, 
-            att_self.value.bias
-            ], dim=0))                           
-        layer0.multihead_attn.out_proj = copy.deepcopy(att_output)
+            layer0 = self.resp_decoder.layers[to_layer]
+            layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
+                att_self.query.weight, 
+                att_self.key.weight, 
+                att_self.value.weight
+                ], dim=0))
+            layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
+                att_self.query.bias, 
+                att_self.key.bias, 
+                att_self.value.bias
+                ], dim=0))                           
+            layer0.multihead_attn.out_proj = att_output
 
-        layer0.linear1 = linear1
-        layer0.linear2 = linear2
+            layer0.linear1 = linear1
+            layer0.linear2 = linear2
 
-        # self._share_layers()
+        fn(-3, 0)
+        fn(-2, 1)
+        fn(-1, 2)
+
+    def _init_with_pretrain_feature_model_layers(self, pretrain_feature_model):
+            m = pretrain_feature_model.encoder.albert_layer_groups[-1].albert_layers[-1]
+            att = m.attention
+            att_self = att
+            att_output = att.dense
+            linear1 = m.ffn
+            linear2 = m.ffn_output
+            norm1 = att.LayerNorm
+            norm2 = m.full_layer_layer_norm
+
+            layer0 = self.resp_decoder.layers[0]
+            layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
+                att_self.query.weight, 
+                att_self.key.weight, 
+                att_self.value.weight
+                ], dim=0))
+            layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
+                att_self.query.bias, 
+                att_self.key.bias, 
+                att_self.value.bias
+                ], dim=0))                           
+            layer0.multihead_attn.out_proj = att_output
+
+            layer0.linear1 = linear1
+            layer0.linear2 = linear2
 
     @staticmethod
     def build(

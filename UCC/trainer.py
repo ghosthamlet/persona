@@ -183,6 +183,7 @@ class Trainer:
         self.args.d_model = self.pretrain_feature_model.config.hidden_size
         self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
         self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
+        self.args.factor_ff = False
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)

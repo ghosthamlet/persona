@@ -42,12 +42,14 @@ class ContextEmb(nn.Module):
             self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
             self.proj = nn.Linear(emb_dim*2, d_model)
         else:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.pos_encoder = nn.Embedding(512, emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, feature):
         def orig_emb(feature):
@@ -134,11 +136,22 @@ class ContextEmb(nn.Module):
             emb = self.dropout(emb)
         else:
             emb = orig_emb(feature)
-            emb = emb + self.pos_encoder(emb)
+            # emb = emb + self.pos_encoder(emb)
+            emb = emb + self.pos_encoder(create_position_ids(feature.context))
+            emb = self.norm(emb)
             emb = self.proj(emb)
             emb = self.dropout(emb)
 
         return emb
+
+
+def create_position_ids(input_ids):
+    device = input_ids.device
+    input_shape = input_ids.shape
+    seq_length = input_shape[0]
+    position_ids = torch.arange(seq_length, dtype=torch.long, device=device)
+    position_ids = position_ids.unsqueeze(1).expand(input_shape)
+    return position_ids
 
 
 class PersonaEmb(nn.Module):
@@ -165,6 +178,7 @@ class PersonaEmb(nn.Module):
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, persona, persona_pad_mask):
         def orig_emb(persona):
@@ -192,6 +206,7 @@ class PersonaEmb(nn.Module):
             emb = self.dropout(emb)
         else:
             emb = orig_emb(persona)
+            emb = self.norm(emb)
             emb = self.proj(emb)
             emb = self.dropout(emb)
 
@@ -218,12 +233,14 @@ class SeqEmb(nn.Module):
             self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
             self.proj = nn.Linear(emb_dim*2, d_model)
         else:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.pos_encoder = nn.Embedding(512, emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, x, x_pad_mask):
         def orig_emb(x):
@@ -245,7 +262,9 @@ class SeqEmb(nn.Module):
             emb = torch.cat([new_emb(x, x_pad_mask), orig_emb(x)], dim=2)
         else:
             emb = orig_emb(x)
-        emb = emb + self.pos_encoder(emb)
+        # emb = emb + self.pos_encoder(emb)
+        emb = emb + self.pos_encoder(create_position_ids(x))
+        emb = self.norm(emb)
         emb = self.proj(emb)
         emb = self.dropout(emb)
 
@@ -274,12 +293,14 @@ class OutputEmb(nn.Module):
             self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
             self.proj = nn.Linear(emb_dim*2, d_model)
         else:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            self.pos_encoder = nn.Embedding(512, emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, output, output_pad_mask):
         def orig_emb(x):
@@ -301,7 +322,9 @@ class OutputEmb(nn.Module):
             emb = torch.cat([new_emb(output, output_pad_mask), orig_emb(output)], dim=2)
         else:
             emb = orig_emb(output)
-        emb = emb + self.pos_encoder(emb)
+        # emb = emb + self.pos_encoder(emb)
+        emb = emb + self.pos_encoder(create_position_ids(output))
+        emb = self.norm(emb)
         emb = self.proj(emb)
         emb = self.dropout(emb)
 

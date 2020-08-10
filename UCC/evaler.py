@@ -117,6 +117,9 @@ class Evaler:
 
         # for use layer weight
         self.model_config.d_model = self.pretrain_feature_model.config.hidden_size
+        self.model_config.n_head = self.pretrain_feature_model.config.num_attention_heads
+        self.model_config.d_ff = self.pretrain_feature_model.config.intermediate_size
+        self.model_config.factor_ff = False
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)

@@ -79,11 +79,13 @@ class Trainer:
         parser.add_argument('--emb_dim', default=200, type=int, required=False, help='')
         parser.add_argument('--dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
+        parser.add_argument('--num_groups', default=1, type=int, required=False, help='')
         parser.add_argument('--n_head', default=8, type=int, required=False, help='')
         parser.add_argument('--d_model', default=512, type=int, required=False, help='')
         parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_d_ff', default=2048, type=int, required=False, help='')
+        parser.add_argument('--factor_ff', action='store_true', required=False, help='')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')

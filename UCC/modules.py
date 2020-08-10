@@ -269,7 +269,7 @@ class OutputEmb(nn.Module):
 
         # XXX: pretrain_feature_model must return emb, not hidden state after self attention
         #      or future output token will be attended
-        self.pretrain_feature = pretrain_feature_model is not None
+        self.pretrain_feature = False # pretrain_feature_model is not None
         if self.pretrain_feature:
             self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
             self.proj = nn.Linear(emb_dim*2, d_model)
@@ -316,26 +316,43 @@ class TransformerEncoder(nn.Module):
         n_hid,
         n_head,
         num_layers,
+        num_groups,
         dropout,
         attn_act,
+        factor_ff,
         adapter_finetune, 
         adapter_d_ff,
+        norm=None
     ):
         super().__init__()
         self.num_layers = num_layers
 
         use_rezero = True
+        # TODO: move out layer define
         if use_rezero:
-            encoder_layers = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout,
-                   attn_act, adapter_finetune, adapter_d_ff)
+            encoder_layer = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout,
+                   attn_act, factor_ff, adapter_finetune, adapter_d_ff)
         else:
-            encoder_layers = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
+            encoder_layer = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
 
-    def forward(self, emb, mask=None):
-        outs = self.transformer_encoder(emb, src_key_padding_mask=mask)
+        layers_in_group = num_layers // num_groups
+        self.num_groups = num_groups
+        self.layers = nn.modules.transformer._get_clones(encoder_layer, layers_in_group)
+        self.norm = norm
 
-        return outs
+    def forward(self, src_emb, pad_mask=None):
+        output = src_emb
+
+        layers_in_group = len(self.layers)
+        for _ in range(self.num_groups):
+            for i in range(layers_in_group):
+                output = self.layers[i](output, src_mask=None,
+                                        src_key_padding_mask=pad_mask)
+
+        if self.norm:
+            output = self.norm(output)
+
+        return output
 
 
 class TransformerDecoderLayer(nn.Module):
@@ -344,11 +361,11 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, attn_alpha,
             dim_feedforward=2048, dropout=0.1, activation="relu",
-            adapter_finetune=False, adapter_d_ff=2048):
+            factor_ff=False, adapter_finetune=False, adapter_d_ff=2048):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.factor_ff = False
+        self.factor_ff = factor_ff
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
            #self.linear1 = nn.Linear(d_model, in_ff)
@@ -525,12 +542,12 @@ class RZTXEncoderLayer(Module):
     """
     def __init__(self, d_model, nhead, 
             dim_feedforward=2048, dropout=0.1, activation='relu', 
-            adapter_finetune=False, adapter_d_ff=2048):
+            factor_ff=False, adapter_finetune=False, adapter_d_ff=2048):
         super().__init__()
 
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
-        self.factor_ff = False
+        self.factor_ff = factor_ff
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
            #self.linear1 = nn.Linear(d_model, in_ff)
@@ -691,25 +708,29 @@ class TransformerDecoder(nn.Module):
     r"""Derived from torch.nn.TransformerDecoder
     """
 
-    def __init__(self, decoder_layer, num_layers, norm=None):
+    def __init__(self, decoder_layer, num_layers, num_groups, norm=None):
         super(TransformerDecoder, self).__init__()
-        self.layers = nn.modules.transformer._get_clones(decoder_layer, num_layers)
-        self.num_layers = num_layers
+
+        layers_in_group = num_layers // num_groups
+        self.num_groups = num_groups
+        self.layers = nn.modules.transformer._get_clones(decoder_layer, layers_in_group)
         self.norm = norm
 
-    def forward(self, tgt, memory=None, profiles=None, 
+    def forward(self, tgt_emb, memory=None, profiles=None, 
             memory_mask=None, memory_key_padding_mask=None,
             tgt_mask=None, tgt_key_padding_mask=None,
             persona_pad_mask=None):
         """Train language model When memory and profiles is None"""
-        output = tgt
+        output = tgt_emb
 
-        for i in range(self.num_layers):
-            output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
-                                    memory_mask=memory_mask, persona=profiles,
-                                    tgt_key_padding_mask=tgt_key_padding_mask,
-                                    memory_key_padding_mask=memory_key_padding_mask,
-                                    persona_pad_mask=persona_pad_mask)
+        layers_in_group = len(self.layers)
+        for _ in range(self.num_groups):
+            for i in range(layers_in_group):
+                output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
+                                        memory_mask=memory_mask, persona=profiles,
+                                        tgt_key_padding_mask=tgt_key_padding_mask,
+                                        memory_key_padding_mask=memory_key_padding_mask,
+                                        persona_pad_mask=persona_pad_mask)
 
         if self.norm:
             output = self.norm(output)

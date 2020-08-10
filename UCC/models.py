@@ -28,6 +28,7 @@ class AR(nn.Module):
         post_encoder,
         resp_decoder,
         generater,
+        factor_ff,
         adapter_finetune,
         pretrain_feature_model,
     ):
@@ -41,11 +42,12 @@ class AR(nn.Module):
         self.resp_decoder = resp_decoder
         self.generater = generater
         self.adapter_finetune = adapter_finetune
-        self.factor_ff = False
+        self.factor_ff = factor_ff
 
         self._share_emb()
         self._share_encoder_decoder()
-        self._share_layers()
+        # already share across num_groups like ALBERT, no need this row
+        # self._share_layers()
         utils.xavier_init_weights(self)
 
         if pretrain_feature_model is not None:
@@ -107,7 +109,7 @@ class AR(nn.Module):
         self._share_emb()
 
     def _share_encoder_decoder(self):
-        for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
+        for i, layer in enumerate(self.post_encoder.layers):
             d_layer = self.resp_decoder.layers[i]
             layer.self_attn = d_layer.multihead_attn
             layer.linear1 = d_layer.linear1
@@ -127,7 +129,7 @@ class AR(nn.Module):
 
     def _share_layers(self):
         layer0 = self.resp_decoder.layers[0]
-        for i, layer in enumerate(self.post_encoder.transformer_encoder.layers):
+        for i, layer in enumerate(self.post_encoder.layers):
             d_layer = self.resp_decoder.layers[i]
             d_layer.multihead_attn = layer0.multihead_attn
             d_layer.linear1 = layer0.linear1
@@ -178,7 +180,7 @@ class AR(nn.Module):
         layer0.linear1 = linear1
         layer0.linear2 = linear2
 
-        self._share_layers()
+        # self._share_layers()
 
     @staticmethod
     def build(
@@ -221,26 +223,28 @@ class AR(nn.Module):
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
-                args.n_head, args.num_layers, args.dropout,
-                'relu', args.adapter_finetune, args.adapter_d_ff)
+                args.n_head, args.num_layers, args.num_groups, args.dropout,
+                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff)
 
         resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
                 args.attn_alpha, args.d_ff, args.dropout, 
-                'relu', args.adapter_finetune, args.adapter_d_ff)
-        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
+                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff)
+        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers, args.num_groups)
         generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
 
         if args.n_epochs_early_stage > 0:
             model = LM(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
-                    generater, args.adapter_finetune, pretrain_feature_model
+                    generater, args.factor_ff, args.adapter_finetune, 
+                    pretrain_feature_model
                     )
         else:
             model = AR(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
-                    generater, args.adapter_finetune, pretrain_feature_model
+                    generater, args.factor_ff, args.adapter_finetune, 
+                    pretrain_feature_model
                     )
 
         return model

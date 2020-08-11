@@ -46,12 +46,13 @@ class AR(nn.Module):
 
         self._share_emb()
         self._share_encoder_decoder()
-        # already share across num_groups like ALBERT, no need this row
-        # self._share_layers()
         utils.xavier_init_weights(self)
 
         if pretrain_feature_model is not None:
-            # self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
+            self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
+            return
+
+            # useless
             if pretrain_feature_model.base_model_prefix != 'albert':
                 self._init_with_pretrain_feature_model_last_layer(pretrain_feature_model)
             else:
@@ -100,21 +101,14 @@ class AR(nn.Module):
 
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
-        self.context_emb.pos_encoder.weight = self.output_emb.pos_encoder.weight
-        self.context_emb.norm = self.output_emb.norm
         #self.context_emb.proj.weight = self.output_emb.proj.weight
         self.persona_emb.emb.weight = self.output_emb.emb.weight
-        self.persona_emb.norm = self.output_emb.norm
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
         self.seq_emb.emb.weight = self.output_emb.emb.weight
-        self.seq_emb.pos_encoder.weight = self.output_emb.pos_encoder.weight
-        self.seq_emb.norm = self.output_emb.norm
 
     def _init_with_pretrain_feature_model_emb(self, pretrain_feature_model):
         m = pretrain_feature_model.embeddings
         self.output_emb.emb.weight = m.word_embeddings.weight
-        self.output_emb.pos_encoder.weight = m.position_embeddings.weight
-        self.output_emb.norm = m.LayerNorm
         self._share_emb()
 
     def _share_encoder_decoder(self):
@@ -135,33 +129,6 @@ class AR(nn.Module):
             if self.adapter_finetune:
                 layer.ada_linear1 = d_layer.ada_linear1
                 layer.ada_linear2 = d_layer.ada_linear2
-
-    def _share_layers(self):
-        layer0 = self.resp_decoder.layers[0]
-        for i, layer in enumerate(self.post_encoder.layers):
-            d_layer = self.resp_decoder.layers[i]
-            d_layer.multihead_attn = layer0.multihead_attn
-            d_layer.linear1 = layer0.linear1
-            d_layer.linear2 = layer0.linear2
-            d_layer.norm1 = layer0.norm1
-            d_layer.norm2 = layer0.norm2
-            d_layer.resweight = layer0.resweight
- 
-            layer.self_attn = layer0.multihead_attn
-            layer.linear1 = layer0.linear1
-            layer.linear2 = layer0.linear2
-            layer.norm1 = layer0.norm1
-            layer.norm2 = layer0.norm2
-            layer.resweight = layer0.resweight
-            layer.pre_norm = layer0.pre_norm
-
-            if self.factor_ff:
-                layer.fac_linear1 = layer0.fac_linear1
-                layer.fac_linear2 = layer0.fac_linear2
-
-            if self.adapter_finetune:
-                layer.ada_linear1 = layer0.ada_linear1
-                layer.ada_linear2 = layer0.ada_linear2
 
     def _init_with_pretrain_feature_model_last_layer(self, pretrain_feature_model):
         def fn(from_layer, to_layer):
@@ -190,35 +157,39 @@ class AR(nn.Module):
             layer0.linear1 = linear1
             layer0.linear2 = linear2
 
-        fn(-3, 0)
-        fn(-2, 1)
-        fn(-1, 2)
+        l = len(self.resp_decoder.layers)
+        for i in range(l):
+            fn(-(l-i), i)
+
+        self._share_encoder_decoder()
 
     def _init_with_pretrain_feature_model_layers(self, pretrain_feature_model):
-            m = pretrain_feature_model.encoder.albert_layer_groups[-1].albert_layers[-1]
-            att = m.attention
-            att_self = att
-            att_output = att.dense
-            linear1 = m.ffn
-            linear2 = m.ffn_output
-            norm1 = att.LayerNorm
-            norm2 = m.full_layer_layer_norm
+        m = pretrain_feature_model.encoder.albert_layer_groups[-1].albert_layers[-1]
+        att = m.attention
+        att_self = att
+        att_output = att.dense
+        linear1 = m.ffn
+        linear2 = m.ffn_output
+        norm1 = att.LayerNorm
+        norm2 = m.full_layer_layer_norm
 
-            layer0 = self.resp_decoder.layers[0]
-            layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
-                att_self.query.weight, 
-                att_self.key.weight, 
-                att_self.value.weight
-                ], dim=0))
-            layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
-                att_self.query.bias, 
-                att_self.key.bias, 
-                att_self.value.bias
-                ], dim=0))                           
-            layer0.multihead_attn.out_proj = att_output
+        layer0 = self.resp_decoder.layers[0]
+        layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
+            att_self.query.weight, 
+            att_self.key.weight, 
+            att_self.value.weight
+            ], dim=0))
+        layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
+            att_self.query.bias, 
+            att_self.key.bias, 
+            att_self.value.bias
+            ], dim=0))                           
+        layer0.multihead_attn.out_proj = att_output
 
-            layer0.linear1 = linear1
-            layer0.linear2 = linear2
+        layer0.linear1 = linear1
+        layer0.linear2 = linear2
+
+        self._share_encoder_decoder()
 
     @staticmethod
     def build(
@@ -243,11 +214,9 @@ class AR(nn.Module):
                     return pretrain_feature_model(
                             x, position_ids=position_ids,
                             # last layer hid
-                            # attention_mask=attention_mask)[0]
+                            #attention_mask=attention_mask)[0]
                             # emb
                             attention_mask=attention_mask)[1][0]
-            # FIXME: disable use feature, just init weights by pretrain_feature_model
-            #        add a config for this
             fn = None
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,

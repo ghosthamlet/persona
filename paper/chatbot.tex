@@ -152,6 +152,8 @@ Introversion extroversion
       reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
+
+      append persona to context
       Meena: Conv2D
       % maybe useless, this is like classify, but many unknown dialogue is not persona chat
       % Mask Persona Language Model: 
@@ -471,9 +473,9 @@ Bleu: 0.00390583 | F1: 0.00018943 | Dist1: 0.850 | Dist2: 0.773 | PPL:  99.721
 Epoch: 01 | Time: 10m 51s
 	Train Loss: 5.513 | Train PPL: 247.898
 	 Val. Loss: 4.902 |  Val. PPL: 134.585
-Epoch: 01 | Time: 10m 34s
-	Train Loss: 5.656 | Train PPL: 285.885
-	 Val. Loss: 5.063 |  Val. PPL: 158.077
+Epoch: 01 | Time: 10m 31s
+	Train Loss: 5.579 | Train PPL: 264.831
+	 Val. Loss: 4.961 |  Val. PPL: 142.791
 | Test Loss: 5.064 | Test PPL: 158.224 |
 Bleu: 0.00330082 | F1: 0.00019547 | Dist1: 0.867 | Dist2: 0.791 | PPL: 106.405
 (alpha 0.1 pretrain_feature voidful/albert_chinese_small MLM)
@@ -489,8 +491,9 @@ Epoch: 01 | Time: 17m 46s
 Epoch: 01 | Time: 11m 0s
 	Train Loss: 5.436 | Train PPL: 229.444
 	 Val. Loss: 4.894 |  Val. PPL: 133.537
-**(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM)
+(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM)
 % self.pretrain_feature_model.requires_grad_(False)
+% init with albert the same, all these init has few effects
 Epoch: 01 | Time: 7m 49s
 	Train Loss: 5.682 | Train PPL: 293.491
 	 Val. Loss: 4.969 |  Val. PPL: 143.933
@@ -501,9 +504,19 @@ Epoch: 01 | Time: 7m 0s
 	Train Loss: 5.537 | Train PPL: 253.798
 	 Val. Loss: 4.924 |  Val. PPL: 137.619
 Bleu: 0.00314315 | F1: 0.00007013 | Dist1: 0.865 | Dist2: 0.766 | PPL: 160.456
+(% emb norm and learnable pos emb useless)
+no share encoder decoder
+Epoch: 01 | Time: 10m 52s
+	Train Loss: 5.730 | Train PPL: 308.036
+	 Val. Loss: 5.028 |  Val. PPL: 152.628
+no share encoder decoder, and layer
+Epoch: 01 | Time: 10m 58s
+	Train Loss: 5.667 | Train PPL: 289.087
+	 Val. Loss: 4.879 |  Val. PPL: 131.536
 
-(emb norm and learnable pos emb useless)
-
+Epoch: 01 | Time: 6m 49s
+	Train Loss: 5.698 | Train PPL: 298.282
+	 Val. Loss: 5.041 |  Val. PPL: 154.615
 
 **(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
 1000000 data

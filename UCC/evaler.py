@@ -114,13 +114,7 @@ class Evaler:
         # for use emb
         self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
         self.model_config.emb_dim = self.pretrain_feature_model.config.embedding_size
-
-        # for use layer weight
-        self.model_config.d_model = self.pretrain_feature_model.config.hidden_size
-        self.model_config.n_head = self.pretrain_feature_model.config.num_attention_heads
-        self.model_config.d_ff = self.pretrain_feature_model.config.intermediate_size
-        self.model_config.factor_ff = False
-
+       
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)

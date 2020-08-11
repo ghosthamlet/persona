@@ -164,8 +164,8 @@ class Trainer:
             config.output_hidden_states = True
             self.pretrain_feature_model = AutoModel.from_pretrained(mn,
                     config=config).to(self.device)
-        # self.pretrain_feature_model.requires_grad_(False)
-        self.pretrain_feature_model.requires_grad_(True)
+        self.pretrain_feature_model.requires_grad_(False)
+        # self.pretrain_feature_model.requires_grad_(True)
         # pipeline input is raw data, we have ids, so direct use model
         # self.pretrain_feature_pipeline = Pipeline('feature-extraction', 
         #        model=self.pretrain_feature_model, tokenizer=pretrain_feature_tokenizer)
@@ -175,15 +175,15 @@ class Trainer:
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
         # FIXME: this changed args should saved to checkpoint file
         # for use feature
-        # self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        #self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
         # for use emb
         self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
 
         # for use layer weight
-        self.args.d_model = self.pretrain_feature_model.config.hidden_size
-        self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
-        self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
-        self.args.factor_ff = False
+       #self.args.d_model = self.pretrain_feature_model.config.hidden_size
+       #self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
+       #self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
+       #self.args.factor_ff = False
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
@@ -243,6 +243,8 @@ class Trainer:
         input_dim = self.input_dim
 
         self.best_model = None
+        # TODO: change all modules param to single config, 
+        #       change input_dim and output_dim to args.vocab_size
         self.model = models.AR.build(args, input_dim, 
                 output_dim, self.vocab, self.embeddings,
                 self.pretrain_feature_model).to(self.device)

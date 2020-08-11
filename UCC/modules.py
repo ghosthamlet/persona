@@ -39,17 +39,16 @@ class ContextEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
-            self.proj = nn.Linear(emb_dim*2, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
+            self.proj = nn.Linear(emb_dim+128, d_model)
         else:
-            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
-            self.pos_encoder = nn.Embedding(512, emb_dim)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
+            # self.pos_encoder = nn.Embedding(512, emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, feature):
         def orig_emb(feature):
@@ -136,9 +135,8 @@ class ContextEmb(nn.Module):
             emb = self.dropout(emb)
         else:
             emb = orig_emb(feature)
-            # emb = emb + self.pos_encoder(emb)
-            emb = emb + self.pos_encoder(create_position_ids(feature.context))
-            emb = self.norm(emb)
+            emb = emb + self.pos_encoder(emb)
+            # emb = emb + self.pos_encoder(create_position_ids(feature.context))
             emb = self.proj(emb)
             emb = self.dropout(emb)
 
@@ -171,14 +169,13 @@ class PersonaEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.proj = nn.Linear(emb_dim*2, d_model)
+            self.proj = nn.Linear(emb_dim+128, d_model)
         else:
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, persona, persona_pad_mask):
         def orig_emb(persona):
@@ -206,7 +203,6 @@ class PersonaEmb(nn.Module):
             emb = self.dropout(emb)
         else:
             emb = orig_emb(persona)
-            emb = self.norm(emb)
             emb = self.proj(emb)
             emb = self.dropout(emb)
 
@@ -230,17 +226,15 @@ class SeqEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
-            self.proj = nn.Linear(emb_dim*2, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
+            self.proj = nn.Linear(emb_dim+128, d_model)
         else:
-            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
-            self.pos_encoder = nn.Embedding(512, emb_dim)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, x, x_pad_mask):
         def orig_emb(x):
@@ -262,9 +256,7 @@ class SeqEmb(nn.Module):
             emb = torch.cat([new_emb(x, x_pad_mask), orig_emb(x)], dim=2)
         else:
             emb = orig_emb(x)
-        # emb = emb + self.pos_encoder(emb)
-        emb = emb + self.pos_encoder(create_position_ids(x))
-        emb = self.norm(emb)
+        emb = emb + self.pos_encoder(emb)
         emb = self.proj(emb)
         emb = self.dropout(emb)
 
@@ -290,17 +282,15 @@ class OutputEmb(nn.Module):
         #      or future output token will be attended
         self.pretrain_feature = False # pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
-            self.proj = nn.Linear(emb_dim*2, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
+            self.proj = nn.Linear(emb_dim+128, d_model)
         else:
-            # self.pos_encoder = utils.PositionalEncoding(emb_dim)
-            self.pos_encoder = nn.Embedding(512, emb_dim)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
-        self.norm = nn.LayerNorm(emb_dim, eps=1e-12)
 
     def forward(self, output, output_pad_mask):
         def orig_emb(x):
@@ -322,9 +312,7 @@ class OutputEmb(nn.Module):
             emb = torch.cat([new_emb(output, output_pad_mask), orig_emb(output)], dim=2)
         else:
             emb = orig_emb(output)
-        # emb = emb + self.pos_encoder(emb)
-        emb = emb + self.pos_encoder(create_position_ids(output))
-        emb = self.norm(emb)
+        emb = emb + self.pos_encoder(emb)
         emb = self.proj(emb)
         emb = self.dropout(emb)
 
@@ -438,14 +426,6 @@ class TransformerDecoderLayer(nn.Module):
             tgt_mask=None, memory_mask=None,
             tgt_key_padding_mask=None, memory_key_padding_mask=None,
             persona_pad_mask=None):
-       #tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-       #                      key_padding_mask=tgt_key_padding_mask)[0]
-       #tgt = tgt + self.dropout1(tgt2)
-       #tgt = self.norm1(tgt)
-       #tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
-       #                           key_padding_mask=memory_key_padding_mask)[0]
-       #tgt = tgt + self.dropout2(tgt2)
-       #tgt = self.norm2(tgt)
         tgt = self.pre_norm(tgt)
 
         use_rezero = True
@@ -460,6 +440,7 @@ class TransformerDecoderLayer(nn.Module):
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]
             elif memory is not None:
+                # for mlm
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 

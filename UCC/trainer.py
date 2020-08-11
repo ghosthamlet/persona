@@ -48,6 +48,7 @@ class Trainer:
             self.build_pretrain_feature_model()
         else:
             self.pretrain_feature_model = None
+            self.tokenizer = None
             self.build_vocab_and_embeddings()
         self.logger.info('Build dataloaders...')
         self.build_dataloaders()
@@ -179,16 +180,18 @@ class Trainer:
         # for use emb
         self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
 
+        # few effects
         # for use layer weight
-       #self.args.d_model = self.pretrain_feature_model.config.hidden_size
-       #self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
-       #self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
-       #self.args.factor_ff = False
+        self.args.d_model = self.pretrain_feature_model.config.hidden_size
+        self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
+        self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
+        self.args.factor_ff = False
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = None
+        self.tokenizer = pretrain_feature_tokenizer.tokenize
                                                                                          
     def build_dataloaders(self):
         args = self.args
@@ -197,7 +200,8 @@ class Trainer:
 
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
-                    max_seq_length=args.max_seq_length)
+                    max_seq_length=args.max_seq_length,
+                    tokenizer=self.tokenizer)
             ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, args.limit_example_length,
                     data_path=args.data_path, cache_path=args.cache_path, 
@@ -208,7 +212,8 @@ class Trainer:
                     collate_fn=gb_lm, shuffle=True) 
         else:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
-                    max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+                    max_seq_length=args.max_seq_length, max_context_size=args.max_context_size,
+                    tokenizer=self.tokenizer)
             ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
@@ -220,7 +225,8 @@ class Trainer:
                     collate_fn=gb, shuffle=args.shuffle_data) 
 
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
-                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size,
+                        tokenizer=self.tokenizer)
             ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
@@ -229,7 +235,8 @@ class Trainer:
                     collate_fn=gb, shuffle=False) 
 
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
-                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
+                        max_seq_length=args.max_seq_length, max_context_size=args.max_context_size,
+                        tokenizer=self.tokenizer)
             ds = utils.PersonaDataset(
                     self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 

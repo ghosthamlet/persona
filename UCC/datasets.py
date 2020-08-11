@@ -47,6 +47,7 @@ class ChatDataProcesser:
         max_context_size,
         limit_length=None,
         complete_persona=True,
+        tokenizer=None,
     ):
         assert max_seq_length is not None
         assert max_context_size is not None
@@ -56,16 +57,19 @@ class ChatDataProcesser:
         self.max_context_size = max_context_size
         self.complete_persona = complete_persona
         self.limit_length = limit_length
+        self.tokenizer = tokenizer
 
     def get_examples(self, path, mode):
         file_path = os.path.join(path, mode + '.txt')
         char_emb = True
+        _tok = self.tokenizer
+        tokenizer = lambda x: _tok(x.replace(' ', '')) if _tok is not None else x.split()
         if char_emb:
-            parse_loc = lambda x: x != '' and x or UNK
+            parse_loc = lambda x: tokenizer(x != '' and ' '.join(x) or UNK)
         else:
             # prefer city to province, as city can infer province, inverse can't
-            parse_loc = lambda x: x != '' and x.split()[-1] or UNK
-        parse_gender = lambda x: '男' if x == 'male' else '女'
+            parse_loc = lambda x: [x != '' and x.split()[-1] or UNK]
+        parse_gender = lambda x: ['男' if x == 'male' else ('女' if x == 'female' else UNK)]
 
         with open(file_path) as f:
             cnt = 0
@@ -92,23 +96,24 @@ class ChatDataProcesser:
                 d_len = len(dialogs)
 
                 personas_no_tag = [
-                        [parse_gender(persona1['gender']) or UNK, parse_loc(persona1['loc'])],
-                        [parse_gender(persona2['gender']) or UNK, parse_loc(persona2['loc'])],
+                        parse_gender(persona1['gender']) + parse_loc(persona1['loc']),
+                        parse_gender(persona2['gender']) + parse_loc(persona2['loc']),
                         ]
                 tags = [
-                        (persona1['tag'][0] or UNK).split(';'),
-                        (persona2['tag'][0] or UNK).split(';'),
+                        list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona1['tag'][0] or UNK).split(';')])),
+                        list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])),
                         ]
-                persona = [('性别', parse_gender(persona2['gender']) or UNK), 
-                           ('地址', parse_loc(persona2['loc'])),
-                           ('兴趣', ),
-                           (v for v in (persona2['tag'][0] or UNK).split(';'))]
+                persona = [tokenizer('性 别') + parse_gender(persona2['gender']), 
+                           tokenizer('地 址') + parse_loc(persona2['loc']),
+                          list(itertools.chain(*(tokenizer('兴 趣') 
+                              + [tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])))]
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
-                    context = [v[0].split() for v in dialogs[:i+1][-(self.max_context_size+1):]]
-                    resp = dialogs[i+1][0].split()
+                    context = [tokenizer(v[0]) for v in dialogs[:i+1][-(self.max_context_size+1):]]
+                    resp = tokenizer(dialogs[i+1][0])
 
+                    # print(context, personas_no_tag, tags, resp, persona)
                     yield context, personas_no_tag, tags, resp, persona
 
     def convert_examples_to_features(
@@ -117,7 +122,6 @@ class ChatDataProcesser:
         examples,
         mode
     ):
-        char_emb = True
         for context, personas_no_tag, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
@@ -128,14 +132,9 @@ class ChatDataProcesser:
                     for i in range(0, l, 2)]
             iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
                     for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            if char_emb:
-                ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), personas_no_tag))
-                itags = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), tags))
-                ipersona = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), persona))
-            else:
-                ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
-                itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
-                ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
+            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
+            itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
+            ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
           # print()
           # print('context:')
           # print([vocab.itos(v) for v in list(itertools.chain(*icontext))])

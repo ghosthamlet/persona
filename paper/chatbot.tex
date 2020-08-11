@@ -149,11 +149,15 @@ Introversion extroversion
         albert all layer, emb weights, this need change model to group layer share
       jointly finetune pretrain, remove model encoder
       finetune, share weights with model, i.e. combine above two
+      use pretrain tokenizer to split
+      init with pretrain_feature weight with normal transformer archtecture
+      dialog with char emb, persona with word emb?
+
+      ELECTRA pretrain
       reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
 
-      append persona to context
       Meena: Conv2D
       % maybe useless, this is like classify, but many unknown dialogue is not persona chat
       % Mask Persona Language Model: 
@@ -162,7 +166,6 @@ Introversion extroversion
 
       P2
       PEE
-      ELECTRA
       different loss for predict similar output, 
         other like cross entropy for predict exact output,
         for chatbot or LM we should no need to predict exact output same as target. 
@@ -491,7 +494,8 @@ Epoch: 01 | Time: 17m 46s
 Epoch: 01 | Time: 11m 0s
 	Train Loss: 5.436 | Train PPL: 229.444
 	 Val. Loss: 4.894 |  Val. PPL: 133.537
-(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM)
+
+(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM, smaller model)
 % self.pretrain_feature_model.requires_grad_(False)
 % init with albert the same, all these init has few effects
 Epoch: 01 | Time: 7m 49s
@@ -514,9 +518,10 @@ Epoch: 01 | Time: 10m 58s
 	Train Loss: 5.667 | Train PPL: 289.087
 	 Val. Loss: 4.879 |  Val. PPL: 131.536
 
-Epoch: 01 | Time: 6m 49s
-	Train Loss: 5.698 | Train PPL: 298.282
-	 Val. Loss: 5.041 |  Val. PPL: 154.615
+use pretrain tokenizer to split
+% few effects
+init with pretrain_feature weight with normal transformer archtecture
+% worse 
 
 **(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
 1000000 data

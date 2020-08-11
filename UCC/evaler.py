@@ -38,6 +38,7 @@ class Evaler:
             self.build_pretrain_feature_model()
         else:
             self.pretrain_feature_model = None
+            self.tokenizer = None
             self.build_vocab()
         self.logger.info('Build dataloaders...')
         self.build_dataloaders()
@@ -121,6 +122,7 @@ class Evaler:
 
         # pretrain_feature_model emb and weight no need anymore, use trained model
         self.pretrain_feature_model = None
+        self.tokenizer = pretrain_feature_tokenizer.tokenize
     
     def build_dataloaders(self):
         args = self.args
@@ -129,7 +131,8 @@ class Evaler:
 
         dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=model_config.max_seq_length, 
-                    max_context_size=model_config.max_context_size)
+                    max_context_size=model_config.max_context_size,
+                    tokenizer=self.tokenizer)
         ds = utils.PersonaDataset(
                 self.vocab, model_config.max_seq_length, args.limit_example_length, 
                 data_path=args.data_path, cache_path=args.cache_path, 

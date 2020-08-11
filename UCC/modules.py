@@ -445,10 +445,11 @@ class TransformerDecoderLayer(nn.Module):
                         key_padding_mask=memory_key_padding_mask)[0]
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
             attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+            a = 0.1
             if persona is not None and memory is not None:
-                attn_merge = tgt + 0.1*attn_t + 0.1*attn_c + self.dropout(attn_merge) * self.resweight
+                attn_merge = tgt + a*attn_t + a*attn_c + self.dropout(attn_merge) * self.resweight
             elif memory is not None:
-                attn_merge = tgt + 0.1*attn_c + self.dropout(attn_merge) * self.resweight
+                attn_merge = tgt + a*attn_c + self.dropout(attn_merge) * self.resweight
             else:
                 attn_merge = tgt + self.dropout(attn_merge) * self.resweight
 
@@ -480,12 +481,17 @@ class TransformerDecoderLayer(nn.Module):
                         key_padding_mask=persona_pad_mask)[0]
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]
+            elif memory is not None:
+                attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                        key_padding_mask=memory_key_padding_mask)[0]
+
             alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
             attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+            a = 0.
             if persona is not None and memory is not None:
-                attn_merge = tgt + 0.1*attn_t + 0.1*attn_c + self.dropout(attn_merge)
-            else:
-                attn_merge = tgt + self.dropout(attn_merge)
+                attn_merge = tgt + a*attn_t + a*attn_c + self.dropout(attn_merge)
+            elif memory is not None:
+                attn_merge = tgt + a*attn_c + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
  
             tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))

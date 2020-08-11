@@ -50,9 +50,7 @@ class AR(nn.Module):
 
         if pretrain_feature_model is not None:
             self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
-            return
 
-            # useless
             if pretrain_feature_model.base_model_prefix != 'albert':
                 self._init_with_pretrain_feature_model_last_layer(pretrain_feature_model)
             else:
@@ -156,6 +154,8 @@ class AR(nn.Module):
 
             layer0.linear1 = linear1
             layer0.linear2 = linear2
+            layer0.norm1 = norm1
+            layer0.norm2 = norm2
 
         l = len(self.resp_decoder.layers)
         for i in range(l):
@@ -188,6 +188,8 @@ class AR(nn.Module):
 
         layer0.linear1 = linear1
         layer0.linear2 = linear2
+        layer0.norm1 = norm1
+        layer0.norm2 = norm2
 
         self._share_encoder_decoder()
 

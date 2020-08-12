@@ -151,6 +151,7 @@ Introversion extroversion
       finetune, share weights with model, i.e. combine above two
       use pretrain tokenizer to split
       init with pretrain_feature weight with normal transformer archtecture
+      adopt MemN2N 
       dialog with char emb, persona with word emb?
 
       ELECTRA pretrain
@@ -158,11 +159,13 @@ Introversion extroversion
       ?BPE/WordPiece or word vectors merge to char vector inputs
       GPT2 BPE, GPT pretrain
 
+      build Persona chat framework
+
       Meena: Conv2D
       % maybe useless, this is like classify, but many unknown dialogue is not persona chat
       % Mask Persona Language Model: 
       %  self surpervize pretrain or add auxiliary loss by mask random persona value
-      pretrain objective: denoise
+      pretrain objective: denoise replace 15% tokens, add 0 length mask
 
       P2
       PEE
@@ -417,6 +420,9 @@ Epoch: 02 | Time: 11m 6s
 	Train Loss: 6.354 | Train PPL: 574.999
 	 Val. Loss: 6.413 |  Val. PPL: 609.473
 | Test Loss: 6.411 | Test PPL: 608.236 |
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 (after tune datasets context to include all dialog, size larger then before 100000)
 **Epoch: 01 | Time: 12m 56s
 	Train Loss: 6.830 | Train PPL: 925.472
@@ -425,6 +431,9 @@ Epoch: 02 | Time: 11m 6s
 **Epoch: 01 | Time: 9m 22s
 	Train Loss: 6.998 | Train PPL: 1094.685
 	 Val. Loss: 6.690 |  Val. PPL: 804.099
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 (batch_size 8 pretrain_feature voidful/albert_chinese_large)
 (!!! train/valid/test Loss and PPL is great, but eval metrics are bad???)
 Epoch: 01 | Time: 168m 18s
@@ -457,6 +466,9 @@ Epoch: 01 | Time: 14m 44s
 	Train Loss: 6.994 | Train PPL: 1089.766
 	 Val. Loss: 6.684 |  Val. PPL: 799.188
 | Test Loss: 6.685 | Test PPL: 800.066 |
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 **(alpha 0.1 pretrain_feature voidful/albert_chinese_small)
 Epoch: 01 | Time: 14m 44s
 	Train Loss: 5.132 | Train PPL: 169.395
@@ -472,7 +484,7 @@ Epoch: 01 | Time: 10m 34s
 	Train Loss: 4.963 | Train PPL: 142.989
 	 Val. Loss: 4.639 |  Val. PPL: 103.402
 Bleu: 0.00390583 | F1: 0.00018943 | Dist1: 0.850 | Dist2: 0.773 | PPL:  99.721
-**(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
+**(alpha 0.5 as all early, no pretrain_feature with MLM % big loss improve)
 Epoch: 01 | Time: 10m 51s
 	Train Loss: 5.513 | Train PPL: 247.898
 	 Val. Loss: 4.902 |  Val. PPL: 134.585
@@ -481,6 +493,9 @@ Epoch: 01 | Time: 10m 31s
 	 Val. Loss: 4.961 |  Val. PPL: 142.791
 | Test Loss: 5.064 | Test PPL: 158.224 |
 Bleu: 0.00330082 | F1: 0.00019547 | Dist1: 0.867 | Dist2: 0.791 | PPL: 106.405
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 (alpha 0.1 pretrain_feature voidful/albert_chinese_small MLM)
 Epoch: 01 | Time: 16m 43s
 	Train Loss: 4.972 | Train PPL: 144.344
@@ -495,9 +510,19 @@ Epoch: 01 | Time: 11m 0s
 	Train Loss: 5.436 | Train PPL: 229.444
 	 Val. Loss: 4.894 |  Val. PPL: 133.537
 
-(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM, smaller model)
+(alpha 0.5 init with pretrain_feature emb and pretrain_feature last layer att weight hfl/chinese-electra-small-discriminator MLM, % smaller model, so is fast, the loss is near same??)
 % self.pretrain_feature_model.requires_grad_(False)
 % init with albert the same, all these init has few effects
+%% Why all the init with pretrain_feature weight has no good effects?!
+%% include encoder init, decoder init, encoder decoder share init
+%% init by last layer, last several layers 
+%% emb init, emb init weight with other layer init, layer init without emb init
+%% init with emb + pretrain_feature(last layer hid, sum layer, mean layer)
+%% init with normal transformer archtecture, this get worse
+%% no init, but with pretrain_feature emb/layer, or emb + pretrain_feature emb/layer
+%% use pretrain tokenizer to split not simple split by space also has few effects
+%% maybe albert and electra and all bert-like encoder model pretrain just not useful for dialogue generate,
+%% we have to use gpt pretrain or pretrain the custom model self
 Epoch: 01 | Time: 7m 49s
 	Train Loss: 5.682 | Train PPL: 293.491
 	 Val. Loss: 4.969 |  Val. PPL: 143.933
@@ -518,11 +543,6 @@ Epoch: 01 | Time: 10m 58s
 	Train Loss: 5.667 | Train PPL: 289.087
 	 Val. Loss: 4.879 |  Val. PPL: 131.536
 
-use pretrain tokenizer to split
-% few effects
-init with pretrain_feature weight with normal transformer archtecture
-% worse 
-
 **(alpha 0.5 as all early, no pretrain_feature MLM % big loss improve)
 1000000 data
 Epoch: 01 | Time: 79m 43s
@@ -535,6 +555,23 @@ Epoch: 02 | Time: 84m 5s
 	Train Loss: 5.910 | Train PPL: 368.582
 	 Val. Loss: 5.802 |  Val. PPL: 330.999
 | Test Loss: 5.802 | Test PPL: 330.975 |
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+model size like electra-small, to see if speed and loss same as with pretrain_feature
+but too small model will underfit the full millions datasets, so not fit the open domain task
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+post enc add to persona enc, resp attend it
+
+MemN2N persona memory encode with sep emb, post emb query it, result add to post
+
+MemN2N persona memory encode with sep emb, post enc query it, result add to post
+
+MemN2N persona memory encode with sep small transformer, post query it, result add to post
+
+MemN2N persona memory, result add to post and resp
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

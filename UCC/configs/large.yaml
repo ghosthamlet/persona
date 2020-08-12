@@ -41,6 +41,7 @@ factor_ff: True
 #lr: 1.5e-4
 lr: 0.2e-2
 weight_decay: 0.05
+# clip_grad: 5
 clip_grad: 1
 use_scheduler: True
 warmup_steps: 0

@@ -178,7 +178,10 @@ class Trainer:
         # for use feature
         #self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
         # for use emb
-        self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
+        if self.pretrain_feature_model.base_model_prefix != 'bert':
+            self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
+        else:
+            self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
 
         # few effects
         # for use layer weight
@@ -191,7 +194,9 @@ class Trainer:
         self.input_dim = len(self.vocab)
         self.pad_idx = self.vocab.stoi(utils.PAD)
         self.embeddings = None
-        self.tokenizer = pretrain_feature_tokenizer.tokenize
+        # too slow
+        # self.tokenizer = pretrain_feature_tokenizer.tokenize
+        self.tokenizer = None
                                                                                          
     def build_dataloaders(self):
         args = self.args

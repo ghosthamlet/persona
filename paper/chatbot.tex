@@ -151,7 +151,11 @@ Introversion extroversion
       finetune, share weights with model, i.e. combine above two
       use pretrain tokenizer to split
       init with pretrain_feature weight with normal transformer archtecture
+      BERT pretrain_feature
+      remove MLM task with pretrain_feature
+
       adopt MemN2N 
+      BART pretrain objective: denoise replace 15% tokens, add 0 length mask
       dialog with char emb, persona with word emb?
 
       ELECTRA pretrain
@@ -165,7 +169,6 @@ Introversion extroversion
       % maybe useless, this is like classify, but many unknown dialogue is not persona chat
       % Mask Persona Language Model: 
       %  self surpervize pretrain or add auxiliary loss by mask random persona value
-      pretrain objective: denoise replace 15% tokens, add 0 length mask
 
       P2
       PEE
@@ -523,6 +526,8 @@ Epoch: 01 | Time: 11m 0s
 %% use pretrain tokenizer to split not simple split by space also has few effects
 %% maybe albert and electra and all bert-like encoder model pretrain just not useful for dialogue generate,
 %% we have to use gpt pretrain or pretrain the custom model self
+%% BUT this paper: BERT for Open-Domain Conversation Modeling, says BERT works:
+%% "we demonstrate that simply using fixed pre-trained BERT as part of the model without further finetuning is powerful enough for generating better responses in terms of fluency, grammar, and semantic coherency. Fine-tuning can achieve the comparable results."
 Epoch: 01 | Time: 7m 49s
 	Train Loss: 5.682 | Train PPL: 293.491
 	 Val. Loss: 4.969 |  Val. PPL: 143.933

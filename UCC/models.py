@@ -30,7 +30,10 @@ class AR(nn.Module):
         generater,
         factor_ff,
         adapter_finetune,
+        share_encoder_decoder,
         pretrain_feature_model,
+        pretrain_feature_type,
+        auxiliary_task=None,
     ):
         super().__init__()
 
@@ -43,12 +46,15 @@ class AR(nn.Module):
         self.generater = generater
         self.adapter_finetune = adapter_finetune
         self.factor_ff = factor_ff
+        self.auxiliary_task = auxiliary_task
+        self.share_encoder_decoder = share_encoder_decoder
 
         self._share_emb()
-        self._share_encoder_decoder()
+        if self.share_encoder_decoder:
+            self._share_encoder_decoder()
         utils.xavier_init_weights(self)
 
-        if pretrain_feature_model is not None:
+        if pretrain_feature_model is not None and 'weight' in pretrain_feature_type:
             self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
 
             if pretrain_feature_model.base_model_prefix != 'albert':
@@ -65,11 +71,14 @@ class AR(nn.Module):
     def encode(self, feature):
         context_emb = self.context_emb(feature)
         persona_emb = self.persona_emb(feature.persona, feature.persona_pad_mask)
-        x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
 
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
         persona_enc = self.post_encoder(persona_emb, feature.persona_pad_mask)
-        x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
+
+        x_mlm_enc = None
+        if self.auxiliary_task == 'MLM':
+            x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
+            x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
  
         return context_enc, persona_enc, x_mlm_enc
 
@@ -81,15 +90,19 @@ class AR(nn.Module):
                 tgt_mask=feature.resp_mask, 
                 tgt_key_padding_mask=feature.resp_pad_mask, 
                 persona_pad_mask=feature.persona_pad_mask) 
+        out_gen = self.generate(out)
 
-        enc_lm = self.output_emb(feature.lm.x, 
-                feature.lm.x_pad_mask)
-        out_lm = self.resp_decoder(enc_lm, memory=x_mlm_enc, 
-                memory_key_padding_mask=feature.lm.x_mlm_pad_mask,
-                tgt_mask=feature.lm.x_mask,
-                tgt_key_padding_mask=feature.lm.x_pad_mask) 
+        out_lm_gen = None
+        if self.auxiliary_task == 'MLM':
+            enc_lm = self.output_emb(feature.lm.x, 
+                    feature.lm.x_pad_mask)
+            out_lm = self.resp_decoder(enc_lm, memory=x_mlm_enc, 
+                    memory_key_padding_mask=feature.lm.x_mlm_pad_mask,
+                    tgt_mask=feature.lm.x_mask,
+                    tgt_key_padding_mask=feature.lm.x_pad_mask) 
+            out_lm_gen = self.generate(out_lm)
 
-        return self.generate(out), self.generate(out_lm)
+        return out_gen, out_lm_gen
 
     def generate(self, enc):
         return self.generater(enc)
@@ -106,7 +119,8 @@ class AR(nn.Module):
 
     def _init_with_pretrain_feature_model_emb(self, pretrain_feature_model):
         m = pretrain_feature_model.embeddings
-        self.output_emb.emb.weight = m.word_embeddings.weight
+        self.output_emb.emb.weight = copy.deepcopy(m.word_embeddings.weight)
+        self.output_emb.emb.weight.requires_grad = True
         self._share_emb()
 
     def _share_encoder_decoder(self):
@@ -141,27 +155,30 @@ class AR(nn.Module):
 
             layer0 = self.resp_decoder.layers[to_layer]
             layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
-                att_self.query.weight, 
-                att_self.key.weight, 
-                att_self.value.weight
+                copy.deepcopy(att_self.query.weight), 
+                copy.deepcopy(att_self.key.weight), 
+                copy.deepcopy(att_self.value.weight)
                 ], dim=0))
             layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
-                att_self.query.bias, 
-                att_self.key.bias, 
-                att_self.value.bias
+                copy.deepcopy(att_self.query.bias), 
+                copy.deepcopy(att_self.key.bias), 
+                copy.deepcopy(att_self.value.bias)
                 ], dim=0))                           
-            layer0.multihead_attn.out_proj = att_output
+            layer0.multihead_attn.out_proj = copy.deepcopy(att_output)
 
-            layer0.linear1 = linear1
-            layer0.linear2 = linear2
-            layer0.norm1 = norm1
-            layer0.norm2 = norm2
+            layer0.linear1 = copy.deepcopy(linear1)
+            layer0.linear2 = copy.deepcopy(linear2)
+            layer0.norm1 = copy.deepcopy(norm1)
+            layer0.norm2 = copy.deepcopy(norm2)
+
+            layer0.requires_grad_(True)
 
         l = len(self.resp_decoder.layers)
         for i in range(l):
             fn(-(l-i), i)
 
-        self._share_encoder_decoder()
+        if self.share_encoder_decoder:
+            self._share_encoder_decoder()
 
     def _init_with_pretrain_feature_model_layers(self, pretrain_feature_model):
         m = pretrain_feature_model.encoder.albert_layer_groups[-1].albert_layers[-1]
@@ -173,25 +190,34 @@ class AR(nn.Module):
         norm1 = att.LayerNorm
         norm2 = m.full_layer_layer_norm
 
-        layer0 = self.resp_decoder.layers[0]
-        layer0.multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
-            att_self.query.weight, 
-            att_self.key.weight, 
-            att_self.value.weight
+        if self.share_encoder_decoder:
+            layer0 = self.resp_decoder.layers[0]
+            multihead_attn = layer0.multihead_attn
+        else:
+            layer0 = self.post_encoder.layers[0]
+            multihead_attn = layer0.self_attn
+
+        multihead_attn.in_proj_weight = nn.Parameter(torch.cat([
+            copy.deepcopy(att_self.query.weight), 
+            copy.deepcopy(att_self.key.weight), 
+            copy.deepcopy(att_self.value.weight)
             ], dim=0))
-        layer0.multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
-            att_self.query.bias, 
-            att_self.key.bias, 
-            att_self.value.bias
+        multihead_attn.in_proj_bias = nn.Parameter(torch.cat([
+            copy.deepcopy(att_self.query.bias), 
+            copy.deepcopy(att_self.key.bias), 
+            copy.deepcopy(att_self.value.bias)
             ], dim=0))                           
-        layer0.multihead_attn.out_proj = att_output
+        multihead_attn.out_proj = copy.deepcopy(att_output)
 
-        layer0.linear1 = linear1
-        layer0.linear2 = linear2
-        layer0.norm1 = norm1
-        layer0.norm2 = norm2
+        layer0.linear1 = copy.deepcopy(linear1)
+        layer0.linear2 = copy.deepcopy(linear2)
+        layer0.norm1 = copy.deepcopy(norm1)
+        layer0.norm2 = copy.deepcopy(norm2)
 
-        self._share_encoder_decoder()
+        layer0.requires_grad_(True)
+
+        if self.share_encoder_decoder:
+            self._share_encoder_decoder()
 
     @staticmethod
     def build(
@@ -207,7 +233,7 @@ class AR(nn.Module):
         spe1_idx = vocab.stoi(utils.SPE1)
         spe2_idx = vocab.stoi(utils.SPE2)
         fn = None
-        if pretrain_feature_model is not None:
+        if pretrain_feature_model is not None and args.pretrain_feature_type != 'weight':
             # don't define as layer, or the model weights will be saved to checkpoint
             def fn(x, position_ids=None, attention_mask=None):
                 # 'requires_grad_(False)' just for disable backward calc grad, 
@@ -215,11 +241,13 @@ class AR(nn.Module):
                 with torch.no_grad():
                     return pretrain_feature_model(
                             x, position_ids=position_ids,
+                            attention_mask=attention_mask)
                             # last layer hid
                             #attention_mask=attention_mask)[0]
+                            # last layer CLS hid
+                            # attention_mask=attention_mask)[0][0].unsqueeze(0)
                             # emb
-                            attention_mask=attention_mask)[1][0]
-            fn = None
+                            #attention_mask=attention_mask)[1][0]
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
@@ -246,22 +274,26 @@ class AR(nn.Module):
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
-                    pretrain_feature_model
+                    args.share_encoder_decoder, pretrain_feature_model, 
+                    args.pretrain_feature_type
                     )
         else:
             model = AR(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
-                    pretrain_feature_model
+                    args.share_encoder_decoder, pretrain_feature_model, 
+                    args.pretrain_feature_type, args.auxiliary_task
                     )
 
         return model
 
     @staticmethod
-    def loss(loss_fn, out, out_lm, resp, lm_y):
+    def loss(auxiliary_task, loss_fn, out, out_lm, resp, lm_y):
         loss = loss_fn(out[:-1].view(-1, out.shape[-1]), resp[1:].view(-1))
-        loss_lm = loss_fn(out_lm.view(-1, out.shape[-1]), lm_y.view(-1))
+        loss_lm = None
+        if auxiliary_task is not None:
+            loss_lm = loss_fn(out_lm.view(-1, out.shape[-1]), lm_y.view(-1))
 
         return loss, loss_lm
 

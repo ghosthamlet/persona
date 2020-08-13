@@ -258,8 +258,9 @@ SEP = '[SEP]'
 SPE1 = '[SPE1]'
 SPE2 = '[SPE2]'
 MASK = '[MASK]'
+CLS = '[CLS]'
 PRESET_SPECIAL_TOKENS = [PAD, SOS, EOS, UNK, 
-        SEP, SPE1, SPE2, MASK]
+        SEP, SPE1, SPE2, MASK, CLS]
  
 class Vocab:
     def __init__(

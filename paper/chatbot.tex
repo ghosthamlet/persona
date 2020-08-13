@@ -155,7 +155,7 @@ Introversion extroversion
       remove MLM task with pretrain_feature
 
       adopt MemN2N 
-      BART pretrain objective: denoise replace 15% tokens, add 0 length mask
+      BART pretrain objective: denoise add 0 length mask
       dialog with char emb, persona with word emb?
 
       ELECTRA pretrain
@@ -494,6 +494,11 @@ Epoch: 01 | Time: 10m 51s
 Epoch: 01 | Time: 10m 31s
 	Train Loss: 5.579 | Train PPL: 264.831
 	 Val. Loss: 4.961 |  Val. PPL: 142.791
+% init encoder with weight_plus, no share encoder decoder, voidful/albert_chinese_small
+% with num_layers 6 num_groups 2
+*Epoch: 01 | Time: 10m 48s
+	Train Loss: 5.433 | Train PPL: 228.863
+	 Val. Loss: 0.000 |  Val. PPL:   1.000
 | Test Loss: 5.064 | Test PPL: 158.224 |
 Bleu: 0.00330082 | F1: 0.00019547 | Dist1: 0.867 | Dist2: 0.791 | PPL: 106.405
 -----------------------------------------------------------------------------------------
@@ -526,6 +531,7 @@ Epoch: 01 | Time: 11m 0s
 %% use pretrain tokenizer to split not simple split by space also has few effects
 %% maybe albert and electra and all bert-like encoder model pretrain just not useful for dialogue generate,
 %% we have to use gpt pretrain or pretrain the custom model self
+%% 难道是强扭的瓜不甜？
 %% BUT this paper: BERT for Open-Domain Conversation Modeling, says BERT works:
 %% "we demonstrate that simply using fixed pre-trained BERT as part of the model without further finetuning is powerful enough for generating better responses in terms of fluency, grammar, and semantic coherency. Fine-tuning can achieve the comparable results."
 Epoch: 01 | Time: 7m 49s

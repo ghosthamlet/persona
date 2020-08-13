@@ -39,8 +39,8 @@ class ContextEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
-            self.proj = nn.Linear(emb_dim+128, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
             self.pos_encoder = utils.PositionalEncoding(emb_dim)
             # self.pos_encoder = nn.Embedding(512, emb_dim)
@@ -96,18 +96,18 @@ class ContextEmb(nn.Module):
                 tags_position_ids = torch.zeros_like(tags)
                 persona_dim = 1
 
-                emb = self.emb1(context, attention_mask=context_pad_mask)
+                emb = self.emb1(context, attention_mask=context_pad_mask)[2][-2]
 
                 # segs_emb = self.emb1(segs)
 
                 # batch_size X 2 * n_persona X emb_dim
                 personas_emb = self.emb1(personas_no_tag, 
                         position_ids=personas_no_tag_position_ids,
-                        attention_mask=personas_no_tag_pad_mask)
+                        attention_mask=personas_no_tag_pad_mask)[2][-2]
                 # batch_size X 2 * n_tags X emb_dim
                 tags_emb = self.emb1(tags,
                         position_ids=tags_position_ids,
-                        attention_mask=tags_pad_mask)
+                        attention_mask=tags_pad_mask)[2][-2]
 
                 personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
                         -1, personas_emb.shape[2])
@@ -129,10 +129,11 @@ class ContextEmb(nn.Module):
 
                 return emb
 
-            emb = torch.cat([new_emb(feature), orig_emb(feature)], dim=2)
-            emb = emb + self.pos_encoder(emb)
-            emb = self.proj(emb)
-            emb = self.dropout(emb)
+           #emb = torch.cat([new_emb(feature), orig_emb(feature)], dim=2)
+           #emb = emb + self.pos_encoder(emb)
+           #emb = self.proj(emb)
+           #emb = self.dropout(emb)
+            emb = new_emb(feature)
         else:
             emb = orig_emb(feature)
             emb = emb + self.pos_encoder(emb)
@@ -169,7 +170,7 @@ class PersonaEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.proj = nn.Linear(emb_dim+128, d_model)
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
             self.proj = nn.Linear(emb_dim, d_model)
         self.dropout = nn.Dropout(dropout)
@@ -192,15 +193,16 @@ class PersonaEmb(nn.Module):
                 # batch_size X seq_len(k;v) X emb_dim
                 emb = self.emb1(persona, 
                         position_ids=persona_position_ids,
-                        attention_mask=persona_pad_mask)
+                        attention_mask=persona_pad_mask)[2][-2]
 
                 emb = emb.transpose(0, 1)
 
                 return emb
 
-            emb = torch.cat([new_emb(persona, persona_pad_mask), orig_emb(persona)], dim=2)
-            emb = self.proj(emb)
-            emb = self.dropout(emb)
+           #emb = torch.cat([new_emb(persona, persona_pad_mask), orig_emb(persona)], dim=2)
+           #emb = self.proj(emb)
+           #emb = self.dropout(emb)
+            emb = new_emb(persona, persona_pad_mask)
         else:
             emb = orig_emb(persona)
             emb = self.proj(emb)
@@ -226,8 +228,8 @@ class SeqEmb(nn.Module):
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
-            self.proj = nn.Linear(emb_dim+128, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
             self.pos_encoder = utils.PositionalEncoding(emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
@@ -247,18 +249,19 @@ class SeqEmb(nn.Module):
                 x_pad_mask = (x_pad_mask != 1).float()
 
                 emb = self.emb1(x, 
-                        attention_mask=x_pad_mask)
+                        attention_mask=x_pad_mask)[2][-2]
 
                 emb = emb.transpose(0, 1)
 
                 return emb
 
-            emb = torch.cat([new_emb(x, x_pad_mask), orig_emb(x)], dim=2)
+            # emb = torch.cat([new_emb(x, x_pad_mask), orig_emb(x)], dim=2)
+            emb = new_emb(x, x_pad_mask)
         else:
             emb = orig_emb(x)
-        emb = emb + self.pos_encoder(emb)
-        emb = self.proj(emb)
-        emb = self.dropout(emb)
+            emb = emb + self.pos_encoder(emb)
+            emb = self.proj(emb)
+            emb = self.dropout(emb)
 
         return emb                
                         
@@ -278,12 +281,10 @@ class OutputEmb(nn.Module):
         super().__init__()
         self.emb_dim = emb_dim
 
-        # XXX: pretrain_feature_model must return emb, not hidden state after self attention
-        #      or future output token will be attended
-        self.pretrain_feature = False # pretrain_feature_model is not None
+        self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
-            self.pos_encoder = utils.PositionalEncoding(emb_dim+128)
-            self.proj = nn.Linear(emb_dim+128, d_model)
+            self.pos_encoder = utils.PositionalEncoding(emb_dim*2)
+            self.proj = nn.Linear(emb_dim*2, d_model)
         else:
             self.pos_encoder = utils.PositionalEncoding(emb_dim)
             self.proj = nn.Linear(emb_dim, d_model)
@@ -302,19 +303,22 @@ class OutputEmb(nn.Module):
                 x = x.transpose(0, 1)
                 x_pad_mask = (x_pad_mask != 1).float()
 
+                # XXX: must get pretrain_feature_model emb, not hidden state after self attention
+                #      or future output token will be attended
                 emb = self.emb1(x, 
-                        attention_mask=x_pad_mask)
+                        attention_mask=x_pad_mask)[2][0]
 
                 emb = emb.transpose(0, 1)
 
                 return emb
 
-            emb = torch.cat([new_emb(output, output_pad_mask), orig_emb(output)], dim=2)
+            # emb = torch.cat([new_emb(output, output_pad_mask), orig_emb(output)], dim=2)
+            emb = new_emb(output, output_pad_mask)
         else:
             emb = orig_emb(output)
-        emb = emb + self.pos_encoder(emb)
-        emb = self.proj(emb)
-        emb = self.dropout(emb)
+            emb = emb + self.pos_encoder(emb)
+            emb = self.proj(emb)
+            emb = self.dropout(emb)
 
         return emb                
  

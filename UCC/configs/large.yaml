@@ -6,8 +6,8 @@ n_epochs: 1
 # for LM
 #n_epochs_early_stage: 1
 n_epochs_early_stage: 0
-batch_size: 16
-#batch_size: 64
+#batch_size: 32
+batch_size: 64
 #batch_size: 80
 # for LM
 #batch_size: 1280
@@ -20,27 +20,29 @@ max_context_size: 6
 shuffle_data: True
 max_vocab_size: 42000
 pretrain_emb: True
-pretrain_feature: True
-#pretrain_feature_model_name: voidful/albert_chinese_small
+pretrain_feature: False
+pretrain_feature_model_name: voidful/albert_chinese_small
 #pretrain_feature_model_name: voidful/albert_chinese_base
 #pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
-pretrain_feature_model_name: bert-base-chinese
+#pretrain_feature_model_name: bert-base-chinese
+# emb | feature | weight | weight_plus
+# weight_plus: weight + feature
+pretrain_feature_type: weight_plus
 
 emb_freeze: False
 emb_dim: 200
 dropout: 0.1
-#num_layers: 6
-num_layers: 12
+num_layers: 6
 # num_layers % num_groups == 0 and num_groups <= num_layers
 # real layer num is num_layers / num_groups
-#num_groups: 6
-num_groups: 1
+num_groups: 6
 n_head: 8
 d_model: 512
 d_ff: 2048
 attn_alpha: 1
 adapter_d_ff: 2048
 factor_ff: True
+share_encoder_decoder: False
 
 #lr: 1.5e-4
 lr: 0.2e-2
@@ -51,6 +53,8 @@ use_scheduler: True
 warmup_steps: 0
 gradient_accumulation: 1
 adapter_finetune: False
+auxiliary_task: MLM
+#auxiliary_task: 
 alpha: 0.5
 #alpha: 0.1
 

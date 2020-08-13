@@ -75,6 +75,7 @@ class Trainer:
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
         parser.add_argument('--pretrain_feature', action='store_true', required=False, help='')
         parser.add_argument('--pretrain_feature_model_name', default='', type=str, required=False, help='')
+        parser.add_argument('--pretrain_feature_type', default='emb', type=str, required=False, help='')
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
         parser.add_argument('--emb_dim', default=200, type=int, required=False, help='')
@@ -87,6 +88,7 @@ class Trainer:
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--factor_ff', action='store_true', required=False, help='')
+        parser.add_argument('--share_encoder_decoder', action='store_true', required=False, help='')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
@@ -95,6 +97,7 @@ class Trainer:
         parser.add_argument('--warmup_steps', default=2000, type=int, required=False, help='')
         parser.add_argument('--gradient_accumulation', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_finetune', default=False, type=bool, required=False, help='')
+        parser.add_argument('--auxiliary_task', default='MLM', type=str, required=False, help='')
         parser.add_argument('--alpha', default=0.5, type=float, required=False, help='LM loss weight')
 
         parser.add_argument('--model_path', default='models/', type=str, required=False, help='')
@@ -105,6 +108,7 @@ class Trainer:
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
+        parser.add_argument('--lr_finder', action='store_true', required=False, help='')
 
         # TODO: let commandline temp args override args in config_file
         args = parser.parse_args()
@@ -175,20 +179,20 @@ class Trainer:
         # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
         # FIXME: this changed args should saved to checkpoint file
-        # for use feature
-        #self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
-        # for use emb
-        if self.pretrain_feature_model.base_model_prefix != 'bert':
-            self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
-        else:
+        if self.args.pretrain_feature_type == 'feature':
             self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+        else:
+            if self.pretrain_feature_model.base_model_prefix != 'bert':
+                self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
+            else:
+                self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
 
-        # few effects
-        # for use layer weight
-        self.args.d_model = self.pretrain_feature_model.config.hidden_size
-        self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
-        self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
-        self.args.factor_ff = False
+        if 'weight' in self.args.pretrain_feature_type:
+            # few effects
+            self.args.d_model = self.pretrain_feature_model.config.hidden_size
+            self.args.n_head = self.pretrain_feature_model.config.num_attention_heads
+            self.args.d_ff = self.pretrain_feature_model.config.intermediate_size
+            self.args.factor_ff = False
 
         self.vocab = datasets.ChatVocab(pretrain_feature_tokenizer)
         self.input_dim = len(self.vocab)
@@ -393,8 +397,10 @@ class Trainer:
 
             # out, out_lm = torch_cp.checkpoint(self.model, feature)
             out, out_lm = self.model(feature)
-            loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
-            loss = loss + self.args.alpha * loss_lm
+            loss, loss_lm = models.AR.loss(self.args.auxiliary_task, 
+                    self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+            if self.args.auxiliary_task is not None:
+                loss = loss + self.args.alpha * loss_lm
             if self.args.gradient_accumulation > 1:
                 loss = loss / self.args.gradient_accumulation
                 # accuracy = accuracy / self.args.gradient_accumulation
@@ -423,6 +429,8 @@ class Trainer:
     def eval(self, data_iter):
         self.model.eval()
 
+        return 0
+
         epoch_loss = 0
         with torch.no_grad():
             for _, feature in enumerate(data_iter):
@@ -430,8 +438,10 @@ class Trainer:
                 utils.feature_to_device(feature, self.device)
 
                 out, out_lm = self.model(feature)
-                loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
-                loss = loss + self.args.alpha * loss_lm
+                loss, loss_lm = models.AR.loss(self.args.auxiliary_task,
+                        self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+                if self.args.auxiliary_task is not None:
+                    loss = loss + self.args.alpha * loss_lm
 
                 epoch_loss += loss.item()
 
@@ -466,7 +476,7 @@ def epoch_time(start_time: int, end_time: int):
     return elapsed_mins, elapsed_secs
 
 
-def lr_finder():
+def lr_finder(trainer):
     import matplotlib
     import matplotlib.pyplot as plt
     import torch_lr_finder
@@ -478,25 +488,26 @@ def lr_finder():
             return (batch_data, (batch_data.resp, batch_data.lm)) 
 
     def loss_fn(outputs, target):
-        alpha = 0.5
+        alpha = trainer.args.alpha
         out, out_lm = outputs
-        loss, loss_lm = models.AR.loss(t.out_loss_fn, out, out_lm, target[0], target[1].y)
+        loss, loss_lm = models.AR.loss(trainer.args.auxiliary_task, 
+                trainer.out_loss_fn, out, out_lm, target[0], target[1].y)
         loss = loss + alpha * loss_lm
         return loss
 
-    t = Trainer()
-    lr = torch_lr_finder.LRFinder(t.model, t.optimizer, loss_fn, device='cuda')
-    lr.range_test(TrainIter(t.train_iter), end_lr=100, num_iter=100)
+    lr = torch_lr_finder.LRFinder(trainer.model, trainer.optimizer, loss_fn, device='cuda')
+    lr.range_test(TrainIter(trainer.train_iter), end_lr=100, num_iter=100)
     lr.plot()
     lr.reset()
     # plt.savefig("mygraph.png")
     # plt.show()
     print(lr.history)
 
-if __name__ == '__main__':
-    #lr_finder()
-    #exit()
 
+if __name__ == '__main__':
     trainer = Trainer()
-    trainer.run()
+    if trainer.args.lr_finder:
+        lr_finder(trainer)
+    else:
+        trainer.run()
 

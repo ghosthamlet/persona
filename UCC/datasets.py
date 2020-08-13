@@ -11,7 +11,7 @@ import sys
 # for import parent utils
 sys.path.append('../')
 import utils
-from utils import UNK, SEP, SOS, EOS, SPE1, SPE2
+from utils import UNK, SEP, SOS, EOS, SPE1, SPE2, CLS
 
 import torch
 from torch import Tensor
@@ -122,16 +122,23 @@ class ChatDataProcesser:
         examples,
         mode
     ):
+        use_bert_feature = False
         for context, personas_no_tag, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
                         for post in context]
+            if use_bert_feature:
+                icontext[0] = [vocab.stoi(CLS)] + icontext[0]
             l = len(icontext)
             isegs = [[vocab.stoi(SPE1)] * len(icontext[i]) 
                      + [vocab.stoi(SPE2)] * (len(icontext[i+1]) if i+1 < l else 0)
                     for i in range(0, l, 2)]
-            iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
-                    for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
+            if use_bert_feature:
+                iresp = [vocab.stoi(CLS)] + [vocab.stoi(k) 
+                        for k in resp[:self.max_seq_length]] + [vocab.stoi(SEP)]
+            else:
+                iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
+                        for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
             ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
             itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
             ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
@@ -327,7 +334,9 @@ def generate_lm_batch(batch, vocab, in_chat=False):
                 continue
             mask = 1
             if l > 5:
-                mask = 2
+                # mask = 2
+                # 99/100 is 2, 1/100 is 0
+                mask = min(2, random.randint(0, 99))
             start = random.randint(1, l-mask-1)
             x_mlm.append(v[0:start] + [mask_idx] + v[start+mask:])
 

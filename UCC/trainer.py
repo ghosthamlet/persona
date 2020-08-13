@@ -73,6 +73,7 @@ class Trainer:
         parser.add_argument('--shuffle_data', action='store_true', required=False, help='')
         parser.add_argument('--max_vocab_size', default=40000, type=int, required=False, help='')
         parser.add_argument('--pretrain_emb', action='store_true', required=False, help='')
+        parser.add_argument('--share_encoder_decoder', action='store_true', required=False, help='')
         parser.add_argument('--pretrain_feature', action='store_true', required=False, help='')
         parser.add_argument('--pretrain_feature_model_name', default='', type=str, required=False, help='')
         parser.add_argument('--pretrain_feature_type', default='emb', type=str, required=False, help='')
@@ -88,7 +89,6 @@ class Trainer:
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--factor_ff', action='store_true', required=False, help='')
-        parser.add_argument('--share_encoder_decoder', action='store_true', required=False, help='')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
@@ -134,12 +134,12 @@ class Trainer:
                 not os.path.exists(args.vec_fname) 
                 or not os.path.exists(args.vocab_fname)
         ):
-            print('Pretraining word2vec...')
+            self.logger.info('Pretraining word2vec...')
             models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, args.d_model)
 
         embeddings, gensim_vocab = None, None
         if args.pretrain_emb:
-            print('Loading word2vec...')
+            self.logger.info('Loading word2vec...')
             embeddings, gensim_vocab = utils.load_embeddings_and_vocab(args.vec_fname, args.vocab_fname)
             embeddings = embeddings.to(self.device)
         self.vocab = utils.Vocab(gensim_vocab, args.data_path)
@@ -215,8 +215,8 @@ class Trainer:
                     self.vocab, args.max_seq_length, args.limit_example_length,
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
-            print('---------------------------------')
-            print('datasets len:', len(ds))
+            self.logger.info('---------------------------------')
+            self.logger.info('datasets len: %s' % len(ds))
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb_lm, shuffle=True) 
         else:
@@ -227,8 +227,8 @@ class Trainer:
                     self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_char')
-            print('---------------------------------')
-            print('datasets len:', len(ds))
+            self.logger.info('---------------------------------')
+            self.logger.info('datasets len: %s' % len(ds))
             # when Dataset is stream, try utils.DataLoaderX (prefetch_generator), https://github.com/IgorSusmelj/pytorch-styleguide/issues/5
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
                     collate_fn=gb, shuffle=args.shuffle_data) 
@@ -270,15 +270,15 @@ class Trainer:
             #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
-            print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
+            self.logger.info(self.model)
+            self.logger.info(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
         else:
             self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
             #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
             #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
                     weight_decay=args.weight_decay)
-            print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
+            self.logger.info(self.model)
+            self.logger.info(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
 
         if args.use_scheduler:
             #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
@@ -298,8 +298,8 @@ class Trainer:
             # pytorch module will auto init_weights with uniform
             # self.model.apply(models.init_weights)
         else:
-            print()
-            print(f'Load pretrained model {args.pretrained_fname}...')
+            self.logger.info()
+            self.logger.info(f'Load pretrained model {args.pretrained_fname}...')
             self.load_model()
 
     def build_loss_fns(self):
@@ -315,17 +315,17 @@ class Trainer:
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-            print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
+            self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
+            self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
 
     def run(self):
         if self.args.n_epochs_early_stage > 0:
-            print('Run early stage...')
+            self.logger.info('Run early stage...')
             trainer.run_early_stage()
             # after fin, rerun with pretrained model 
             return
 
-        print('Run main stage...')
+        self.logger.info('Run main stage...')
 
         best_val_loss = float("inf")
 
@@ -345,13 +345,13 @@ class Trainer:
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-            print('-' * 89)
-            print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
-            print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
+            self.logger.info('-' * 89)
+            self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
+            self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
+            self.logger.info(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
 
         test_loss = self.eval(self.test_iter)
-        print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
+        self.logger.info(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
     def train_lm(self, epoch):
         self.model.train()
@@ -366,7 +366,7 @@ class Trainer:
             out = self.model(feature)
             loss = self.out_loss_fn(out.view(-1, out.shape[-1]), 
                     feature.y.view(-1))
-            # utils.print_backward_graph(loss)
+            # utils.self.logger.info_backward_graph(loss)
             loss.backward()
 
             if self.args.clip_grad is not None:
@@ -378,7 +378,7 @@ class Trainer:
 
             end_time = time.time()
             secs = end_time - start_time
-            print(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
+            self.logger.info(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(self.train_iter)
  
@@ -404,7 +404,7 @@ class Trainer:
             if self.args.gradient_accumulation > 1:
                 loss = loss / self.args.gradient_accumulation
                 # accuracy = accuracy / self.args.gradient_accumulation
-            # utils.print_backward_graph(loss)
+            # utils.self.logger.info_backward_graph(loss)
             loss.backward()
 
             iloss = loss.item()
@@ -422,7 +422,7 @@ class Trainer:
 
                 end_time = time.time()
                 secs = end_time - start_time
-                print(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
+                self.logger.info(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(data_iter)
 

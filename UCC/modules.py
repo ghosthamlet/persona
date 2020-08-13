@@ -15,6 +15,9 @@ import torch.nn.functional as F
 # FIXME: attention should all mask pad, see http://nlp.seas.harvard.edu/2018/04/03/attention.html, or softmax will add score to 0s
 
 
+_ALL_HID_STATES_IDX = -1
+
+
 class ContextEmb(nn.Module):
     def __init__(
         self,
@@ -96,18 +99,18 @@ class ContextEmb(nn.Module):
                 tags_position_ids = torch.zeros_like(tags)
                 persona_dim = 1
 
-                emb = self.emb1(context, attention_mask=context_pad_mask)[2][-2]
+                emb = self.emb1(context, attention_mask=context_pad_mask)[_ALL_HID_STATES_IDX][-2]
 
                 # segs_emb = self.emb1(segs)
 
                 # batch_size X 2 * n_persona X emb_dim
                 personas_emb = self.emb1(personas_no_tag, 
                         position_ids=personas_no_tag_position_ids,
-                        attention_mask=personas_no_tag_pad_mask)[2][-2]
+                        attention_mask=personas_no_tag_pad_mask)[_ALL_HID_STATES_IDX][-2]
                 # batch_size X 2 * n_tags X emb_dim
                 tags_emb = self.emb1(tags,
                         position_ids=tags_position_ids,
-                        attention_mask=tags_pad_mask)[2][-2]
+                        attention_mask=tags_pad_mask)[_ALL_HID_STATES_IDX][-2]
 
                 personas_emb = personas_emb.view(personas_emb.shape[0], 2, 
                         -1, personas_emb.shape[2])
@@ -193,7 +196,7 @@ class PersonaEmb(nn.Module):
                 # batch_size X seq_len(k;v) X emb_dim
                 emb = self.emb1(persona, 
                         position_ids=persona_position_ids,
-                        attention_mask=persona_pad_mask)[2][-2]
+                        attention_mask=persona_pad_mask)[_ALL_HID_STATES_IDX][-2]
 
                 emb = emb.transpose(0, 1)
 
@@ -249,7 +252,7 @@ class SeqEmb(nn.Module):
                 x_pad_mask = (x_pad_mask != 1).float()
 
                 emb = self.emb1(x, 
-                        attention_mask=x_pad_mask)[2][-2]
+                        attention_mask=x_pad_mask)[_ALL_HID_STATES_IDX][-2]
 
                 emb = emb.transpose(0, 1)
 
@@ -306,7 +309,7 @@ class OutputEmb(nn.Module):
                 # XXX: must get pretrain_feature_model emb, not hidden state after self attention
                 #      or future output token will be attended
                 emb = self.emb1(x, 
-                        attention_mask=x_pad_mask)[2][0]
+                        attention_mask=x_pad_mask)[_ALL_HID_STATES_IDX][0]
 
                 emb = emb.transpose(0, 1)
 

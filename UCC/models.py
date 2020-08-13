@@ -232,6 +232,7 @@ class AR(nn.Module):
         sep_idx = vocab.stoi(utils.SEP)
         spe1_idx = vocab.stoi(utils.SPE1)
         spe2_idx = vocab.stoi(utils.SPE2)
+
         fn = None
         if pretrain_feature_model is not None and args.pretrain_feature_type != 'weight':
             # don't define as layer, or the model weights will be saved to checkpoint

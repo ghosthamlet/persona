@@ -356,7 +356,8 @@ def add_special_tokens_(model, tokenizer):
     ATTR_TO_SPECIAL_TOKEN = {'bos_token': SOS, 'eos_token': EOS, 'pad_token': PAD,
                              'sep_token': SEP, 'unk_token': UNK,
                              'additional_special_tokens': [SPE1, SPE2]}
-    orig_num_tokens = len(tokenizer.vocab)
+    # orig_num_tokens = len(tokenizer.vocab)
+    orig_num_tokens = tokenizer.vocab_size
     num_added_tokens = tokenizer.add_special_tokens(ATTR_TO_SPECIAL_TOKEN) # doesn't add if they are already there
     if num_added_tokens > 0:
         model.resize_token_embeddings(new_num_tokens=orig_num_tokens + num_added_tokens)

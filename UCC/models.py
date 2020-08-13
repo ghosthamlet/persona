@@ -49,6 +49,9 @@ class AR(nn.Module):
         self.auxiliary_task = auxiliary_task
         self.share_encoder_decoder = share_encoder_decoder
 
+        self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
+        self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
+
         self._share_emb()
         if self.share_encoder_decoder:
             self._share_encoder_decoder()
@@ -64,6 +67,7 @@ class AR(nn.Module):
 
     def forward(self, feature):
         context_enc, persona_enc, x_mlm_enc = self.encode(feature)
+        # context_enc, persona_enc, x_mlm_enc = self.mem(feature)
         out = self.decode(feature, context_enc, persona_enc, x_mlm_enc)
 
         return out
@@ -82,15 +86,42 @@ class AR(nn.Module):
  
         return context_enc, persona_enc, x_mlm_enc
 
+    def mem(self, feature):
+        context_emb = self.context_emb(feature)
+        p = self.mem_input(feature.persona, context_emb)
+        o = self.mem_output(feature.persona, p)
+        persona_enc = None
+
+        context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
+        context_enc = context_enc + o
+
+        x_mlm_enc = None
+        if self.auxiliary_task == 'MLM':
+            x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
+            x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
+ 
+        return context_enc, persona_enc, x_mlm_enc
+
     def decode(self, feature, context_enc, persona_enc, x_mlm_enc):
-        resp_enc = self.output_emb(feature.resp, 
-                feature.resp_pad_mask)
-        out = self.resp_decoder(resp_enc, context_enc, persona_enc, 
+        resp_emb = self.output_emb(feature.resp, feature.resp_pad_mask)
+        out = self.resp_decoder(
+                resp_emb, memory=context_enc, persona=persona_enc, 
                 memory_key_padding_mask=feature.context_pad_mask, 
                 tgt_mask=feature.resp_mask, 
                 tgt_key_padding_mask=feature.resp_pad_mask, 
                 persona_pad_mask=feature.persona_pad_mask) 
-        out_gen = self.generate(out)
+
+        post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
+        post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
+        # p = self.mem_input(feature.persona, context_enc)
+        p = self.mem_input(feature.persona, post_enc)
+        # p = self.mem_input(feature.persona, post_emb)
+        persona_bias = self.mem_output(feature.persona, p)
+
+        if persona_bias is not None:
+            out_gen = self.generate(out + persona_bias.sum(0).unsqueeze(0))
+        else:
+            out_gen = self.generate(out)
 
         out_lm_gen = None
         if self.auxiliary_task == 'MLM':

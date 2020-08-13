@@ -39,6 +39,8 @@ class ContextEmb(nn.Module):
         self.spe1_idx = spe1_idx
         self.spe2_idx = spe2_idx
         self.emb_dim = emb_dim
+        self.input_dim = input_dim
+        self.d_model = d_model
 
         self.pretrain_feature = pretrain_feature_model is not None
         if self.pretrain_feature:
@@ -429,7 +431,7 @@ class TransformerDecoderLayer(nn.Module):
 
         self.activation = nn.modules.transformer._get_activation_fn(activation)
 
-    def forward(self, tgt, memory, persona,
+    def forward(self, tgt, memory, persona, 
             tgt_mask=None, memory_mask=None,
             tgt_key_padding_mask=None, memory_key_padding_mask=None,
             persona_pad_mask=None):
@@ -733,21 +735,22 @@ class TransformerDecoder(nn.Module):
         self.layers = nn.modules.transformer._get_clones(decoder_layer, layers_in_group)
         self.norm = norm
 
-    def forward(self, tgt_emb, memory=None, profiles=None, 
+    def forward(self, tgt_emb, memory=None, persona=None, 
             memory_mask=None, memory_key_padding_mask=None,
             tgt_mask=None, tgt_key_padding_mask=None,
             persona_pad_mask=None):
-        """Train language model When memory and profiles is None"""
+        """Train language model When memory and persona is None"""
         output = tgt_emb
 
         layers_in_group = len(self.layers)
         for _ in range(self.num_groups):
             for i in range(layers_in_group):
-                output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
-                                        memory_mask=memory_mask, persona=profiles,
-                                        tgt_key_padding_mask=tgt_key_padding_mask,
-                                        memory_key_padding_mask=memory_key_padding_mask,
-                                        persona_pad_mask=persona_pad_mask)
+                output, alpha = self.layers[i](
+                        output, memory, persona=persona,
+                        tgt_mask=tgt_mask, memory_mask=memory_mask, 
+                        tgt_key_padding_mask=tgt_key_padding_mask,
+                        memory_key_padding_mask=memory_key_padding_mask,
+                        persona_pad_mask=persona_pad_mask)
 
         if self.norm:
             output = self.norm(output)
@@ -768,4 +771,40 @@ class Generater(nn.Module):
 
     def forward(self, enc):
         return self.out(enc)
+
+
+class MemInput(nn.Module):
+    def __init__(
+        self,
+        vocab_size,
+        emb_dim
+    ):
+        super().__init__()
+
+        self.emb = nn.Embedding(vocab_size, emb_dim)
+
+    def forward(self, persona, post_query):
+        emb = self.emb(persona)
+        p = F.softmax(emb.transpose(0, 1).bmm(
+            post_query.sum(dim=0).unsqueeze(2))).transpose(0, 1)
+
+        return p
+ 
+
+class MemOutput(nn.Module):
+    def __init__(
+        self,
+        vocab_size,
+        emb_dim
+    ):
+        super().__init__()
+
+        self.emb = nn.Embedding(vocab_size, emb_dim)
+
+    def forward(self, persona, persona_input_mem):
+        emb = self.emb(persona)
+
+        return emb.permute(1, 2, 0).bmm(
+               persona_input_mem.transpose(0, 1)).permute(2, 0, 1)
+ 
 

@@ -241,9 +241,13 @@ class ChatFeature:
             'tags', 'resp', 'persona', 
             'context_pad_mask', 'resp_mask', 
             'resp_pad_mask', 'persona_pad_mask',
-            'personas_no_tag_pad_mask', 'tags_pad_mask', 'lm']
+            'personas_no_tag_pad_mask', 'tags_pad_mask', 
+            'post', 'post_pad_mask', 'lm']
 
+    # context include post
     context: Tensor
+    # for some calc
+    post: Tensor
     segs: Tensor
     personas_no_tag: Tensor
     tags: Tensor
@@ -252,6 +256,7 @@ class ChatFeature:
     persona: Tensor
 
     context_pad_mask: Tensor
+    post_pad_mask: Tensor
     resp_mask: Tensor
     resp_pad_mask: Tensor
     persona_pad_mask: Tensor
@@ -269,8 +274,15 @@ def generate_batch(batch, vocab):
     context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
     char_emb = True
 
+    post = []
+    sep_idx = vocab.stoi(utils.SEP)
+    for v in context:
+        post_start = list(reversed(v)).index(sep_idx)
+        post.append(v[-post_start:-1])
+
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
+    post_pad = pad_sequence(fn(post), padding_value=pad_idx)
     segs_pad = pad_sequence(fn(segs), padding_value=pad_idx)
     tags = itertools.chain(*tags)
     tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
@@ -278,6 +290,7 @@ def generate_batch(batch, vocab):
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
 
     context_pad_mask = (context_pad == pad_idx).T
+    post_pad_mask = (post_pad == pad_idx).T
     tags_pad_mask = (tags_pad == pad_idx).T
     resp_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
     resp_pad_mask = (resp_pad == pad_idx).T
@@ -297,6 +310,7 @@ def generate_batch(batch, vocab):
 
     return ChatFeature(
             context=context_pad,
+            post=post_pad,
             segs=segs_pad,
             personas_no_tag=personas_no_tag_pad,
             tags=tags_pad,
@@ -305,6 +319,7 @@ def generate_batch(batch, vocab):
             persona=persona_pad,
 
             context_pad_mask=context_pad_mask,
+            post_pad_mask=post_pad_mask,
             resp_mask=resp_mask,
             resp_pad_mask=resp_pad_mask,
             persona_pad_mask=persona_pad_mask,

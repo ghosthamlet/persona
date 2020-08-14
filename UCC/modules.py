@@ -31,6 +31,8 @@ class ContextEmb(nn.Module):
         d_model,
         pad_idx,
         dropout,
+        persona_vocab_size,
+        persona_emb_dim,
         embeddings=None,
         pretrain_feature_model=None,
     ):
@@ -54,6 +56,9 @@ class ContextEmb(nn.Module):
         if self.pretrain_feature:
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
+        self.persona_emb = self.emb
+        if persona_emb_dim is not None:
+            self.persona_emb = nn.Embedding(persona_vocab_size, persona_emb_dim)
 
     def forward(self, feature):
         def orig_emb(feature):
@@ -68,9 +73,9 @@ class ContextEmb(nn.Module):
             # segs_emb = self.emb(feature.segs)
 
             # 2 X n_persona X batch_size X emb_dim
-            personas_emb = self.emb(feature.personas_no_tag)
+            personas_emb = self.persona_emb(feature.personas_no_tag)
             # 2 X n_tags X batch_size X emb_dim
-            tags_emb = self.emb(feature.tags)
+            tags_emb = self.persona_emb(feature.tags)
             # 2 X batch_size X emb_dim
             personas_emb = torch.cat([personas_emb, tags_emb], dim=1).sum(dim=1)
             # segs spe1_idx and spe2_idx is not a must
@@ -795,7 +800,7 @@ class _MemInput(nn.Module):
 
         return p
        
-
+         
 class MemInput(nn.Module):
     def __init__(
         self,
@@ -805,18 +810,22 @@ class MemInput(nn.Module):
         super().__init__()
 
         self.emb = nn.Embedding(vocab_size, emb_dim)
-
+ 
     def forward(self, persona, post_query, persona_pad_mask):
         emb = self.emb(persona)
-        e = emb.transpose(0, 1).bmm(post_query.sum(dim=0).unsqueeze(2))
+        if len(post_query.shape) == 2:
+            post_query = post_query.unsqueeze(2)
+        else:
+            post_query = post_query.sum(dim=0).unsqueeze(2)
+        e = emb.transpose(0, 1).bmm(post_query)
         mask = persona_pad_mask.float().masked_fill(
                 persona_pad_mask == 1, float('-inf')).unsqueeze(2)
         e = e + mask
         p = F.softmax(e, dim=1).transpose(0, 1)
 
         return p
- 
- 
+         
+
 class _MemOutput(nn.Module):
     def __init__(
         self,

@@ -30,10 +30,13 @@ pretrain_feature_model_name: voidful/albert_chinese_small
 #pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
 # emb | feature | weight | weight_plus | mem_n2n
 # weight_plus: weight + feature
-pretrain_feature_type: mem_n2n
+pretrain_feature_type: feature
 
 emb_freeze: False
 emb_dim: 200
+persona_emb_dim: 200
+# will auto fill
+persona_vocab_size:
 dropout: 0.1
 num_layers: 6
 # num_layers % num_groups == 0 and num_groups <= num_layers
@@ -76,4 +79,5 @@ log_path: logs/
 corpus_fname:
 vec_fname: models/vec-char-200.txt
 vocab_fname: models/vocab-char-200.txt
+persona_vocab_fname: models/vocab_persona.txt
  

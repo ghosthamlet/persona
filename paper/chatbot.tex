@@ -156,9 +156,11 @@ Introversion extroversion
 
       adopt MemN2N 
       BART pretrain objective: denoise add 0 length mask
-      dialog with char emb, persona with word emb?
+      dialog with char emb, persona with word emb
+      analysis grad, weight, activation before/after init weight with pretrain_feature 
+        if finetune no effects, then the static feature must no effects
 
-      move all methods param to single config
+      move all methods param to single config, and pass to all class to easy customize
 
       ELECTRA pretrain
       reduce pretrain feature vocab size
@@ -574,9 +576,11 @@ but too small model will underfit the full millions datasets, so not fit the ope
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-pretrain_feature tokens/CLS for MemN2N
-
-
+pretrain_feature CLS for MemN2N post_query
+2020-08-14 23:24:44,386 - INFO - Experiment MemN2N: 
+2020-08-14 23:24:44,386 - INFO - Epoch: 01 | Time: 6m 7s
+2020-08-14 23:24:44,386 - INFO - 	Train Loss: 5.573 | Train PPL: 263.143
+2020-08-14 23:24:44,387 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
@@ -591,6 +595,7 @@ replace [mask] to random token like electra
 2020-08-14 19:39:44,932 - INFO - Epoch: 01 | Time: 5m 58s
 2020-08-14 19:39:44,932 - INFO - 	Train Loss: 5.567 | Train PPL: 261.732
 2020-08-14 19:39:44,932 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+% loss is a few high, but speed is 2m faster
 
 ... add to context_enc
 2020-08-14 19:47:18,209 - INFO - Epoch: 01 | Time: 6m 0s
@@ -637,13 +642,19 @@ worse
 2020-08-14 21:04:12,322 - INFO - 	Train Loss: 5.625 | Train PPL: 277.411
 2020-08-14 21:04:12,323 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
-
-MemN2N persona memory, result add to post and resp
-
+MemN2N persona memory, add to context_enc and out
+2020-08-14 22:42:29,814 - INFO - Experiment MemN2N: 
+2020-08-14 22:42:29,814 - INFO - Epoch: 01 | Time: 8m 7s
+2020-08-14 22:42:29,814 - INFO - 	Train Loss: 5.593 | Train PPL: 268.526
+2020-08-14 22:42:29,814 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
 word emb MemN2N
 
 
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+dialog with char emb, persona with word emb
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

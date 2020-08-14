@@ -33,6 +33,7 @@ class AR(nn.Module):
         share_encoder_decoder,
         pretrain_feature_model,
         pretrain_feature_type,
+        persona_emb_dim,
         auxiliary_task=None,
     ):
         super().__init__()
@@ -49,6 +50,7 @@ class AR(nn.Module):
         self.auxiliary_task = auxiliary_task
         self.share_encoder_decoder = share_encoder_decoder
         self.pretrain_feature_type = pretrain_feature_type
+        self.persona_emb_dim = persona_emb_dim
 
         self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
         self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
@@ -73,7 +75,7 @@ class AR(nn.Module):
 
     def forward(self, feature):
         context_enc, persona_enc, x_mlm_enc = self.encode(feature)
-        # context_enc, persona_enc, x_mlm_enc = self.mem(feature)
+        # context_enc, persona_enc, x_mlm_enc = self.mem_n2n(feature)
         out = self.decode(feature, context_enc, persona_enc, x_mlm_enc)
 
         return out
@@ -92,9 +94,13 @@ class AR(nn.Module):
  
         return context_enc, persona_enc, x_mlm_enc
 
-    def mem(self, feature):
+    def mem_n2n(self, feature):
         persona_enc = None
-        post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
+        if self.pretrain_feature_model is None:
+            post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
+        else:
+            post_emb = self.pretrain_feature_model(feature.post.T, 
+                    attention_mask=feature.post_pad_mask)[0][:, 0]
         # worse
         # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
 
@@ -113,6 +119,12 @@ class AR(nn.Module):
         return context_enc, persona_enc, x_mlm_enc
 
     def decode(self, feature, context_enc, persona_enc, x_mlm_enc):
+        persona_bias = None
+       #post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
+       #p = self.mem_input(feature.persona, post_emb, feature.persona_pad_mask)
+       #persona_bias = self.mem_output(feature.persona, p, feature.persona_pad_mask)
+       #context_enc = context_enc + persona_bias
+
         resp_emb = self.output_emb(feature.resp, feature.resp_pad_mask)
         out = self.resp_decoder(
                 resp_emb, memory=context_enc, persona=persona_enc, 
@@ -121,10 +133,6 @@ class AR(nn.Module):
                 tgt_key_padding_mask=feature.resp_pad_mask, 
                 persona_pad_mask=feature.persona_pad_mask) 
 
-        post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
-        # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
-        p = self.mem_input(feature.persona, post_emb, feature.persona_pad_mask)
-        persona_bias = self.mem_output(feature.persona, p, feature.persona_pad_mask)
 
         if persona_bias is not None:
             out_gen = self.generate(out + persona_bias)
@@ -152,7 +160,10 @@ class AR(nn.Module):
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
         #self.context_emb.proj.weight = self.output_emb.proj.weight
-        self.persona_emb.emb.weight = self.output_emb.emb.weight
+        if self.persona_emb_dim is None:
+            self.persona_emb.emb.weight = self.output_emb.emb.weight
+        else:
+            self.context_emb.persona_emb.weight = self.persona_emb.emb.weight
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
         self.seq_emb.emb.weight = self.output_emb.emb.weight
 
@@ -273,6 +284,7 @@ class AR(nn.Module):
         spe2_idx = vocab.stoi(utils.SPE2)
 
         fn = None
+        _pretrain_feature_model = pretrain_feature_model
         if pretrain_feature_model is not None and args.pretrain_feature_type != 'weight':
             # don't define as layer, or the model weights will be saved to checkpoint
             def fn(x, position_ids=None, attention_mask=None):
@@ -288,15 +300,22 @@ class AR(nn.Module):
                             # attention_mask=attention_mask)[0][0].unsqueeze(0)
                             # emb
                             #attention_mask=attention_mask)[1][0]
-            if pargs.pretrain_feature_model == 'mem_n2n':
-                pretrain_feature_model = fn
+            if args.pretrain_feature_type == 'mem_n2n':
+                _pretrain_feature_model = fn
                 fn = None
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
-                args.d_model, pad_idx, args.dropout, embeddings, fn)
-        persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
-                args.d_model, pad_idx, args.dropout, embeddings, fn)
+                args.d_model, pad_idx, args.dropout, 
+                args.persona_vocab_size, args.persona_emb_dim, 
+                embeddings, fn)
+        if args.persona_emb_dim is not None:
+            persona_emb = modules.PersonaEmb(
+                    args.persona_vocab_size, args.persona_emb_dim, False,
+                    args.d_model, pad_idx, args.dropout, None, fn)
+        else:
+            persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
+                    args.d_model, pad_idx, args.dropout, embeddings, fn)
         seq_emb = modules.SeqEmb(input_dim, args.emb_dim, args.emb_freeze,
                 args.d_model, pad_idx, args.dropout, embeddings, fn)
         output_emb = modules.OutputEmb(input_dim, args.emb_dim, args.emb_freeze,
@@ -317,16 +336,16 @@ class AR(nn.Module):
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
-                    args.share_encoder_decoder, pretrain_feature_model, 
-                    args.pretrain_feature_type
+                    args.share_encoder_decoder, _pretrain_feature_model, 
+                    args.pretrain_feature_type, args.persona_emb_dim
                     )
         else:
             model = AR(
                     context_emb, persona_emb, seq_emb, 
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
-                    args.share_encoder_decoder, pretrain_feature_model, 
-                    args.pretrain_feature_type, args.auxiliary_task
+                    args.share_encoder_decoder, _pretrain_feature_model, 
+                    args.pretrain_feature_type, args.persona_emb_dim, args.auxiliary_task
                     )
 
         return model

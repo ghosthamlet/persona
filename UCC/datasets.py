@@ -17,6 +17,8 @@ import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
+_USE_BERT_FEATURE = False
+
 
 class ChatVocab:
     def __init__(
@@ -26,7 +28,8 @@ class ChatVocab:
         self.tokenizer = tokenizer
 
     def __len__(self):
-        return tokenizer.vocab_size
+        # XXX: tokenizer.vocab_size still not include custom tokens, must use len(tokenizer)
+        return len(self.tokenizer)
 
     def stoi(self, s):
         i = self.tokenizer.convert_tokens_to_ids(s)
@@ -39,12 +42,51 @@ class ChatVocab:
     def itos(self, i):
         return self.tokenizer.convert_ids_to_tokens(i)
  
+ 
+class PersonaVocab:
+    def __init__(
+        self,
+        vocab_fname,
+        special_tokens=None
+    ):
+        self.stoi_map = {}
+        self.itos_map = {}
+        if special_tokens is None:
+            special_tokens = utils.PRESET_SPECIAL_TOKENS
+        else:
+            special_tokens = utils.PRESET_SPECIAL_TOKENS + special_tokens
+        
+        with open(vocab_fname) as f:
+            i = 0
+            for line in f:
+                k, cnt = line.split('\t')
+                self.stoi_map[k] = (i, cnt)
+                self.itos_map[i] = k
+                i += 1
 
+        i = len(self.stoi_map)
+        for k in special_tokens:
+            self.stoi_map[k] = [i, 1000]
+            self.itos_map[i] = k
+            i += 1
+
+    def __len__(self):
+        return len(self.stoi_map)
+
+    def stoi(self, s):
+        return self.stoi_map.get(s, self.stoi_map[UNK])[0]
+
+    def itos(self, i):
+        return self.itos_map[i]
+ 
+ 
 class ChatDataProcesser:
     def __init__(
         self,
         max_seq_length,
         max_context_size,
+        vocab,
+        persona_vocab=None,
         limit_length=None,
         complete_persona=True,
         tokenizer=None,
@@ -57,6 +99,8 @@ class ChatDataProcesser:
         self.max_context_size = max_context_size
         self.complete_persona = complete_persona
         self.limit_length = limit_length
+        self.vocab = vocab
+        self.persona_vocab = vocab
         self.tokenizer = tokenizer
 
     def get_examples(self, path, mode):
@@ -69,6 +113,8 @@ class ChatDataProcesser:
         else:
             # prefer city to province, as city can infer province, inverse can't
             parse_loc = lambda x: [x != '' and x.split()[-1] or UNK]
+        if self.persona_vocab is not None:
+            parse_loc = lambda x: [x != '' and x or UNK]
         parse_gender = lambda x: ['男' if x == 'male' else ('女' if x == 'female' else UNK)]
 
         with open(file_path) as f:
@@ -99,14 +145,23 @@ class ChatDataProcesser:
                         parse_gender(persona1['gender']) + parse_loc(persona1['loc']),
                         parse_gender(persona2['gender']) + parse_loc(persona2['loc']),
                         ]
-                tags = [
-                        list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona1['tag'][0] or UNK).split(';')])),
-                        list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])),
-                        ]
-                persona = [tokenizer('性 别') + parse_gender(persona2['gender']), 
-                           tokenizer('地 址') + parse_loc(persona2['loc']),
-                          list(itertools.chain(*(tokenizer('兴 趣') 
-                              + [tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])))]
+                if self.persona_vocab is not None:
+                    tags = [
+                            (persona1['tag'][0] or UNK).split(';'),
+                            (persona2['tag'][0] or UNK).split(';'),
+                            ]
+                    persona = [['性别'] + parse_gender(persona2['gender']), 
+                               ['地址'] + parse_loc(persona2['loc']),
+                               ['兴趣'] + (persona2['tag'][0] or UNK).split(';')]              
+                else:
+                    tags = [
+                            list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona1['tag'][0] or UNK).split(';')])),
+                            list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])),
+                            ]
+                    persona = [tokenizer('性 别') + parse_gender(persona2['gender']), 
+                               tokenizer('地 址') + parse_loc(persona2['loc']),
+                              list(itertools.chain(*(tokenizer('兴 趣') 
+                                  + [tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])))]
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
@@ -122,26 +177,28 @@ class ChatDataProcesser:
         examples,
         mode
     ):
-        use_bert_feature = False
         for context, personas_no_tag, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
                         for post in context]
-            if use_bert_feature:
+            if _USE_BERT_FEATURE:
                 icontext[0] = [vocab.stoi(CLS)] + icontext[0]
             l = len(icontext)
             isegs = [[vocab.stoi(SPE1)] * len(icontext[i]) 
                      + [vocab.stoi(SPE2)] * (len(icontext[i+1]) if i+1 < l else 0)
                     for i in range(0, l, 2)]
-            if use_bert_feature:
+            if _USE_BERT_FEATURE:
                 iresp = [vocab.stoi(CLS)] + [vocab.stoi(k) 
                         for k in resp[:self.max_seq_length]] + [vocab.stoi(SEP)]
             else:
                 iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
                         for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
-            itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
-            ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
+            _vocab = self.vocab
+            if self.persona_vocab is not None:
+                _vocab = self.persona_vocab
+            ipersonas_no_tag = list(map(lambda x: list(map(_vocab.stoi, x)), personas_no_tag))
+            itags = list(map(lambda x: list(map(_vocab.stoi, x)), tags))
+            ipersona = list(map(lambda x: list(map(_vocab.stoi, x)), persona))
           # print()
           # print('context:')
           # print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
@@ -269,8 +326,11 @@ class ChatFeature:
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
-def generate_batch(batch, vocab):
+def generate_batch(batch, vocab, persona_vocab):
     pad_idx = vocab.stoi(utils.PAD)
+    persona_pad_idx = pad_idx
+    if persona_vocab is not None:
+        persona_pad_idx = persona_vocab.stoi(utils.PAD)
     context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
     char_emb = True
 
@@ -279,35 +339,37 @@ def generate_batch(batch, vocab):
     sep_idx = vocab.stoi(utils.SEP)
     for v in context:
         post_start = list(reversed(v)).index(sep_idx)
-        post.append(v[-post_start:-1])
-        # cls_idx for sentence rep, xlnet is last token
-        # post.append([cls_idx] + v[-post_start])
+        if _USE_BERT_FEATURE:
+            # cls_idx for bert-like sentence rep, xlnet is last token
+            post.append([cls_idx] + v[-post_start:])
+        else:
+            post.append(v[-post_start:-1])
 
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
     post_pad = pad_sequence(fn(post), padding_value=pad_idx)
     segs_pad = pad_sequence(fn(segs), padding_value=pad_idx)
     tags = itertools.chain(*tags)
-    tags_pad = pad_sequence(fn(tags), padding_value=pad_idx)
+    tags_pad = pad_sequence(fn(tags), padding_value=persona_pad_idx)
     tags_pad = tags_pad.view(-1, 2, int(tags_pad.shape[1]/2)).transpose(1, 0)
     resp_pad = pad_sequence(fn(resp), padding_value=pad_idx)
+    persona_pad = pad_sequence(fn(persona), padding_value=persona_pad_idx)
 
     context_pad_mask = (context_pad == pad_idx).T
     post_pad_mask = (post_pad == pad_idx).T
-    tags_pad_mask = (tags_pad == pad_idx).T
+    tags_pad_mask = (tags_pad == persona_pad_idx).T
     resp_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
     resp_pad_mask = (resp_pad == pad_idx).T
-    persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
-    persona_pad_mask = (persona_pad == pad_idx).T
+    persona_pad_mask = (persona_pad == persona_pad_idx).T
     if char_emb:
         # batch_size X n_persona X 2 
-        tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=pad_idx),
+        tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=persona_pad_idx),
                 personas_no_tag))
         # n_persona X batch_size X 2 --> 2 X n_persona X batch_size
-        personas_no_tag_pad = pad_sequence(tmp, padding_value=pad_idx).permute(2, 0, 1) 
+        personas_no_tag_pad = pad_sequence(tmp, padding_value=persona_pad_idx).permute(2, 0, 1) 
     else:
         personas_no_tag_pad = torch.tensor(personas_no_tag).permute(1, 2, 0)
-    personas_no_tag_pad_mask = (personas_no_tag_pad == pad_idx).T
+    personas_no_tag_pad_mask = (personas_no_tag_pad == persona_pad_idx).T
 
     lm = generate_lm_batch(lm, vocab, in_chat=True)
 

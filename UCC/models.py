@@ -48,14 +48,20 @@ class AR(nn.Module):
         self.factor_ff = factor_ff
         self.auxiliary_task = auxiliary_task
         self.share_encoder_decoder = share_encoder_decoder
+        self.pretrain_feature_type = pretrain_feature_type
 
         self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
         self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
+        #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
+        #        copy.deepcopy(self.post_encoder))
 
         self._share_emb()
         if self.share_encoder_decoder:
             self._share_encoder_decoder()
         utils.xavier_init_weights(self)
+
+        if pretrain_feature_type == 'mem_n2n':
+            self.pretrain_feature_model = pretrain_feature_model
 
         if pretrain_feature_model is not None and 'weight' in pretrain_feature_type:
             self._init_with_pretrain_feature_model_emb(pretrain_feature_model)
@@ -87,13 +93,17 @@ class AR(nn.Module):
         return context_enc, persona_enc, x_mlm_enc
 
     def mem(self, feature):
-        context_emb = self.context_emb(feature)
-        p = self.mem_input(feature.persona, context_emb)
-        o = self.mem_output(feature.persona, p)
         persona_enc = None
+        post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
+        # worse
+        # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
 
+        p = self.mem_input(feature.persona, post_emb, feature.persona_pad_mask)
+        o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
+
+        context_emb = self.context_emb(feature)
+        context_emb = context_emb + o
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
-        context_enc = context_enc + o
 
         x_mlm_enc = None
         if self.auxiliary_task == 'MLM':
@@ -112,14 +122,12 @@ class AR(nn.Module):
                 persona_pad_mask=feature.persona_pad_mask) 
 
         post_emb = self.seq_emb(feature.post, feature.post_pad_mask)
-        post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
-        # p = self.mem_input(feature.persona, context_enc)
-        p = self.mem_input(feature.persona, post_enc)
-        # p = self.mem_input(feature.persona, post_emb)
-        persona_bias = self.mem_output(feature.persona, p)
+        # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
+        p = self.mem_input(feature.persona, post_emb, feature.persona_pad_mask)
+        persona_bias = self.mem_output(feature.persona, p, feature.persona_pad_mask)
 
         if persona_bias is not None:
-            out_gen = self.generate(out + persona_bias.sum(0).unsqueeze(0))
+            out_gen = self.generate(out + persona_bias)
         else:
             out_gen = self.generate(out)
 
@@ -280,6 +288,9 @@ class AR(nn.Module):
                             # attention_mask=attention_mask)[0][0].unsqueeze(0)
                             # emb
                             #attention_mask=attention_mask)[1][0]
+            if pargs.pretrain_feature_model == 'mem_n2n':
+                pretrain_feature_model = fn
+                fn = None
 
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 

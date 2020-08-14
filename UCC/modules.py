@@ -772,6 +772,29 @@ class Generater(nn.Module):
     def forward(self, enc):
         return self.out(enc)
 
+ 
+class _MemInput(nn.Module):
+    def __init__(
+        self,
+        emb,
+        encoder,
+    ):
+        super().__init__()
+
+        self.emb = emb
+        self.encoder = encoder
+ 
+    def forward(self, persona, post_query, persona_pad_mask):
+        emb = self.emb(persona, persona_pad_mask)
+        emb = self.encoder(emb, persona_pad_mask)
+        e = emb.transpose(0, 1).bmm(post_query.sum(dim=0).unsqueeze(2))
+        mask = persona_pad_mask.float().masked_fill(
+                persona_pad_mask == 1, float('-inf')).unsqueeze(2)
+        e = e + mask
+        p = F.softmax(e, dim=1).transpose(0, 1)
+
+        return p
+       
 
 class MemInput(nn.Module):
     def __init__(
@@ -783,14 +806,36 @@ class MemInput(nn.Module):
 
         self.emb = nn.Embedding(vocab_size, emb_dim)
 
-    def forward(self, persona, post_query):
+    def forward(self, persona, post_query, persona_pad_mask):
         emb = self.emb(persona)
-        p = F.softmax(emb.transpose(0, 1).bmm(
-            post_query.sum(dim=0).unsqueeze(2))).transpose(0, 1)
+        e = emb.transpose(0, 1).bmm(post_query.sum(dim=0).unsqueeze(2))
+        mask = persona_pad_mask.float().masked_fill(
+                persona_pad_mask == 1, float('-inf')).unsqueeze(2)
+        e = e + mask
+        p = F.softmax(e, dim=1).transpose(0, 1)
 
         return p
  
+ 
+class _MemOutput(nn.Module):
+    def __init__(
+        self,
+        emb,
+        encoder,
+    ):
+        super().__init__()
 
+        self.emb = emb
+        self.encoder = encoder
+ 
+    def forward(self, persona, persona_input_mem, persona_pad_mask):
+        emb = self.emb(persona, persona_pad_mask)
+        emb = self.encoder(emb, persona_pad_mask)
+
+        return emb.permute(1, 2, 0).bmm(
+               persona_input_mem.transpose(0, 1)).permute(2, 0, 1)
+ 
+ 
 class MemOutput(nn.Module):
     def __init__(
         self,
@@ -801,10 +846,9 @@ class MemOutput(nn.Module):
 
         self.emb = nn.Embedding(vocab_size, emb_dim)
 
-    def forward(self, persona, persona_input_mem):
+    def forward(self, persona, persona_input_mem, persona_pad_mask):
         emb = self.emb(persona)
 
         return emb.permute(1, 2, 0).bmm(
                persona_input_mem.transpose(0, 1)).permute(2, 0, 1)
  
-

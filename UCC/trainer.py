@@ -62,6 +62,7 @@ class Trainer:
 
         parser.add_argument('--config_file', default='configs/large.yaml', type=str, required=False, 
             help='Provide config in config_file or as other commandline args')
+        parser.add_argument('--experiment_name', default='', type=str, required=False, help='')
         parser.add_argument('--device', default='cuda', type=str, required=False, help='use cpu for easy debug')
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
         parser.add_argument('--n_epochs', default=10, type=int, required=False, help='')
@@ -179,13 +180,18 @@ class Trainer:
         # XXX: only used this tokenizer vocab, did not used for byte pair split, now just split by space
         utils.add_special_tokens_(self.pretrain_feature_model, pretrain_feature_tokenizer)
         # FIXME: this changed args should saved to checkpoint file
-        if self.args.pretrain_feature_type == 'feature':
+        if self.args.pretrain_feature_type == 'mem_n2n': 
+            pass
+        elif self.args.pretrain_feature_type == 'feature':
             self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
         else:
             if self.pretrain_feature_model.base_model_prefix != 'bert':
                 self.args.emb_dim = self.pretrain_feature_model.config.embedding_size
             else:
                 self.args.emb_dim = self.pretrain_feature_model.config.hidden_size
+
+        # XXX: for 'xlnet'
+        # self.args.d_model = self.pretrain_feature_model.config.hidden_size
 
         if 'weight' in self.args.pretrain_feature_type:
             # few effects
@@ -315,6 +321,8 @@ class Trainer:
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
+            self.logger.info('-' * 89)
+            self.logger.info('Experiment %s: ' % self.args.experiment_name)
             self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
             self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
 
@@ -346,6 +354,7 @@ class Trainer:
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
             self.logger.info('-' * 89)
+            self.logger.info('Experiment %s: ' % self.args.experiment_name)
             self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
             self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
             self.logger.info(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')

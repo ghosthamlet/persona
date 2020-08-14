@@ -1,4 +1,6 @@
 
+experiment_name: MemN2N
+
 # use cpu for easy debug
 device: cuda
 seed: 42
@@ -22,12 +24,13 @@ max_vocab_size: 42000
 pretrain_emb: True
 share_encoder_decoder: True
 pretrain_feature: False
+#pretrain_feature_model_name: hfl/chinese-xlnet-base
 pretrain_feature_model_name: voidful/albert_chinese_small
 #pretrain_feature_model_name: voidful/albert_chinese_base
 #pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
-# emb | feature | weight | weight_plus
+# emb | feature | weight | weight_plus | mem_n2n
 # weight_plus: weight + feature
-pretrain_feature_type: feature
+pretrain_feature_type: mem_n2n
 
 emb_freeze: False
 emb_dim: 200

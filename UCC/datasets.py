@@ -26,7 +26,7 @@ class ChatVocab:
         self.tokenizer = tokenizer
 
     def __len__(self):
-        return len(self.tokenizer)
+        return tokenizer.vocab_size
 
     def stoi(self, s):
         i = self.tokenizer.convert_tokens_to_ids(s)
@@ -275,10 +275,13 @@ def generate_batch(batch, vocab):
     char_emb = True
 
     post = []
+    cls_idx = vocab.stoi(utils.CLS)
     sep_idx = vocab.stoi(utils.SEP)
     for v in context:
         post_start = list(reversed(v)).index(sep_idx)
         post.append(v[-post_start:-1])
+        # cls_idx for sentence rep, xlnet is last token
+        # post.append([cls_idx] + v[-post_start])
 
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
@@ -352,6 +355,8 @@ def generate_lm_batch(batch, vocab, in_chat=False):
                 # mask = 2
                 # 99/100 is 2, 1/100 is 0
                 mask = min(2, random.randint(0, 99))
+                if mask == 1:
+                    mask = 2
             start = random.randint(1, l-mask-1)
             x_mlm.append(v[0:start] + [mask_idx] + v[start+mask:])
 

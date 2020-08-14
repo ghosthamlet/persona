@@ -1,0 +1,50 @@
+\def\year{2020}\relax
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article} %DO NOT CHANGE THIS
+\usepackage{times}  %Required
+\usepackage{helvet}  %Required
+\usepackage{courier}  %Required
+\usepackage{url}  %Required
+\usepackage{graphicx}  %Required
+\usepackage{natbib}
+
+\usepackage{amsmath}
+\usepackage{IEEEtrantools}
+
+%% install LaTex: http://www.tug.org/texlive/quickinstall.html
+%% For chinese: https://tex.stackexchange.com/questions/17611/how-does-one-type-chinese-in-latex
+% \usepackage{CJKutf8}
+% \AtBeginDvi{\input{zhwinfonts}}
+% \begin{document}
+% \begin{CJK*}{UTF8}{gbsn}
+%   chinese texts
+% \clearpage\end{CJK*}
+% \end{document}
+
+\usepackage{CJKutf8}
+\AtBeginDvi{\input{zhwinfonts}}
+
+% all custom newcommand should begin with prefix: K
+\newcommand{\KModelName}{UCC模型}
+\newcommand{\KFactorNoused}{\underline{时间、对话环境、对方地点、发言者地点}}
+
+\frenchspacing  %Required
+% \setlength{\pdfpagewidth}{8.5in}  %Required
+% \setlength{\pdfpageheight}{11in}  %Required
+\setcounter{secnumdepth}{0}  
+
+\begin{document}
+\begin{CJK*}{UTF8}{gbsn}
+
+\title{更像人而不是更智能：对话系统的统一}
+\author{Jing Bo Hu, Qiang Han \& Hua Wei Liu \\
+HuggingFace  Inc.\\
+{\tt \{hu,gvvvv,liu\}@163.com} \\}
+
+\maketitle
+\begin{abstract}
+  \ldots
+\end{abstract}
+
+\section{简介} 
+本论文主要分析Transformer模型近几年来的一些速度和性能上的改进方法，其在专用模型上的运用，这里研究的专用模型是指个性感知的开放领域对话模型，针对的数据集是多轮短对话，单个输入系列总长度不超过90个字，因此Transformer模型在长文本处理上的诸多改进不在本论文考虑之列。

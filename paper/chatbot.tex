@@ -158,6 +158,8 @@ Introversion extroversion
       BART pretrain objective: denoise add 0 length mask
       dialog with char emb, persona with word emb?
 
+      move all methods param to single config
+
       ELECTRA pretrain
       reduce pretrain feature vocab size
       ?BPE/WordPiece or word vectors merge to char vector inputs
@@ -572,18 +574,76 @@ but too small model will underfit the full millions datasets, so not fit the ope
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
-post enc add to persona enc, resp attend it
+pretrain_feature tokens/CLS for MemN2N
 
-MemN2N persona memory encode with sep emb, post emb query it, result add to post
-2020-08-13 21:38:21,429 - INFO - Epoch: 01 | Time: 5m 55s
-2020-08-13 21:38:21,429 - INFO - 	Train Loss: 5.553 | Train PPL: 258.111
-2020-08-13 21:38:21,429 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
-MemN2N persona memory encode with sep emb, post enc query it, result add to post
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+replace [mask] to random token like electra
+2020-08-14 18:46:01,139 - INFO - Epoch: 01 | Time: 7m 52s
+2020-08-14 18:46:01,139 - INFO - 	Train Loss: 5.692 | Train PPL: 296.551
+2020-08-14 18:46:01,139 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+**MemN2N persona memory encode with sep emb, post emb query it, result add to context_emb
+2020-08-14 19:39:44,932 - INFO - Epoch: 01 | Time: 5m 58s
+2020-08-14 19:39:44,932 - INFO - 	Train Loss: 5.567 | Train PPL: 261.732
+2020-08-14 19:39:44,932 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
-MemN2N persona memory encode with sep small transformer, post query it, result add to post
+... add to context_enc
+2020-08-14 19:47:18,209 - INFO - Epoch: 01 | Time: 6m 0s
+2020-08-14 19:47:18,209 - INFO - 	Train Loss: 5.591 | Train PPL: 268.136
+2020-08-14 19:47:18,209 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+MemN2N persona memory encode with sep emb, post enc query it, add to context_emb
+2020-08-14 19:57:15,905 - INFO - Experiment MemN2N: 
+2020-08-14 19:57:15,905 - INFO - Epoch: 01 | Time: 8m 14s
+2020-08-14 19:57:15,905 - INFO - 	Train Loss: 5.587 | Train PPL: 267.038
+2020-08-14 19:57:15,905 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+... add to context_enc
+2020-08-14 20:06:16,623 - INFO - Experiment MemN2N: 
+2020-08-14 20:06:16,623 - INFO - Epoch: 01 | Time: 8m 12s
+2020-08-14 20:06:16,624 - INFO - 	Train Loss: 5.560 | Train PPL: 259.837
+2020-08-14 20:06:16,624 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+multi MemN2N layer
+2020-08-14 20:16:58,693 - INFO - Experiment MemN2N: 
+2020-08-14 20:16:58,693 - INFO - Epoch: 01 | Time: 6m 5s
+2020-08-14 20:16:58,693 - INFO - 	Train Loss: 5.573 | Train PPL: 263.149
+2020-08-14 20:16:58,693 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+
+mean post_query, above all is sum
+2020-08-14 20:31:10,924 - INFO - Experiment MemN2N: 
+2020-08-14 20:31:10,924 - INFO - Epoch: 01 | Time: 6m 0s
+2020-08-14 20:31:10,924 - INFO - 	Train Loss: 5.585 | Train PPL: 266.524
+2020-08-14 20:31:10,924 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+*MemN2N persona memory encode with sep small transformer, post emb query, add to context_emb
+2020-08-14 20:42:45,923 - INFO - Experiment MemN2N: 
+2020-08-14 20:42:45,923 - INFO - Epoch: 01 | Time: 8m 56s
+2020-08-14 20:42:45,923 - INFO - 	Train Loss: 5.544 | Train PPL: 255.575
+2020-08-14 20:42:45,923 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
+... post enc query, add to context_emb
+worse
+
+... post emb query, add to context_enc
+2020-08-14 21:04:12,322 - INFO - Experiment MemN2N: 
+2020-08-14 21:04:12,322 - INFO - Epoch: 01 | Time: 9m 11s
+2020-08-14 21:04:12,322 - INFO - 	Train Loss: 5.625 | Train PPL: 277.411
+2020-08-14 21:04:12,323 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+
 
 MemN2N persona memory, result add to post and resp
+
+
+word emb MemN2N
+
+
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

@@ -110,15 +110,9 @@ class AR(nn.Module):
         # worse
         # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
         context_emb = self.context_emb(feature)
-
-        last_post_emb = post_emb
-        for _ in range(3):
-            p = self.mem_input(feature.persona, last_post_emb, feature.persona_pad_mask)
-            o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
-            last_post_emb = last_post_emb + o
-
+        p = self.mem_input(feature.persona, context_emb, feature.persona_pad_mask)
+        o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
         context_emb = context_emb + o
-
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
 
         x_mlm_enc = self.encode_lm(feature)

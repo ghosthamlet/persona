@@ -35,6 +35,7 @@ class Args:
     pass
 
 # XXX: change all class init param to context
+#      but the code will be hard to reuse and not transparent
 class Context:
     def __init__(self):
         self.config = Args()

@@ -100,7 +100,7 @@ class ChatDataProcesser:
         self.complete_persona = complete_persona
         self.limit_length = limit_length
         self.vocab = vocab
-        self.persona_vocab = vocab
+        self.persona_vocab = persona_vocab
         self.tokenizer = tokenizer
 
     def get_examples(self, path, mode):

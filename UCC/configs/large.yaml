@@ -34,6 +34,8 @@ pretrain_feature_type: feature
 
 emb_freeze: False
 emb_dim: 200
+# empty to disable persona word emb, use char emb as others
+# persona_emb_dim: 
 persona_emb_dim: 200
 # will auto fill
 persona_vocab_size:

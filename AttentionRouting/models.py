@@ -69,25 +69,7 @@ class AR(nn.Module):
         return self.generater(enc)
 
     def predict(self, X):
-        max_len = y.shape[0]
-
-        post_outs, post_hid = self.encoder(X)
-        trait_enc = self.trait_encoder(profiles)
-
-        hid = post_hid
-        out = y[start]
-        rnn_outs = None
-        outs = torch.zeros(*y.shape[:2], 
-                self.resp_decoder.output_dim).to(X.device)
-        for t in range(start, end):
-            trait_fus = self.trait_fusion(hid, trait_enc)
-            out, hid, _ = self.resp_decoder(out, hid, post_outs, trait_fus)
-            outs[t] = out
-            teacher_force = random.random() < teacher_forcing_ratio
-            top1 = out.max(1)[1]
-            out = y[t] if teacher_force else top1
-
-        return outs
+        pass
 
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
@@ -102,6 +84,53 @@ class AR(nn.Module):
             layer.linear2 = d_layer.linear2
             layer.norm1 = d_layer.norm1
             layer.norm2 = d_layer.norm2
+
+    @staticmethod
+    def build(
+        args, 
+        input_dim,
+        output_dim,
+        vocab,
+        embeddings=None
+    ):   
+        pad_idx = vocab.stoi(utils.PAD)
+        sep_idx = vocab.stoi(utils.SEP)
+        spe1_idx = vocab.stoi(utils.SPE1)
+        spe2_idx = vocab.stoi(utils.SPE2)
+
+        context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
+                input_dim, args.d_model, args.emb_freeze,
+                pad_idx, args.enc_dropout, embeddings)
+        persona_emb = modules.PersonaEmb(input_dim, args.d_model, args.emb_freeze,
+                pad_idx, embeddings)
+        output_emb = modules.OutputEmb(input_dim, args.d_model, args.emb_freeze,
+                pad_idx, args.enc_dropout, embeddings)
+
+        post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
+                args.n_head, args.num_layers, args.enc_dropout)
+
+        resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
+                args.attn_alpha, args.d_ff, args.dec_dropout)
+        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
+        generater = modules.Generater(args.d_model, output_dim)
+
+        if args.n_epochs_early_stage > 0:
+            model = LM(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater)
+        else:
+            model = AR(
+                    context_emb, persona_emb, output_emb,
+                    post_encoder, resp_decoder, generater)
+
+        return model
+ 
+    @staticmethod
+    def loss(loss_fn, out, out_lm, resp, lm_y):
+        loss = loss_fn(out[:-1].view(-1, out.shape[-1]), resp[1:].view(-1))
+        loss_lm = loss_fn(out_lm.view(-1, out.shape[-1]), lm_y.view(-1))
+
+        return loss, loss_lm
 
 
 class LM(AR):

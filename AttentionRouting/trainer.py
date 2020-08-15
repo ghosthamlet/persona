@@ -1,5 +1,6 @@
 
 import os
+import shutil
 import random
 import math
 import time
@@ -29,10 +30,12 @@ class Trainer:
         args = self.parse_args()
         self.args = args
         self.best_valid_loss = float('inf')
-        self.device = torch.device('cuda' if torch.cuda.is_available() and args.device == 'cuda' else 'cpu')
-        self.set_random_seed()
+        self.device = utils.get_device(args.device)
+        utils.set_random_seed(self.args.seed, self.device)
 
         self.ensure_deps()
+
+        self.logger = utils.create_logger(self.args.log_path, 'trainer')
 
         print('Build vocab and embeddings...')
         self.build_vocab_and_embeddings()
@@ -42,21 +45,13 @@ class Trainer:
         self.build_model()
         print('Build loss fns...')
         self.build_loss_fns()
-
-    def set_random_seed(self):
-        torch.manual_seed(self.args.seed)
-        random.seed(self.args.seed)
-        np.random.seed(self.args.seed)
-
-        if self.device == 'cuda':
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
-         
+        
     def parse_args(self):
         parser = argparse.ArgumentParser()
 
         parser.add_argument('--config_file', default='configs/default.yaml', type=str, required=False, 
             help='Provide config in config_file or as other commandline args')
+        parser.add_argument('--experiment_name', default='', type=str, required=False, help='')
         parser.add_argument('--device', default='cuda', type=str, required=False, help='use cpu for easy debug')
         parser.add_argument('--seed', default=42, type=int, required=False, help='')
         parser.add_argument('--n_epochs', default=10, type=int, required=False, help='')
@@ -77,6 +72,7 @@ class Trainer:
         parser.add_argument('--d_model', default=512, type=int, required=False, help='')
         parser.add_argument('--d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
+        parser.add_argument('--alpha', default=0.5, type=float, required=False, help='LM loss weight')
 
         parser.add_argument('--lr', default=0.5, type=float, required=False, help='')
         parser.add_argument('--weight_decay', default=0.99, type=float, required=False, help='')
@@ -86,6 +82,7 @@ class Trainer:
         parser.add_argument('--pretrained_path', type=str, required=False, help='')
         parser.add_argument('--data_path', default='datas/', type=str, required=False, help='')
         parser.add_argument('--cache_path', default='caches/', type=str, required=False, help='')
+        parser.add_argument('--log_path', default='logs/', type=str, required=False, help='')
         parser.add_argument('--corpus_fname', default='datas/corpus.txt', type=str, required=False, help='')
         parser.add_argument('--vec_fname', default='models/vec.txt', type=str, required=False, help='')
         parser.add_argument('--vocab_fname', default='models/vocab.txt', type=str, required=False, help='')
@@ -144,7 +141,7 @@ class Trainer:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length)
             ds = utils.PersonaDataset(
-                    self.vocab, args.max_seq_length, 
+                    self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_lm')
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
@@ -153,7 +150,7 @@ class Trainer:
             dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=args.max_seq_length, max_context_size=args.max_context_size)
             ds = utils.PersonaDataset(
-                    self.vocab, args.max_seq_length, 
+                    self.vocab, args.max_seq_length, args.limit_example_length, 
                     data_path=args.data_path, cache_path=args.cache_path, 
                     data_processer=dp, mode='train_char')
             self.train_iter = DataLoader(ds, batch_size=args.batch_size, 
@@ -161,66 +158,35 @@ class Trainer:
 
         self.valid_iter = None
         self.test_iter = None
-       #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, 
-       #        data_path=args.data_path, cache_path=args.cache_path, 
-       #        limit_length=args.limit_example_length, mode='valid')
-       #self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
-       #        collate_fn=gb, shuffle=args.shuffle_data) 
+        ds = utils.PersonaDataset(
+                self.vocab, args.max_seq_length, args.limit_example_length, 
+                data_path=args.data_path, cache_path=args.cache_path, 
+                data_processer=dp, mode='valid_char')
+        self.valid_iter = DataLoader(ds, batch_size=args.batch_size,
+                collate_fn=gb, shuffle=args.shuffle_data) 
 
-       #ds = utils.PersonaDataset(
-       #        self.vocab, args.max_seq_length, 
-       #        data_path=args.data_path, cache_path=args.cache_path, 
-       #        limit_length=args.limit_example_length, mode='test')
-       #self.test_iter = DataLoader(ds, batch_size=args.batch_size,
-       #        collate_fn=gb, shuffle=args.shuffle_data)
+        ds = utils.PersonaDataset(
+                self.vocab, args.max_seq_length, args.limit_example_length, 
+                data_path=args.data_path, cache_path=args.cache_path, 
+                data_processer=dp, mode='test_char')
+        self.test_iter = DataLoader(ds, batch_size=args.batch_size,
+                collate_fn=gb, shuffle=args.shuffle_data)
 
     def build_model(self):
         args = self.args
         output_dim = self.input_dim
         input_dim = self.input_dim
-        pad_idx = self.pad_idx
-        embeddings = self.embeddings
-        sep_idx = self.vocab.stoi(utils.SEP)
-        spe1_idx = self.vocab.stoi(utils.SPE1)
-        spe2_idx = self.vocab.stoi(utils.SPE2)
-
-        context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
-                input_dim, args.d_model, args.emb_freeze,
-                pad_idx, args.enc_dropout, embeddings)
-        persona_emb = modules.PersonaEmb(input_dim, args.d_model, args.emb_freeze,
-                pad_idx, embeddings)
-        output_emb = modules.OutputEmb(input_dim, args.d_model, args.emb_freeze,
-                pad_idx, args.enc_dropout, embeddings)
-
-        post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
-                args.n_head, args.num_layers, args.enc_dropout)
-
-        resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
-                args.attn_alpha, args.d_ff, args.dec_dropout)
-        resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers)
-        generater = modules.Generater(args.d_model, output_dim)
 
         self.best_model = None
-        if args.n_epochs_early_stage > 0:
-            self.model = models.LM(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater).to(self.device)
-            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
-                    weight_decay=args.weight_decay)
-            print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
-        else:
-            self.model = models.AR(
-                    context_emb, persona_emb, output_emb,
-                    post_encoder, resp_decoder, generater
-                    ).to(self.device)
-            self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
-                    weight_decay=args.weight_decay)
-            print(self.model)
-            print(f'The model has {utils.count_parameters(self.model):,} trainable parameters')
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
+        self.model = models.AR.build(args, input_dim, 
+                output_dim, self.vocab, self.embeddings).to(self.device)
+ 
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+                weight_decay=args.weight_decay)
+        print(self.model)
+        print(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
 
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)
 
         if args.pretrained_path is None:
             pass
@@ -238,14 +204,16 @@ class Trainer:
         for epoch in range(self.args.n_epochs_early_stage):
             start_time = time.time()
 
-            train_loss = self.train_lm()
+            train_loss = self.train_lm(epoch)
             self.save_model(epoch, 'lm')
 
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
-
-            print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
+         
+            self.logger.info('-' * 89)
+            self.logger.info('Experiment %s: ' % self.args.experiment_name)
+            self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
+            self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
 
     def run(self):
         if self.args.n_epochs_early_stage > 0:
@@ -261,13 +229,11 @@ class Trainer:
         for epoch in range(self.args.n_epochs):
             start_time = time.time()
 
-            train_loss = self.train(early_stage=False)
-            valid_loss = self.eval()
+            train_loss = self.train(epoch)
+            valid_loss = self.eval(self.valid_iter)
  
-            # if valid_loss < best_val_loss:
-                # best_val_loss = valid_loss
-            if train_loss < best_val_loss:
-                best_val_loss = train_loss
+            if valid_loss < best_val_loss:
+                best_val_loss = valid_loss
                 self.best_model = self.model
                 self.save_model(epoch)
 
@@ -276,19 +242,20 @@ class Trainer:
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-            print('-' * 89)
-            print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
-            print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
+            self.logger.info('-' * 89)
+            self.logger.info('Experiment %s: ' % self.args.experiment_name)
+            self.logger.info(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
+            self.logger.info(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
+            self.logger.info(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
 
         test_loss = self.eval(self.test_iter)
-        print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
+        self.logger.info(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
-    def train_lm(self):
+    def train_lm(self, epoch):
         self.model.train()
 
         epoch_loss = 0
-        for _, feature in enumerate(self.train_iter):
+        for batch_idx, feature in enumerate(self.train_iter):
             self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
@@ -304,29 +271,30 @@ class Trainer:
 
             iloss = loss.item()
             epoch_loss += iloss
-            print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
+            self.logger.info(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(self.train_iter)
  
 
-    def train(self, data_iter=None, early_stage=False):
+    def train(self, epoch, data_iter=None):
         self.model.train()
 
         if data_iter is None:
             data_iter = self.train_iter
 
         epoch_loss = 0
-        for _, feature in enumerate(data_iter):
+        for batch_idx, feature in enumerate(data_iter):
+            start_time = time.time()
+
             self.optimizer.zero_grad()
 
             utils.feature_to_device(feature, self.device)
 
-            alpha = 0.5
             out, out_lm = self.model(feature)
-            loss = self.out_loss_fn(out[:-1].view(-1, out.shape[-1]), 
-                    feature.resp[1:].view(-1))
-            loss += alpha * self.out_loss_fn(out_lm.view(-1, out.shape[-1]), 
-                                feature.lm.y.view(-1))
+            loss, loss_lm = models.AR.loss(self.out_loss_fn, 
+                    out, out_lm, feature.resp, feature.lm.y)
+            loss = loss + self.args.alpha * loss_lm
+
             # utils.print_backward_graph(loss)
             loss.backward()
 
@@ -335,25 +303,29 @@ class Trainer:
 
             iloss = loss.item()
             epoch_loss += iloss
-            print(f'Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f}\n')
+
+            end_time = time.time()
+            secs = end_time - start_time
+            self.logger.info(f'Step {batch_idx+1}/{epoch+1:02} | Train Loss: {iloss:.3f} | Train PPL: {math.exp(iloss):7.3f} | Time: {secs:.3f}s\n')
 
         return epoch_loss / len(data_iter)
 
     def eval(self, data_iter=None):
         self.model.eval()
-        return 1
 
         if data_iter is None:
             data_iter = self.test_iter
 
         epoch_loss = 0
         with torch.no_grad():
-            for _, (X, y, key) in enumerate(data_iter):
-                f_out, j, b_out = self.model(X, y, teacher_forcing_ratio=0)
+            for _, feature in enumerate(data_iter):
 
-                out = out[1:].view(-1, out.shape[-1])
-                y = y[1:].view(-1)
-                loss = self.loss_fn(out, y)
+                utils.feature_to_device(feature, self.device)
+
+                out, out_lm = self.model(feature)
+                loss, loss_lm = models.AR.loss(self.out_loss_fn, 
+                        out, out_lm, feature.resp, feature.lm.y)
+                loss = loss + self.args.alpha * loss_lm
 
                 epoch_loss += loss.item()
 
@@ -368,6 +340,8 @@ class Trainer:
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         torch.save(self.model.state_dict(), model_path + '/model.pt')
+        shutil.copyfile(self.args.config_file, model_path + '/config.yml')
+        shutil.copyfile(self.args.vocab_fname, model_path + '/vocab')
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.args.pretrained_path))

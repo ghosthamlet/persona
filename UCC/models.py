@@ -33,6 +33,7 @@ class AR(nn.Module):
         share_encoder_decoder,
         pretrain_feature_model,
         pretrain_feature_type,
+        persona_vocab_size,
         persona_emb_dim,
         auxiliary_task=None,
     ):
@@ -51,17 +52,23 @@ class AR(nn.Module):
         self.share_encoder_decoder = share_encoder_decoder
         self.pretrain_feature_type = pretrain_feature_type
         self.persona_emb_dim = persona_emb_dim
+        self.use_mem_n2n = False
 
-        self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
-        self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
-        #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
-        #        copy.deepcopy(self.post_encoder))
+        if persona_emb_dim is None:
+            self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
+            self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
+            #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
+            #        copy.deepcopy(self.post_encoder))
+        else:
+            self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
+            self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
 
         self._share_emb()
         if self.share_encoder_decoder:
             self._share_encoder_decoder()
         utils.xavier_init_weights(self)
 
+        self.pretrain_feature_model = None
         if pretrain_feature_type == 'mem_n2n':
             self.pretrain_feature_model = pretrain_feature_model
 
@@ -74,8 +81,10 @@ class AR(nn.Module):
                 self._init_with_pretrain_feature_model_layers(pretrain_feature_model)
 
     def forward(self, feature):
-        context_enc, persona_enc, x_mlm_enc = self.encode(feature)
-        # context_enc, persona_enc, x_mlm_enc = self.mem_n2n(feature)
+        if self.use_mem_n2n:
+            context_enc, persona_enc, x_mlm_enc = self.mem_n2n(feature)
+        else:
+            context_enc, persona_enc, x_mlm_enc = self.encode(feature)
         out = self.decode(feature, context_enc, persona_enc, x_mlm_enc)
 
         return out
@@ -87,10 +96,7 @@ class AR(nn.Module):
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
         persona_enc = self.post_encoder(persona_emb, feature.persona_pad_mask)
 
-        x_mlm_enc = None
-        if self.auxiliary_task == 'MLM':
-            x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
-            x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
+        x_mlm_enc = self.encode_lm(feature)
  
         return context_enc, persona_enc, x_mlm_enc
 
@@ -111,12 +117,16 @@ class AR(nn.Module):
         context_emb = context_emb + o
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
 
+        x_mlm_enc = self.encode_lm(feature)
+        
+        return context_enc, persona_enc, x_mlm_enc
+
+    def encode_lm(self, feature):
         x_mlm_enc = None
         if self.auxiliary_task == 'MLM':
             x_mlm_emb = self.seq_emb(feature.lm.x_mlm, feature.lm.x_mlm_pad_mask)
             x_mlm_enc = self.post_encoder(x_mlm_emb, feature.lm.x_mlm_pad_mask)
- 
-        return context_enc, persona_enc, x_mlm_enc
+        return x_mlm_enc
 
     def decode(self, feature, context_enc, persona_enc, x_mlm_enc):
         persona_bias = None
@@ -337,7 +347,8 @@ class AR(nn.Module):
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
                     args.share_encoder_decoder, _pretrain_feature_model, 
-                    args.pretrain_feature_type, args.persona_emb_dim
+                    args.pretrain_feature_type, args.persona_vocab_size, 
+                    args.persona_emb_dim
                     )
         else:
             model = AR(
@@ -345,7 +356,8 @@ class AR(nn.Module):
                     output_emb, post_encoder, resp_decoder, 
                     generater, args.factor_ff, args.adapter_finetune, 
                     args.share_encoder_decoder, _pretrain_feature_model, 
-                    args.pretrain_feature_type, args.persona_emb_dim, args.auxiliary_task
+                    args.pretrain_feature_type, args.persona_vocab_size, 
+                    args.persona_emb_dim, args.auxiliary_task
                     )
 
         return model

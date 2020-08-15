@@ -501,6 +501,10 @@ Epoch: 01 | Time: 10m 31s
 Epoch: 01 | Time: 8m 4s
 	Train Loss: 5.519 | Train PPL: 249.501
 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+2020-08-15 23:17:13,597 - INFO - Experiment MemN2N: 
+2020-08-15 23:17:13,597 - INFO - Epoch: 01 | Time: 6m 37s
+2020-08-15 23:17:13,597 - INFO - 	Train Loss: 5.589 | Train PPL: 267.382
+2020-08-15 23:17:13,597 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 % init encoder with weight_plus, no share encoder decoder, voidful/albert_chinese_small
 % with num_layers 6 num_groups 2
 *Epoch: 01 | Time: 10m 48s
@@ -632,6 +636,7 @@ mean post_query, above all is sum
 2020-08-14 20:42:45,923 - INFO - Epoch: 01 | Time: 8m 56s
 2020-08-14 20:42:45,923 - INFO - 	Train Loss: 5.544 | Train PPL: 255.575
 2020-08-14 20:42:45,923 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+% loss is few good, but speed is slow
 
 ... post enc query, add to context_emb
 worse
@@ -649,12 +654,19 @@ MemN2N persona memory, add to context_enc and out
 2020-08-14 22:42:29,814 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
 word emb MemN2N
-
+2020-08-15 22:59:42,078 - INFO - Experiment MemN2N: 
+2020-08-15 22:59:42,078 - INFO - Epoch: 01 | Time: 5m 51s
+2020-08-15 22:59:42,078 - INFO - 	Train Loss: 5.591 | Train PPL: 267.870
+2020-08-15 22:59:42,078 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------
 dialog with char emb, persona with word emb
+2020-08-15 01:22:13,736 - INFO - Experiment MemN2N: 
+2020-08-15 01:22:13,736 - INFO - Epoch: 01 | Time: 6m 44s
+2020-08-15 01:22:13,737 - INFO - 	Train Loss: 5.594 | Train PPL: 268.794
+2020-08-15 01:22:13,737 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------

@@ -9,9 +9,9 @@ import sys
 # for import parent utils
 sys.path.append('../')
 import utils
+import metrics
 
 import models
-import metrics
 import datasets
 
 import torch
@@ -34,11 +34,17 @@ class Evaler:
         self.args.max_seq_length = self.model_config.max_seq_length
 
         self.logger.info('Load vocab...')
+
+        self.pretrain_feature_model = None
+        self.tokenizer = None
+        self.persona_vocab = None
+
+        if self.model_config.persona_emb_dim is not None:
+            self.build_persona_vocab()
+ 
         if self.model_config.pretrain_feature:
             self.build_pretrain_feature_model()
         else:
-            self.pretrain_feature_model = None
-            self.tokenizer = None
             self.build_vocab()
         self.logger.info('Build dataloaders...')
         self.build_dataloaders()
@@ -76,6 +82,10 @@ class Evaler:
 
         return args
 
+    def build_persona_vocab(self):
+        self.persona_vocab = datasets.PersonaVocab(self.model_config.persona_vocab_fname)
+        self.model_config.persona_vocab_size = len(self.persona_vocab)
+ 
     def build_vocab(self):
         args = self.args
 
@@ -127,11 +137,12 @@ class Evaler:
     def build_dataloaders(self):
         args = self.args
         model_config = self.model_config
-        gb = lambda batch: datasets.generate_batch(batch, self.vocab)
+        gb = lambda batch: datasets.generate_batch(batch, self.vocab, self.persona_vocab)
 
         dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=model_config.max_seq_length, 
                     max_context_size=model_config.max_context_size,
+                    vocab=self.vocab, persona_vocab=self.persona_vocab,
                     tokenizer=self.tokenizer)
         ds = utils.PersonaDataset(
                 self.vocab, model_config.max_seq_length, args.limit_example_length, 
@@ -171,7 +182,8 @@ class Evaler:
 
                 out, out_lm = self.model(feature)
                 print(out[0, 0], out_lm[0, 0])
-                loss, loss_lm = models.AR.loss(self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
+                loss, loss_lm = models.AR.loss(self.model_config.auxiliary_task,
+                        self.out_loss_fn, out, out_lm, feature.resp, feature.lm.y)
                 print(loss, loss_lm)
                 loss = loss + self.model_config.alpha * loss_lm
                 total_loss += loss.item()

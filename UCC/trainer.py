@@ -31,8 +31,21 @@ from transformers import Pipeline, BertTokenizer, AlbertModel, \
         AutoTokenizer, AutoModel, AlbertConfig, AutoConfig
 
 
+class Args:
+    pass
+
+# XXX: change all class init param to context
+class Context:
+    def __init__(self):
+        self.config = Args()
+        self.vocab = None
+        self.persona_vocab = None
+
+
 class Trainer:
     def __init__(self):
+        self.context = Context()
+
         args = self.parse_args()
         self.args = args
         self.best_valid_loss = float('inf')
@@ -287,20 +300,12 @@ class Trainer:
                 output_dim, self.vocab, self.embeddings,
                 self.pretrain_feature_model).to(self.device)
 
-        if args.n_epochs_early_stage > 0:
-            self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
-            #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
-            #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
-                    weight_decay=args.weight_decay)
-            self.logger.info(self.model)
-            self.logger.info(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
-        else:
-            self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
-            #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
-            #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
-                    weight_decay=args.weight_decay)
-            self.logger.info(self.model)
-            self.logger.info(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
+        self.optimizer = transformers.AdamW(self.model.parameters(), lr=args.lr, correct_bias=True,
+        #self.optimizer = optim.AdamW(self.model.parameters(), lr=args.lr,
+        #self.optimizer = toptim.Lamb(self.model.parameters(), lr=args.lr,
+                weight_decay=args.weight_decay)
+        self.logger.info(self.model)
+        self.logger.info(f'The model has {utils.count_parameters(self.model):,} trainable parameters') 
 
         if args.use_scheduler:
             #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1.0, gamma=0.95)

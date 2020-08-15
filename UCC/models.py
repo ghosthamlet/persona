@@ -52,7 +52,7 @@ class AR(nn.Module):
         self.share_encoder_decoder = share_encoder_decoder
         self.pretrain_feature_type = pretrain_feature_type
         self.persona_emb_dim = persona_emb_dim
-        self.use_mem_n2n = False
+        self.use_mem_n2n = True
 
         if persona_emb_dim is None:
             self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
@@ -109,12 +109,16 @@ class AR(nn.Module):
                     attention_mask=feature.post_pad_mask)[0][:, 0]
         # worse
         # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
-
-        p = self.mem_input(feature.persona, post_emb, feature.persona_pad_mask)
-        o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
-
         context_emb = self.context_emb(feature)
+
+        last_post_emb = post_emb
+        for _ in range(3):
+            p = self.mem_input(feature.persona, last_post_emb, feature.persona_pad_mask)
+            o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
+            last_post_emb = last_post_emb + o
+
         context_emb = context_emb + o
+
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
 
         x_mlm_enc = self.encode_lm(feature)

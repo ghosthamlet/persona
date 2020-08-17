@@ -53,15 +53,36 @@ class AR(nn.Module):
         self.pretrain_feature_type = pretrain_feature_type
         self.persona_emb_dim = persona_emb_dim
         self.use_mem_n2n = True
+        self.mem_n2n_hops = 3
+        # self.mem_n2n_layer_share = 'layer_wise'
+        self.mem_n2n_layer_share = 'adjacent'
 
-        if persona_emb_dim is None:
-            self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
-            self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
-            #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
-            #        copy.deepcopy(self.post_encoder))
+        if self.mem_n2n_layer_share == 'adjacent':
+            if persona_emb_dim is None:
+                self.mem_input = nn.modules.transformer._get_clones(
+                        modules.MemInput(context_emb.input_dim, context_emb.d_model),
+                        self.mem_n2n_hops)
+                self.mem_output = nn.modules.transformer._get_clones(
+                        modules.MemOutput(context_emb.input_dim, context_emb.d_model),
+                        self.mem_n2n_hops)
+            else:
+                self.mem_input = nn.modules.transformer._get_clones(
+                        modules.MemInput(persona_vocab_size, context_emb.d_model),
+                        self.mem_n2n_hops)
+                self.mem_output = nn.modules.transformer._get_clones(
+                        modules.MemOutput(persona_vocab_size, context_emb.d_model),
+                        self.mem_n2n_hops)
+            self._share_mem_n2n_layers()
         else:
-            self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
-            self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
+            self.mem_output_map = nn.Linear(context_emb.d_model, context_emb.d_model, bias=False)
+            if persona_emb_dim is None:
+                self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
+                self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
+                #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
+                #        copy.deepcopy(self.post_encoder))
+            else:
+                self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
+                self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
 
         self._share_emb()
         if self.share_encoder_decoder:
@@ -110,14 +131,29 @@ class AR(nn.Module):
         # worse
         # post_enc = self.post_encoder(post_emb, feature.post_pad_mask)
         context_emb = self.context_emb(feature)
-        p = self.mem_input(feature.persona, context_emb, feature.persona_pad_mask)
-        o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
+
+        last_post_emb = post_emb
+        for i in range(self.mem_n2n_hops):
+            if self.mem_n2n_layer_share == 'adjacent':
+                p = self.mem_input[i](feature.persona, last_post_emb, feature.persona_pad_mask)
+                o = self.mem_output[i](feature.persona, p, feature.persona_pad_mask)
+                last_post_emb = last_post_emb + o
+            else:
+                p = self.mem_input(feature.persona, last_post_emb, feature.persona_pad_mask)
+                o = self.mem_output(feature.persona, p, feature.persona_pad_mask)
+                last_post_emb = self.mem_output_map(last_post_emb) + o
+
         context_emb = context_emb + o
         context_enc = self.post_encoder(context_emb, feature.context_pad_mask)
 
         x_mlm_enc = self.encode_lm(feature)
         
         return context_enc, persona_enc, x_mlm_enc
+
+    def _share_mem_n2n_layers(self):
+        for i in range(self.mem_n2n_hops):
+            if i < self.mem_n2n_hops-1:
+                self.mem_output[i].emb.weight = self.mem_input[i+1].emb.weight
 
     def encode_lm(self, feature):
         x_mlm_enc = None

@@ -808,15 +808,25 @@ class MemInput(nn.Module):
         emb_dim
     ):
         super().__init__()
+        self.emb_dim = emb_dim
 
         self.emb = nn.Embedding(vocab_size, emb_dim)
  
     def forward(self, persona, post_query, persona_pad_mask):
         emb = self.emb(persona)
+
         if len(post_query.shape) == 2:
+            # sentence emb
             post_query = post_query.unsqueeze(2)
         else:
+            seq_len = post_query.shape[0]
+            pos = torch.arange(1, seq_len+1).unsqueeze(1).to(post_query.device)
+            k = torch.arange(1, self.emb_dim+1).to(post_query.device)
+            pos = (1 - pos / seq_len) - (k / self.emb_dim) * (1 - 2 * pos / seq_len)
+            post_query = post_query * pos.unsqueeze(1)
+
             post_query = post_query.sum(dim=0).unsqueeze(2)
+
         e = emb.transpose(0, 1).bmm(post_query)
         mask = persona_pad_mask.float().masked_fill(
                 persona_pad_mask == 1, float('-inf')).unsqueeze(2)

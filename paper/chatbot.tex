@@ -160,7 +160,14 @@ Introversion extroversion
       analysis grad, weight, activation before/after init weight with pretrain_feature 
         if finetune no effects, then the static feature must no effects
 
+      two pretrain stage: 1. LM pretrain, 2. no persona dialog datasets pretrain
+
+      Why not just let output attend all it's future seq, 
+        let the model leakage and overfit the large datasets?
+        when datasets is large, just search or copy answer in it is great
+
       move all methods param to single config, and pass to all class to easy customize
+        but the code will be hard to reuse and not transparent
 
       ELECTRA pretrain
       reduce pretrain feature vocab size
@@ -654,10 +661,16 @@ MemN2N persona memory, add to context_enc and out
 2020-08-14 22:42:29,814 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
 
 **word emb MemN2N
-2020-08-16 00:57:55,731 - INFO - Experiment MemN2N: 
-2020-08-16 00:57:55,731 - INFO - Epoch: 01 | Time: 5m 51s
-2020-08-16 00:57:55,731 - INFO - 	Train Loss: 5.546 | Train PPL: 256.222
-2020-08-16 00:57:55,731 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+2020-08-17 23:00:49,687 - INFO - Experiment MemN2N: 
+2020-08-17 23:00:49,688 - INFO - Epoch: 01 | Time: 6m 8s
+2020-08-17 23:00:49,688 - INFO - 	Train Loss: 5.541 | Train PPL: 254.968
+2020-08-17 23:00:49,688 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+    ADD pos enc to input post_query, % why this is worse?
+    2020-08-17 23:25:53,077 - INFO - Experiment MemN2N: 
+    2020-08-17 23:25:53,077 - INFO - Epoch: 01 | Time: 6m 9s
+    2020-08-17 23:25:53,078 - INFO - 	Train Loss: 5.560 | Train PPL: 259.709
+    2020-08-17 23:25:53,078 - INFO - 	 Val. Loss: 0.000 |  Val. PPL:   1.000
+% still need to run evaler
 
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------

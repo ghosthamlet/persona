@@ -25,7 +25,7 @@
 \AtBeginDvi{\input{zhwinfonts}}
 
 % all custom newcommand should begin with prefix: K
-\newcommand{\KModelName}{UCC模型}
+\newcommand{\KModelName}{RAR模型}
 \newcommand{\KFactorNoused}{\underline{时间、对话环境、对方地点、发言者地点}}
 
 \frenchspacing  %Required
@@ -36,7 +36,7 @@
 \begin{document}
 \begin{CJK*}{UTF8}{gbsn}
 
-\title{更像人而不是更智能：对话系统的统一}
+\title{开放领域个性化对话Transformer模型的改进}
 \author{Jing Bo Hu, Qiang Han \& Hua Wei Liu \\
 HuggingFace  Inc.\\
 {\tt \{hu,gvvvv,liu\}@163.com} \\}
@@ -47,4 +47,4 @@ HuggingFace  Inc.\\
 \end{abstract}
 
 \section{简介} 
-本论文主要分析Transformer模型近几年来的一些速度和性能上的改进方法，其在专用模型上的运用，这里研究的专用模型是指个性感知的开放领域对话模型，针对的数据集是多轮短对话，单个输入系列总长度不超过90个字，因此Transformer模型在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
+本论文主要分析Transformer模型近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话模型，针对的数据集是多轮短对话，单个输入系列总长度不超过90个字，因此Transformer模型在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。

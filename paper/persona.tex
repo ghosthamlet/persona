@@ -8,6 +8,8 @@
 \usepackage{graphicx}  %Required
 \usepackage{natbib}
 \usepackage{hyperref}       % hyperlinks
+% https://mirrors.tuna.tsinghua.edu.cn/CTAN/macros/latex/contrib/hyperref/doc/backref.pdf
+\usepackage[hyperpageref]{backref}
 
 \usepackage{amsmath}
 \usepackage{IEEEtrantools}
@@ -43,22 +45,15 @@ HuggingFace  Inc.\\
 本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过90个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
 \end{abstract}
 
-\section[Introduction]{背景} 
+\section[Background]{背景} 
 自然语言处理(NLP)领域的革命从注意力机制\citeext{Bahdanau2015}的奠基，Transformer架构\citeext{Vaswani2017}点燃了导火索，到BERT模型\citeext{Devlin2019}正式拉开革命帷幕，以简单的注意力机制模型取代了曾经是NLP主流的相对复杂的RNN系列模型，并在模型性能、扩展性以及速度上都取得了极大的提升，４年间完全改变了NLP领域，造就了NLP领域的ImageNet时刻\citeext{ruder2018nlpimagenet}。
 
 开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2和GPT-3模型\citeext{Radford2019, Brown2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
 
-GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类通用模型需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配。而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集persona-chat\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{zheng2019}。
+GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类通用模型需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配（尽管有DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}}，DistilBERT\citeext{Sanh2019}对通用模型的优化，但其性能也相应下降）。
+而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集PERSONA-CHAT\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{zheng2019}。
 
 本论文即对开放领域个性化对话生成专用模型\citeext{zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试，实验的源代码已经开源\footnote{\url{https://github.com/ghosthamlet/persona}}。后文如无指定说明，涉及的对话生成一律为开放领域个性化对话生成。
-
-@article{ruder2018nlpimagenet,
-author = {Ruder, Sebastian}
-title = {NLP's ImageNet moment has arrived},
-journal = {The Gradient},
-year = {2018},
-howpublished = {\url{https://thegradient.pub/nlp-imagenet/ } },
-}
 
 \section[Related Works]{相关研究} 
 

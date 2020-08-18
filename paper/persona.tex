@@ -58,9 +58,9 @@ HuggingFace  Inc.\\
 
 开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2和GPT-3模型\citeext{Radford2019, Brown2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
 
-GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，因此其需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配。而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}虽然在个性化对话数据集persona-chat\citeext{Zhang2018}上表现不错，但也仍然不如专用模型\citeext{zheng2019}。
+GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类通用模型需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配。而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集persona-chat\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{zheng2019}。
 
-本论文即对开放领域个性化对话生成专用模型\citeext{zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试。
+本论文即对开放领域个性化对话生成专用模型\citeext{zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试。后文如无指定说明，涉及的对话生成一律为开放领域个性化对话生成。
 
 \section{相关研究} 
 
@@ -73,6 +73,7 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 \section{消融研究} 
 
 \section{结论} 
+揭示预训练在大规模标记数据和专用模型上的适用问题。
 
 \bibliographystyle{plain}
 \bibliography{./persona.bib}

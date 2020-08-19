@@ -36,9 +36,11 @@
 \begin{CJK*}{UTF8}{gbsn}
 
 \title{开放领域个性化对话生成专用模型的改进}
-\author{Jing Bo Hu, Qiang Han \& Hua Wei Liu \\
-HuggingFace  Inc.\\
-{\tt \{hu,gvvvv,liu\}@163.com} \\}
+\author{胡俊波，韩强，刘华伟 \\
+杭州高登影视公司\\
+% \author{Jing Bo Hu, Qiang Han~\& Hua Wei Liu \\
+% HuggingFace  Inc.\\
+{\tt \{hjb,gvvvv,lhw\}@163.com} \\}
 
 \maketitle
 \begin{abstract}
@@ -48,9 +50,9 @@ HuggingFace  Inc.\\
 \section[Background]{背景} 
 NLP(自然语言处理)领域的革命从注意力机制\citeext{Bahdanau2015}的奠基，Transformer架构\citeext{Vaswani2017}点燃了导火索，到BERT模型\citeext{Devlin2019}正式拉开革命帷幕，以简单的纯注意力机制架构取代了曾经是NLP主流的相对复杂的RNN架构系列模型，并在模型性能、扩展性以及速度上都取得了极大的提升，４年间全面改变了NLP领域，造就了NLP领域的ImageNet时刻\citeext{ruder2018nlpimagenet}。
 
-开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2和GPT-3模型\citeext{Radford2019, Brown2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
+开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2、GPT-3模型和Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
 
-GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类通用模型需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配（尽管有DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}}，DistilBERT\citeext{Sanh2019}对通用模型的优化，但其性能也相应下降）。
+GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类模型通常需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配（尽管有DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}}，DistilBERT\citeext{Sanh2019}对通用模型的优化，但其性能也相应下降）。
 而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集PERSONA-CHAT\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{Zheng2019}。
 
 本论文即对开放领域个性化对话生成专用模型\citeext{Zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试，实验的源代码已经开源\footnote{\url{https://github.com/ghosthamlet/persona}}。后文简称开放领域个性化对话生成为个性化对话生成。
@@ -91,7 +93,20 @@ $L_D(\phi)$是对话生成Loss，$L_{LM}(\phi)$是语言模型Loss，$L_W(\theta
 L(\phi) = L_D(\phi) + L_{LM}(\phi)
 \end{equation}
 
+更为详尽的描述请查看原论文\citeext{Zheng2019}。\\
+
 AR+模型在保留AR模型整体结构基础上，引入了以下改进：
+
+1. ReZero\citeext{Bachlechner2020}，
+
+2. ALBERT\citeext{Lan2019}, 
+
+3. Factor FF, 
+
+4. MemN2N\citeext{Sukhbaatar2015}, 
+
+5. BART MLM\citeext{Lewis2019},
+
 
 
 \section[Experiments]{实验} 

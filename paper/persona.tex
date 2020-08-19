@@ -67,8 +67,29 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 我们选用Transformer架构的Attention Routing模型\citeext{Zheng2019}作为研究对象，是基于其模型的简单性及高效，并且未偏离原生Transformer架构太远，因而能够对其运用大多数原生Transformer架构的改进。另外我们使用的数据集是PersonalDialog，但由于资源有限暂无法利用其完整的数百万数据，训练与评测只在随机分别取出的10万会话上进行。全数据集的训练与评测留待将来研究。后文简称Attention Routing模型为AR模型，我们改进的模型称为AR+模型。
 
 \section[Model]{模型} 
-AR模型为Encoder Decoder结构，类型于Transformer架构的完整版\citeext{Vaswani2017}，不同点是：
+AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
 
+1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性拼接为另一个字符串输入Encoder。
+
+2. 模型架构方面，Decoder只有一个attention模块，即attention routing模型，回复字符串输入Decoder分别Attend到自身Attention为$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
+\begin{equation}
+O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}    
+\end{equation}
+
+权重$a$由一个监督的Dynamic Weight Predictor子网络控制，此Predictor需要额外的监督学习，所以在我们的研究中暂不考虑，直接设置权重为1：
+\begin{equation}
+O_{merge} = O_T + O_C + O_{prev}    
+\end{equation}
+
+3. 训练方面，采用了多任务方式，在对话生成任务外，增加了语言模型任务，Loss如下：
+\begin{equation}
+L(\phi, \theta) = L_D(\phi) + \lambda_1L_{LM}(\phi) + \lambda_2L_W(\theta)
+\end{equation}
+
+$L_D(\phi)$是对话生成Loss，$L_{LM}(\phi)$是语言模型Loss，$L_W(\theta)$是Predictor的Loss，这里不考虑，所以Loss是：
+\begin{equation}
+L(\phi) = L_D(\phi) + L_{LM}(\phi)
+\end{equation}
 
 AR+模型在保留AR模型整体结构基础上，引入了以下改进：
 

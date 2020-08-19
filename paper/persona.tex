@@ -83,12 +83,12 @@ O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}
 O_{merge} = O_T + O_C + O_{prev}    
 \end{equation}
 
-3. 训练方面，采用了多任务方式，在对话生成任务外，增加了语言模型任务，Loss如下：
+3. 训练方面，采用了多任务方式，在对话生成任务外，增加了语言模型任务，计算都是用CrossEntropy，Loss如下：
 \begin{equation}
 L(\phi, \theta) = L_D(\phi) + \lambda_1L_{LM}(\phi) + \lambda_2L_W(\theta)
 \end{equation}
 
-$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，\\$L_W(\theta)$是Predictor的Loss，这里不考虑，所以Loss是：
+$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，\\$L_W(\theta)$是Predictor的Loss，这里不予考虑，所以Loss是：
 \begin{equation}
 L(\phi) = L_D(\phi) + \lambda_1L_{LM}(\phi)
 \end{equation}
@@ -114,7 +114,7 @@ $O_{output}$是残余连接的输出，$E_{prev}$是上层输出，$b$是固定A
 5. BART MLM\citeext{Lewis2019}方法，BART论文中表明Mask语言模型性能多数情况下比回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
 
 \section[Experiments]{实验} 
-我们研究的是不同方法的优化效果，因此实验中不包含常规的预训练。AR+模型的超参数如下：
+AR+模型的超参数如下：
 
 字分割的词汇大小为9489，嵌入维度为200，使用PersonalDialog完整数据集预训练嵌入，词分割的个性词汇大小为10004，个性嵌入维度与模型隐藏维度相同为512，Transformer层数为6，Attention头为8，全连接维度为2048，dropout为0.1。
 批大小为64，Epoch为3，优化器为AdamW(使用Transformers类库correct bias的\\AdamW\footnote{\url{https://github.com/huggingface/transformers/}})，通过lr finder\citeext{Smith2015}(类库\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}})发现学习率可为0.2e-2，权重衰退为0.05，clip grad为1，
@@ -127,6 +127,9 @@ PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,
 
 发言普遍是短句，平均长度为15个字，所以发言长度限定为最长15个字，上下文限定为最大3轮，加上问话，上下文输入最长为$15*(2*3+1)=105$个字，回复长度同样限定15个字，个性包括性别、地址、兴趣，兴趣可包含多项。
 
+\subsection[Training]{训练}
+我们研究的是不同方法的优化效果，因此实验中如无说明均不包含预训练。
+
 \subsection[Evaluation]{评测} 
 我们只分析了自动度量，度量方法包括：1. BLEU\citeext{Papineni2002}，2. F1，3. PPL(Perplexity)，4. Dist.(Distinct)\citeext{Li2016}。人工评估留待将来研究。
 
@@ -135,8 +138,27 @@ AR+模型在不同度量指标上均优于AR模型，具体数据见表：。
 
 
 \subsection[Ineffective Methods]{无效方法} 
+% an alternative lightweight fine-tuning strategy that achieves on-par performance to full fine-tuning. They consist of a small set of additional newly initialized weights at every layer of the transformer. These weights are then trained during fine-tuning, while the pre-trained parameters of the large model are kept frozen/fixed. 
+1. Adapters\citeext{Houlsby2019}，替代微调整个模型的轻量级微调策略，微调时冻结全部预训练的参数，在Transformer层之间嵌入新的全连接层，只更新这些新层的权重。可能由于预训练数据及时间不够充分，Adapters这种方法运用在AR+上后Loss太大无法完成微调。
 
-揭示预训练在大规模标记数据和专用模型上的适用问题。
+2. 预训练特征\citeext{Devlin2019}，AR+模型的嵌入部分用预训练ALBERT\citeext{Lan2019}/ELECTRA\citeext{Clark2020}的特征替换，Loss改进十分有限甚至更差，我们还试验了特征＋嵌入、特征替换Encoder、不同层的特征、不同层特征的合并、不同大小的模型，结果也相差不大。
+
+3. 预训练权重初始化\citeext{Ziegler2019}，用预训练ALBERT/ELECTRA的权重初始化AR+模型的权重，Loss改进也很有限有时更差，我们还试验了取消Encoder和Decoder共享让Encoder或Decoder单独初始化、取消层共享用预训练模型相应的层初始化、不同大小的模型，结果也相差不大。
+
+2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT和XLNet的预训练模型，效果也没多大变化，我们猜想可能是因为这些都是BERT分支的预训练模型，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型。
+
+我们使用的是Transformers类库\citeext{Wolf2019HuggingFacesTS}中的中文预训练模型。
+
+另外在某些情况下预训练其实不一定有必要，首先我们看看预训练本来的目的：
+
+1. 通用模型预训练之后，可用来微调不同的任务，达到重复利用的目的。
+
+2. 标记数据不够大的情况下，预训练可以提高性能，并缩短微调时间。
+
+如果标记数据集足够大，达到500万以上，模型是专用的模型，这时如果有现成预训练过的通用模型，自然可以达到2的目的，
+如果没有现成的预训练模型，自己对专用模型预训练就显得不必要，首先无法实现1的目的，其次2的目的也未必能达到，毕竟有大规模的
+标记数据，用和预训练+微调同样甚至更短的时间从头训练，得到的性能也许相差无几。
+
 
 \section[Ablation Study]{消融研究} 
 我们依次去除５项优化中的每一项进行消融研究，和完整AR+模型对比后，可以看到这些优化分别在减少计算量、模型尺寸、显存消耗和提高性能某一个或多个方面产生了优良的效果，同时并没有对其他方面造成过多负面影响，具体数据见图表：。

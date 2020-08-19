@@ -145,6 +145,8 @@ class ChatDataProcesser:
                         parse_gender(persona1['gender']) + parse_loc(persona1['loc']),
                         parse_gender(persona2['gender']) + parse_loc(persona2['loc']),
                         ]
+
+                # TODO: limit tags count
                 if self.persona_vocab is not None:
                     tags = [
                             (persona1['tag'][0] or UNK).split(';'),

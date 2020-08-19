@@ -88,7 +88,7 @@ O_{merge} = O_T + O_C + O_{prev}
 L(\phi, \theta) = L_D(\phi) + \lambda_1L_{LM}(\phi) + \lambda_2L_W(\theta)
 \end{equation}
 
-$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，$L_W(\theta)$是Predictor的Loss，这里不考虑，所以Loss是：
+$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，\\$L_W(\theta)$是Predictor的Loss，这里不考虑，所以Loss是：
 \begin{equation}
 L(\phi) = L_D(\phi) + \lambda_1L_{LM}(\phi)
 \end{equation}
@@ -116,7 +116,9 @@ $O_{output}$是残余连接的输出，$E_{prev}$是上层输出，$b$是固定A
 \section[Experiments]{实验} 
 我们研究的是不同方法的优化效果，因此实验中不包含常规的预训练。AR+模型的超参数如下：
 
-字分割的词汇大小为9489，嵌入维度为200，词分割的个性词汇大小为10004，个性嵌入维度与模型隐藏维度相同为512，Transformer层数为6，Attention头为8，全连接维度为2048。通过lr finder\citeext{Smith2015}(类库\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}})发现学习率可为0.2e-2，权重衰退为0.05，clip grad为1，语言模型的$L_{LM}~\lambda_1$为0.5，学习率调度器为ReduceLROnPlateau，其参数分别为：mode min, factor 0.5, min\_lr 1.5e-4, patience 60，MemN2N的参数分别为：hops 3，layer\_share adjacent。
+字分割的词汇大小为9489，嵌入维度为200，词分割的个性词汇大小为10004，个性嵌入维度与模型隐藏维度相同为512，Transformer层数为6，Attention头为8，全连接维度为2048。
+优化器为AdamW(使用Transformers类库correct bias的\\AdamW\footnote{\url{https://github.com/huggingface/transformers/}})，通过lr finder\citeext{Smith2015}(类库\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}})发现学习率可为0.2e-2，权重衰退为0.05，clip grad为1，
+语言模型的$L_{LM}~\lambda_1$为0.5，学习率调度器为ReduceLROnPlateau，其参数分别为：mode min, factor 0.5, min\_lr 1.5e-4, patience 60，MemN2N的参数分别为：hops 3，layer\_share adjacent。
 
 基线为AR模型，参数与AR+一致。
 

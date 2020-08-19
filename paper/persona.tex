@@ -71,9 +71,9 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 \section[Model]{模型} 
 AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
 
-1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性拼接为另一个字符串输入Encoder。
+1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串输入Encoder。
 
-2. 模型架构方面，Decoder只有一个attention模块，即attention routing模型，回复字符串输入Decoder分别Attend到自身Attention为$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
+2. 模型架构方面，Encoder和Decoder共享权重，Decoder只有一个attention模块，即attention routing模型，回复字符串输入Decoder分别Attend到自身Attention为$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
 \begin{equation}
 O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}    
 \end{equation}
@@ -97,16 +97,16 @@ L(\phi) = L_D(\phi) + L_{LM}(\phi)
 
 AR+模型在保留AR模型整体结构基础上，引入了以下改进：
 
-1. ReZero\citeext{Bachlechner2020}，
+% a simple architecture change of gating each residual connection using a single zero-initialized parameter, and removed all norms except the pre norm.
+1. ReZero\citeext{Bachlechner2020}，非常简单的架构修改，使用单个零初始化参数对每个残余连接进行门控，并移除pre norm之外的所有norms。加速模型收敛。
 
-2. ALBERT\citeext{Lan2019}, 
+2. ALBERT\citeext{Lan2019}, 因子分解嵌入层，减小嵌入维度，并使其独立于模型隐藏维度，两者因此能够分开修改；共享Transformer层的权重。减少计算量、模型尺寸及显存消耗。
 
-3. Factor FF, 
+3. Factor FF, 因子分解Transformer层内的两个全连接层。减少计算量、模型尺寸及显存消耗。
 
-4. MemN2N\citeext{Sukhbaatar2015}, 
+4. MemN2N\citeext{Sukhbaatar2015}，回复者个性键值对字符串不存在顺序问题，其嵌入也较简单，没必要用Transformer编码，改为按词分割以独立的内存机制处理性能更好，且减少了计算量。
 
-5. BART MLM\citeext{Lewis2019},
-
+5. BART MLM\citeext{Lewis2019}，BART论文中表明Mask语言模型性能多数情况下比回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
 
 
 \section[Experiments]{实验} 

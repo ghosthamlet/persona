@@ -98,31 +98,47 @@ L(\phi) = L_D(\phi) + L_{LM}(\phi)
 AR+模型在保留AR模型整体结构基础上，引入了以下改进：
 
 % a simple architecture change of gating each residual connection using a single zero-initialized parameter, and removed all norms except the pre norm.
-1. ReZero\citeext{Bachlechner2020}，非常简单的架构修改，使用单个零初始化参数对每个残余连接进行门控，并移除pre norm之外的所有norms。加速模型收敛。AR+模型的处理与ReZero原论文有两个不同之处，a. 原论文没有保留pre norm， b. AR+在残余连接处为Attention~$O_T~O_C$作了Attention固定:
+1. ReZero\citeext{Bachlechner2020}方法，非常简单的架构修改，使用单个零初始化参数对每个残余连接进行门控，并移除pre norm之外的所有norms。加速模型收敛。AR+模型的处理与ReZero原论文有两个不同之处，a. 原论文没有保留pre norm， b. AR+在残余连接处为Attention~$O_T~O_C$作了Attention固定:
 \begin{equation}
 O_{output} = E_{prev} + bO_T + bO_C + d(O_{merge}) * r
 \end{equation}
 
 $O_{output}$是残余连接的输出，$E_{prev}$是上层输出，$b$是固定Attention超参数，默认为0.1，$d(*)$是dropout函数，$r$是零初始化的学习参数。
 
-2. ALBERT\citeext{Lan2019}，因子分解嵌入层，减小嵌入维度，并使其独立于模型隐藏维度，两者因此能够分开修改；共享Transformer层的权重。减少计算量、模型尺寸及显存消耗。
+2. ALBERT\citeext{Lan2019}方法，因子分解嵌入层，减小嵌入维度，并使其独立于模型隐藏维度，两者因此能够分开修改；共享Transformer层的权重。减少计算量、模型尺寸及显存消耗。
 
-3. Factor FF，因子分解Transformer层内的两个全连接层。减少计算量、模型尺寸及显存消耗。
+3. Factor FF方法，因子分解Transformer层内的两个全连接层。减少计算量、模型尺寸及显存消耗。
 
-4. MemN2N\citeext{Sukhbaatar2015}，回复者个性键值对字符串不存在顺序问题，其嵌入也较简单，不需要用Transformer编码，改为按词分割以独立的内存机制处理性能更好，且减少了计算量。
+4. MemN2N\citeext{Sukhbaatar2015}方法，回复者个性键值对字符串不存在顺序问题，其嵌入也较简单，不需要用Transformer编码，改为按词分割以独立的内存机制处理性能更好，且减少了计算量。
 
-5. BART MLM\citeext{Lewis2019}，BART论文中表明Mask语言模型性能多数情况下比回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
+5. BART MLM\citeext{Lewis2019}方法，BART论文中表明Mask语言模型性能多数情况下比回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
 
 
 \section[Experiments]{实验} 
+我们只研究不同方法的优化效果，因此实验中不包含常规的预训练。AR+模型的超参数如下：
+
 \subsection[Datasets]{数据集} 
 
-\section[Ablation Study]{消融研究} 
 
-\section[Conclusion]{结论} 
+\subsection[Evaluation]{评测} 
+我们只做自动度量，度量方法包括：1. BLEU\citeext{Papineni2002}，2. F1，3. PPL(Perplexity)，4. Dist.(Distinct)\citeext{Li2016}。人工评估留待将来研究。
+
+
+\subsection[Result]{结果} 
+AR+模型在不同度量指标上均优于AR模型，具体数据见表：。
+
+
+\subsection[Ineffective Methods]{无效方法} 
+
 揭示预训练在大规模标记数据和专用模型上的适用问题。
 
-\section[Acknowledgement]{致谢}
+\section[Ablation Study]{消融研究} 
+我们依次去除５项优化中的每一项进行消融研究，和完整AR+模型对比后，可以看到这些优化分别在减少计算量、模型尺寸、显存消耗和提高性能某一个或多个方面产生了优良的效果，同时并没有对其他方面造成过多负面影响，具体数据见图表：。
+
+\section[Conclusion]{结论} 
+本论文中对专用个性化对话生成模型运用Transformer架构的各项改进实验表明，即使同是Transformer架构，只要内部结构有所改变，适用于原生架构的优化不一定都适用于新架构。由于我们只使用小模型对PersonalDialog数据集子集进行训练，未来研究中可以扩大模型训练完整数据，以检测本论文提出的五项有效优化在大规模训练中是否依然有效。
+
+% \section[Acknowledgement]{致谢}
 
 \bibliographystyle{plain}
 \bibliography{./persona.bib}

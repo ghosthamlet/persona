@@ -145,9 +145,9 @@ AR+模型在不同度量指标上均优于AR模型，具体数据见表：。
 
 3. 预训练权重初始化\citeext{Ziegler2019}，用预训练ALBERT/ELECTRA的权重初始化AR+模型的权重，Loss改进也很有限有时更差，我们还试验了取消Encoder和Decoder共享让Encoder或Decoder单独初始化、取消层共享用预训练模型相应的层初始化、不同大小的模型，结果也相差不大。
 
-2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT和XLNet的预训练模型，效果也没多大变化，我们猜想可能是因为这些都是BERT分支的预训练模型，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型。
+2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT和XLNet\citeext{Yang2019}的预训练模型，效果也没多大变化，我们猜想可能是因为这些都是BERT分支的预训练模型，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型。
 
-我们使用的是Transformers类库\citeext{Wolf2019HuggingFacesTS}中的中文预训练模型。
+我们使用的中文预训练模型全部来自Transformers类库\citeext{Wolf2019HuggingFacesTS}。
 
 另外在某些情况下预训练其实不一定有必要，首先我们看看预训练本来的目的：
 

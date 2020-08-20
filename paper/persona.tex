@@ -62,7 +62,7 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 
 早期的对话生成基本是RNN+注意力机制\citeext{Bahdanau2015}的Seq2Seq模型\citeext{SutskeverGoogle2014}，如复杂的多阶段训练的\citeext{Qian2017}(数据集Personality Assignment)，简单的端到端训练的\citeext{Zheng2019a}(数据集PersonalDialog)等等，也有RNN+内存机制\citeext{Sukhbaatar2015}的Seq2Seq模型，如\citeext{Zhang2018}(数据集PERSONA-CHAT)中的几个基线模型。
 
-随着Transformer架构的兴起，近来大部分模型都已经是Transformer架构原生的通用的或经过更改组合的专用模型，如更改GPT\citeext{Radford2018}的模型\citeext{Tselousov2018}(数据集PERSONA-CHAT)，原生GPT的\citeext{Wolf2019}(数据集PERSONA-CHAT)，加入Attention Routing的\citeext{Zheng2019}(数据集PersonalDialog)，组合GPT和BERT的\citeext{Liu2020}(数据集PERSONA-CHAT)等等。
+随着Transformer架构的兴起，近来大部分模型都已经是Transformer架构原生的通用的或经过更改组合的专用模型，如更改GPT\citeext{Radford2018}的模型\citeext{Tselousov2018}(数据集PERSONA-CHAT)，原生GPT的\citeext{Wolf2019}(数据集PERSONA-CHAT)，加入Attention Routing的\citeext{Zheng2019}(数据集PersonalDialog)，组合GPT和BERT的\citeext{Liu2020}(数据集PERSONA-CHAT)，更改Transformer的\citeext{Roller2020}(数据集主要是PERSONA-CHAT，另外还有其他三个)等等。
 
 此外还有相对少量的利用VAE(Variational AutoEncoder)，RL(Reinforcement Learning)和GAN(Generative Adversarial Network)等等的模型，如CVAE(Conditional VAE)+RNN+内存机制的\citeext{Song2019}(数据集PERSONA-CHAT)，VAE+GRU(RNN)+内存机制＋注意力机制的\citeext{Xu2020}(数据集PERSONA-CHAT)，RL+Transformer的\citeext{Liu2020}(数据集PERSONA-CHAT)等等，GAN相关的模型我们未作研究，在此不做介绍。
 
@@ -147,7 +147,7 @@ AR+模型在不同度量指标上均优于AR模型，具体数据参见表：。
 
 3. 预训练权重初始化\citeext{Ziegler2019}，用预训练ALBERT或ELECTRA的权重初始化AR+模型的权重，Loss改进也很有限有时更差，我们还试验了取消Encoder和Decoder共享让Encoder或Decoder单独初始化、取消层共享用预训练模型相应的层初始化、不同大小的模型，结果也相差不大。
 
-2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT或XLNet\citeext{Yang2019}的预训练模型，效果也没多大变化，我们猜想可能是因为这些都是BERT分支的预训练模型，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型。
+2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT或XLNet\citeext{Yang2019}的预训练模型，效果也没多大变化，我们猜想可能是因为a. 这些都是BERT分支的预训练模型适合做各种分类、提取式知识问答和回归等任务，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型，b. 这些预训练模型的训练数据是普通的网页或文章内容，与微调的对话数据相差比较大，所以能产生的正面效果非常有限。
 
 我们使用的中文预训练模型全部来自Transformers类库\citeext{Wolf2019HuggingFacesTS}。
 

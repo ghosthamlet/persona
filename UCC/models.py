@@ -367,11 +367,13 @@ class AR(nn.Module):
 
         post_encoder = modules.TransformerEncoder(input_dim, args.d_model, args.d_ff, 
                 args.n_head, args.num_layers, args.num_groups, args.dropout,
-                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff)
+                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff,
+                args.use_rezero)
 
         resp_decoder_layer = modules.TransformerDecoderLayer(args.d_model, args.n_head, 
                 args.attn_alpha, args.d_ff, args.dropout, 
-                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff)
+                'relu', args.factor_ff, args.adapter_finetune, args.adapter_d_ff,
+                args.use_rezero, args.auxiliary_task)
         resp_decoder = modules.TransformerDecoder(resp_decoder_layer, args.num_layers, args.num_groups)
         generater = modules.Generater(args.emb_dim, args.d_model, output_dim)
 

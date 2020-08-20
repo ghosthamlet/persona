@@ -131,7 +131,8 @@ class ChatDataProcesser:
             yield (icontext, list(itertools.chain(*isegs)), 
                     ipersonas_no_tag, itags, 
                     iresp, list(itertools.chain(*ipersona)), 
-                    icontext + iresp)
+                    # icontext + iresp)
+                    iresp)
 
 
 class LMDataProcesser:

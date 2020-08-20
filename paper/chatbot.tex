@@ -696,7 +696,7 @@ No pretrain, train all 4 epochs:
 
 AR+
 params: 31,247,409
-MEM: 5500M
+MEM: 5600M
 Time(include valid) 
 2020-08-20 15:08:56,990 - INFO - Epoch: 03 | Time: 6m 31s
 2020-08-20 15:08:56,990 - INFO - 	Train Loss: 4.697 | Train PPL: 109.652
@@ -706,8 +706,17 @@ Bleu: 0.00467425 | F1: 0.00023434 | Dist1: 0.845 | Dist2: 0.791 | PPL: 118.218
 
 AR:
 params: 30,081,024
-MEM: 9930M
+MEM: 7350
 Time(include valid) 
+2020-08-20 16:07:29,787 - INFO - Epoch: 02 | Time: 9m 0s
+2020-08-20 16:07:29,787 - INFO - 	Train Loss: 8.920 | Train PPL: 7480.959
+2020-08-20 16:07:29,787 - INFO - 	 Val. Loss: 8.945 |  Val. PPL: 7670.314
+2020-08-20 16:16:30,131 - INFO - Epoch: 03 | Time: 9m 0s
+2020-08-20 16:16:30,131 - INFO - 	Train Loss: 8.826 | Train PPL: 6812.081
+2020-08-20 16:16:30,131 - INFO - 	 Val. Loss: 9.480 |  Val. PPL: 13098.533
+2020-08-20 16:17:05,679 - INFO - | Test Loss: 9.468 | Test PPL: 12944.998 |
+Bleu: 0.00000000 | F1: 0.00009873 | Dist1: 0.978 | Dist2: 0.632 | PPL: 7583.995
+% as 3ed epoch valid loss is worse, we saved epoch2 checkpoint
 
 
 exclude #1:

@@ -347,18 +347,18 @@ class TransformerEncoder(nn.Module):
         factor_ff,
         adapter_finetune, 
         adapter_d_ff,
+        use_rezero=True,
         norm=None
     ):
         super().__init__()
         self.num_layers = num_layers
 
-        use_rezero = True
         # TODO: move out layer define
         if use_rezero:
             encoder_layer = RZTXEncoderLayer(emb_dim, n_head, n_hid, dropout,
                    attn_act, factor_ff, adapter_finetune, adapter_d_ff)
         else:
-            encoder_layer = nn.TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
+            encoder_layer = TransformerEncoderLayer(emb_dim, n_head, n_hid, dropout)
 
         layers_in_group = num_layers // num_groups
         self.num_groups = num_groups
@@ -379,6 +379,39 @@ class TransformerEncoder(nn.Module):
 
         return output
 
+ 
+class TransformerEncoderLayer(nn.Module):
+    r"""Derived from torch.nn.TransformerEncoderLayer
+    """
+
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+        super(TransformerEncoderLayer, self).__init__()
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        # Implementation of Feedforward model
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+
+        self.activation = nn.modules.transformer._get_activation_fn(activation)
+
+    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+        src = self.norm2(src)
+        src2 = self.self_attn(src, src, src, attn_mask=src_mask,
+                              key_padding_mask=src_key_padding_mask)[0]
+        src = src + self.dropout1(src2)
+        src = self.norm1(src)
+        if hasattr(self, "activation"):
+            src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
+        else:  # for backward compatibility
+            src2 = self.linear2(self.dropout(F.relu(self.linear1(src))))
+        src = src + self.dropout2(src2)
+        return src
+
 
 class TransformerDecoderLayer(nn.Module):
     r"""Derived from torch.nn.TransformerDecoderLayer
@@ -386,11 +419,15 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, attn_alpha,
             dim_feedforward=2048, dropout=0.1, activation="relu",
-            factor_ff=False, adapter_finetune=False, adapter_d_ff=2048):
+            factor_ff=False, adapter_finetune=False, adapter_d_ff=2048,
+            use_rezero=True, auxiliary_task='MLM'):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.factor_ff = factor_ff
+        self.use_rezero = use_rezero
+        self.auxiliary_task = auxiliary_task
+
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
            #self.linear1 = nn.Linear(d_model, in_ff)
@@ -442,8 +479,7 @@ class TransformerDecoderLayer(nn.Module):
             persona_pad_mask=None):
         tgt = self.pre_norm(tgt)
 
-        use_rezero = True
-        if use_rezero:
+        if self.use_rezero:
             attn_t = 0
             attn_c = 0
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
@@ -484,8 +520,7 @@ class TransformerDecoderLayer(nn.Module):
                 src2 = self.ada_linear2(self.ada_dropout1(self.activation(self.ada_linear1(src2))))
                 src2 = src2 * self.resweight
                 src = tgt + self.ada_dropout2(src2)
-        elif True:
-            # must start with small lr 1.5e-4
+        elif self.auxiliary_task == 'MLM':
             attn_t = 0
             attn_c = 0
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
@@ -508,9 +543,35 @@ class TransformerDecoderLayer(nn.Module):
                 attn_merge = tgt + a*attn_c + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
  
-            tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
-            tgt = attn_merge + self.dropout2(tgt2)
-            tgt = self.norm2(tgt)
+            if self.factor_ff:
+                tgt2 = self.dropout1(self.fac_linear1(self.activation(self.linear1(attn_merge))))
+                tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt2))))
+                tgt = attn_merge + self.dropout2(tgt2)
+            else:
+                tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+                tgt = attn_merge + self.dropout2(tgt2)
+        elif True:
+            attn_t = 0
+            attn_c = 0
+            attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
+                                  key_padding_mask=tgt_key_padding_mask)[0]
+            if persona is not None and memory is not None:
+                attn_t = self.multihead_attn(tgt, persona, persona, 
+                        key_padding_mask=persona_pad_mask)[0]
+                attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
+                        key_padding_mask=memory_key_padding_mask)[0]
+            alpha = self.cls(memory) if self.attn_alpha is None else self.attn_alpha 
+            attn_merge = alpha*attn_t + (1-alpha)*attn_c + attn_c + attn_prev
+            attn_merge = tgt + self.dropout(attn_merge)
+            attn_merge = self.norm1(attn_merge)
+
+            if self.factor_ff:
+                tgt2 = self.dropout1(self.fac_linear1(self.activation(self.linear1(attn_merge))))
+                tgt2 = self.linear2(self.dropout1(self.activation(self.fac_linear2(tgt2))))
+                tgt = attn_merge + self.dropout2(tgt2)
+            else:
+                tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
+                tgt = attn_merge + self.dropout2(tgt2) 
         else:
             # this can start with large lr 0.05
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
@@ -528,7 +589,6 @@ class TransformerDecoderLayer(nn.Module):
  
             tgt2 = self.linear2(self.dropout1(self.activation(self.linear1(attn_merge))))
             tgt = attn_merge + self.dropout2(tgt2)
-            tgt = self.norm2(tgt)
 
         return tgt, alpha
 

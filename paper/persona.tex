@@ -53,7 +53,7 @@ NLP(自然语言处理)领域的革命从注意力机制\citeext{Bahdanau2015}�
 开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2、GPT-3模型和Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
 
 GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类模型通常需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配（尽管有DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}}，DistilBERT\citeext{Sanh2019}对通用模型的优化，但其性能也相应下降）。
-而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集PERSONA-CHAT\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{Zheng2019}。
+而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集PERSONA-CHAT\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{Zheng2019}。GPT-3只有Beta API，无需微调，用提示编程方式前置个性字符串即可，但我们没有取得测试权限，无法对比性能。
 
 本论文即对开放领域个性化对话生成专用模型\citeext{Zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试，实验的源代码已经开源\footnote{\url{https://github.com/ghosthamlet/persona}}。后文简称开放领域个性化对话生成为个性化对话生成。
 
@@ -131,7 +131,7 @@ PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,
 我们研究的是不同方法的优化效果，因此实验中如无说明均不包含预训练。
 
 \subsection[Evaluation]{评测} 
-我们只分析了自动度量，度量方法包括：1. BLEU\citeext{Papineni2002}，2. F1，3. PPL(Perplexity)，4. Dist.(Distinct)\citeext{Li2016}。人工评估留待将来研究。
+我们只分析了自动度量，度量方法包括：1. BLEU\citeext{Papineni2002}，2. F1，3. PPL(Perplexity)，4. Dist.(Distinct)\citeext{Li2016}，以及训练速度、显存消耗和模型尺寸。人工评估留待将来研究。
 
 \subsection[Result]{结果} 
 AR+模型在不同度量指标上均优于AR模型，具体数据参见表：。

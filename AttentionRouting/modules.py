@@ -197,18 +197,9 @@ class TransformerDecoderLayer(nn.Module):
             tgt_mask=None, memory_mask=None,
             tgt_key_padding_mask=None, memory_key_padding_mask=None,
             persona_pad_mask=None):
-       #tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
-       #                      key_padding_mask=tgt_key_padding_mask)[0]
-       #tgt = tgt + self.dropout1(tgt2)
-       #tgt = self.norm1(tgt)
-       #tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
-       #                           key_padding_mask=memory_key_padding_mask)[0]
-       #tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
-        # attn_prev = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
         if True:
-            # must start with small lr 1.5e-4
             attn_t = 0
             attn_c = 0
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
@@ -223,7 +214,6 @@ class TransformerDecoderLayer(nn.Module):
             attn_merge = tgt + self.dropout(attn_merge)
             attn_merge = self.norm1(attn_merge)
         else:
-            # this can start with large lr 0.05
             attn_prev = self.multihead_attn(tgt, tgt, tgt, attn_mask=tgt_mask,
                                   key_padding_mask=tgt_key_padding_mask)[0]
             attn_prev = tgt + self.dropout1(attn_prev)
@@ -253,16 +243,16 @@ class TransformerDecoder(nn.Module):
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, tgt, memory=None, profiles=None, 
+    def forward(self, tgt, memory=None, persona=None, 
             memory_mask=None, memory_key_padding_mask=None,
             tgt_mask=None, tgt_key_padding_mask=None,
             persona_pad_mask=None):
-        """Train language model When memory and profiles is None"""
+        """Train language model When memory and persona is None"""
         output = tgt
 
         for i in range(self.num_layers):
             output, alpha = self.layers[i](output, memory, tgt_mask=tgt_mask,
-                                    memory_mask=memory_mask, persona=profiles,
+                                    memory_mask=memory_mask, persona=persona,
                                     tgt_key_padding_mask=tgt_key_padding_mask,
                                     memory_key_padding_mask=memory_key_padding_mask,
                                     persona_pad_mask=persona_pad_mask)

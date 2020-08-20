@@ -57,6 +57,8 @@ class Trainer:
 
         self.ensure_deps()
 
+        self.grad_util = utils.Grads()
+
         self.logger.info('Build vocab and embeddings...')
         self.pretrain_feature_model = None
         self.tokenizer = None
@@ -389,6 +391,8 @@ class Trainer:
         test_loss = self.eval(self.test_iter)
         self.logger.info(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
+        self.grad_util.plot()
+
     def train_lm(self, epoch):
         self.model.train()
 
@@ -448,6 +452,8 @@ class Trainer:
 
             if self.args.clip_grad is not None:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+
+            self.grad_util.collect(self.model)
 
             if (batch_idx + 1) % self.args.gradient_accumulation == 0:
                 self.optimizer.step()

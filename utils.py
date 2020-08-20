@@ -1,5 +1,6 @@
 
 import os
+import json
 import math
 import random
 import time
@@ -610,4 +611,48 @@ def create_logger(log_path, name):
     logger.addHandler(console)
 
     return logger
-     
+
+
+class Grads:
+    def __init__(self):
+        self.grads = {}
+
+    def collect(self, model):
+        for param_name, param in model.named_parameters():
+            if param.requires_grad:
+                if param_name not in self.grads:
+                    self.grads[param_name] = dict(
+                        max=[],
+                        min=[],
+                        mean=[],
+                        # weight_mean=[],
+                    )
+                if param.grad is None:
+                    print('------------------')
+                    print('%s no grad' % param_name)
+                    continue
+                self.grads[param_name]['max'].append(param.grad.max().item())
+                self.grads[param_name]['min'].append(param.grad.min().item())
+                self.grads[param_name]['mean'].append(param.grad.mean().item())
+                # self.grads[param_name]['weight_mean'].append(param.mean().item())
+                # https://nbviewer.jupyter.org/github/tbachlechner/ReZero-examples/blob/master/ReZero-Deep_Fast_Transformer.ipynb
+               #if len(param.grad.shape) == 2:
+               #    v, d, u = torch.svd(param.grad)
+               #    self.grads[param_name]['svd'].extend(d.tolist())
+
+    def plot(self):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        matplotlib.use('WebAgg') 
+        fig, axs = plt.subplots(3, 1)
+        fig.set_figheight(30)
+
+        json.dump(self.grads, open('./grads.json', 'w'))
+
+        for param_name, stats in self.grads.items():
+            for i, (s, params) in enumerate(stats.items()):
+                axs[i].set_title(s)
+                axs[i].plot(range(len(params)), params, label=param_name + ' ' + s)
+                axs[i].legend(fontsize='small')
+
+        plt.show()

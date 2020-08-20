@@ -14,7 +14,8 @@ batch_size: 64
 # for LM
 #batch_size: 1280
 #limit_example_length: 1000000
-limit_example_length: 100000
+#limit_example_length: 100000
+limit_example_length: 10000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2

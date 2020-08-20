@@ -35,6 +35,8 @@ class Trainer:
 
         self.ensure_deps()
 
+        self.grad_util = utils.Grads()
+
         self.logger = utils.create_logger(self.args.log_path, 'trainer')
 
         print('Build vocab and embeddings...')
@@ -251,6 +253,8 @@ class Trainer:
         test_loss = self.eval(self.test_iter)
         self.logger.info(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
+        self.grad_util.plot()
+
     def train_lm(self, epoch):
         self.model.train()
 
@@ -266,7 +270,7 @@ class Trainer:
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
             self.optimizer.step()
 
             iloss = loss.item()
@@ -298,7 +302,9 @@ class Trainer:
             # utils.print_backward_graph(loss)
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
+            self.grad_util.collect(self.model)
+
             self.optimizer.step()
 
             iloss = loss.item()

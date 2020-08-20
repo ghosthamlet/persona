@@ -36,12 +36,7 @@ class ChatDataProcesser:
 
     def get_examples(self, path, mode):
         file_path = os.path.join(path, mode + '.txt')
-        char_emb = True
-        if char_emb:
-            parse_loc = lambda x: x != '' and x or UNK
-        else:
-            # prefer city to province, as city can infer province, inverse can't
-            parse_loc = lambda x: x != '' and x.split()[-1] or UNK
+        parse_loc = lambda x: x != '' and x or UNK
         parse_gender = lambda x: '男' if x == 'male' else '女'
 
         with open(file_path) as f:
@@ -94,7 +89,6 @@ class ChatDataProcesser:
         examples,
         mode
     ):
-        char_emb = True
         for context, personas_no_tag, tags, resp, persona in examples:
             icontext = [[vocab.stoi(k) for k in post[:self.max_seq_length]] 
                         + [vocab.stoi(SEP)]
@@ -105,27 +99,24 @@ class ChatDataProcesser:
                     for i in range(0, l, 2)]
             iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
                     for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            if char_emb:
-                ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), personas_no_tag))
-                itags = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), tags))
-                ipersona = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), persona))
-            else:
-                ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
-                itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
-                ipersona = list(map(lambda x: list(map(vocab.stoi, x)), persona))
-          # print()
-          # print('context:')
-          # print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
-          # print('segs:')
-          # print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
-          # print('personas_no_tag:')
-          # print([vocab.itos(v) for v in ipersonas_no_tag[0]])
-          # print([vocab.itos(v) for v in ipersonas_no_tag[1]])
-          # print('tags:')
-          # print([vocab.itos(v) for v in itags[0]])
-          # print([vocab.itos(v) for v in itags[1]])
-          # print('resp:')
-          # print([vocab.itos(v) for v in iresp])
+            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), personas_no_tag))
+            itags = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), tags))
+            ipersona = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), persona))
+           #print()
+           #print('context:')
+           #print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
+           #print('segs:')
+           #print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
+           #print('personas_no_tag:')
+           #print([vocab.itos(v) for v in ipersonas_no_tag[0]])
+           #print([vocab.itos(v) for v in ipersonas_no_tag[1]])
+           #print('tags:')
+           #print([vocab.itos(v) for v in itags[0]])
+           #print([vocab.itos(v) for v in itags[1]])
+           #print('resp:')
+           #print([vocab.itos(v) for v in iresp])
+           #print('ipersona:')
+           #print([vocab.itos(v) for v in itertools.chain(*ipersona)])
 
             icontext = list(itertools.chain(*icontext))
             yield (icontext, list(itertools.chain(*isegs)), 
@@ -148,18 +139,12 @@ class LMDataProcesser:
         file_path = os.path.join(path, mode + '.txt')
         seq_length = self.max_seq_length
         limit_length = self.limit_length
-        char_emb = True
 
         with open(file_path) as f:
             datas = f.read()
-        if char_emb:
-            if limit_length is not None:
-                datas = datas[:limit_length*seq_length]
-            datas = list(datas)
-        else:
-            datas = datas.split()
-            if limit_length is not None:
-                datas = datas[:limit_length*seq_length]
+        if limit_length is not None:
+            datas = datas[:limit_length*seq_length]
+        datas = list(datas)
         l = len(datas)
 
         # self.max_seq_length-1 for every seq start with prev seq end char
@@ -224,7 +209,6 @@ class ChatFeature:
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
 def generate_batch(batch, pad_idx):
     context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
-    char_emb = True
 
     fn = lambda x: list(map(torch.tensor, x)) 
     context_pad = pad_sequence(fn(context), padding_value=pad_idx)
@@ -238,14 +222,11 @@ def generate_batch(batch, pad_idx):
     tgt_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
     persona_pad = pad_sequence(fn(persona), padding_value=pad_idx)
     persona_pad_mask = (persona_pad == pad_idx).T
-    if char_emb:
-        # batch_size X n_persona X 2 
-        tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=pad_idx),
-                personas_no_tag))
-        # n_persona X batch_size X 2 --> 2 X n_persona X batch_size
-        personas_no_tag_pad = pad_sequence(tmp, padding_value=pad_idx).permute(2, 0, 1) 
-    else:
-        personas_no_tag_pad = torch.tensor(personas_no_tag).permute(1, 2, 0)
+    # batch_size X n_persona X 2 
+    tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=pad_idx),
+            personas_no_tag))
+    # n_persona X batch_size X 2 --> 2 X n_persona X batch_size
+    personas_no_tag_pad = pad_sequence(tmp, padding_value=pad_idx).permute(2, 0, 1) 
 
     lm = generate_lm_batch(lm, pad_idx, in_chat=True)
 

@@ -66,7 +66,7 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 
 此外还有相对少量的利用VAE(Variational AutoEncoder)，RL(Reinforcement Learning)和GAN(Generative Adversarial Network)等等的模型，如CVAE(Conditional VAE)+RNN+内存机制的\citeext{Song2019}(数据集PERSONA-CHAT)，VAE+GRU(RNN)+内存机制＋注意力机制的\citeext{Xu2020}(数据集PERSONA-CHAT)，RL+Transformer的\citeext{Liu2020}(数据集PERSONA-CHAT)等等，GAN相关的模型我们未作研究，在此不做介绍。
 
-我们选用Transformer架构的Attention Routing模型\citeext{Zheng2019}作为研究对象，是基于其模型的简单性及高效，并且未偏离原生Transformer架构太远，因而能够对其运用大多数原生Transformer架构的改进。另外我们使用的数据集是PersonalDialog，但由于资源有限暂无法利用其完整的数百万数据，训练与评测只在随机分别取出的10万会话上进行。全数据集的训练与评测留待将来研究。后文简称Attention Routing模型为AR模型，我们改进的模型称为AR+模型。
+我们选用Transformer架构的Attention Routing模型\citeext{Zheng2019}作为研究对象，是基于其模型的简单性及高效，并且未偏离原生Transformer架构太远，因而能够对其运用大多数原生Transformer架构的改进。另外我们使用的数据集是PersonalDialog，但由于资源有限暂无法利用其完整的数百万数据，训练与评测只在随机分别取出的10万、2万会话上进行。全数据集的训练与评测留待将来研究。后文简称Attention Routing模型为AR模型，我们改进的模型称为AR+模型。
 
 \section[Model]{模型} 
 AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
@@ -125,7 +125,7 @@ AR+模型的超参数如下：
 基线与AR+模型的decoding策略均为Nucleus Sampling\citeext{Holtzman2019}，参数是：temperature 0.7, top_k 0, top_p 0.9。
 
 \subsection[Datasets]{数据集} 
-PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,149个会话，训练、验证和测试数据集是分别在数据去重后随机无置回取出的10万会话子集。我们用验证集调整超参数，在测试集上进行评测。
+PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,149个会话，训练、验证和测试数据集是分别在数据去重后随机无置回取出的10万、2万、2万会话子集。我们用验证集调整超参数，在测试集上进行评测。
 
 发言普遍是短句，平均长度为15个字，所以发言长度限定为最长15个字，上下文限定为最大3轮，加上问话，上下文输入最长为$15*(2*3+1)=105$个字，回复长度同样限定15个字，个性包括性别、地址、兴趣，兴趣可包含多项。
 

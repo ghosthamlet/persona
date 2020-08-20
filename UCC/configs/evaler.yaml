@@ -3,8 +3,8 @@
 device: cuda
 seed: 42
 batch_size: 64
-limit_example_length: 100000
-#limit_example_length: 1000
+#limit_example_length: 100000
+limit_example_length: 20000
 min_seq_length: 1
 temperature: 0.7
 top_k: 0
@@ -14,7 +14,7 @@ no_sample: False
 #pretrained_fname: models/model__epoch1_10w_pretrain_feature_electra/model.pt
 #pretrained_fname: models/model__epoch2_10w_pretrain_feature/model.pt
 #pretrained_fname: models/model__epoch1_1m/model.pt
-pretrained_fname: models/model__epoch1/model.pt
+pretrained_fname: models/model__epoch3/model.pt
 data_path: datas/
 cache_path: caches/
 log_path: logs/

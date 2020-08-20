@@ -460,8 +460,6 @@ class Trainer:
     def eval(self, data_iter):
         self.model.eval()
 
-        return 0
-
         epoch_loss = 0
         with torch.no_grad():
             for _, feature in enumerate(data_iter):
@@ -489,6 +487,8 @@ class Trainer:
         torch.save(self.model.state_dict(), model_path + '/model.pt')
         shutil.copyfile(self.args.config_file, model_path + '/config.yml')
         shutil.copyfile(self.args.vocab_fname, model_path + '/vocab')
+        if self.args.persona_emb_dim is not None:
+            shutil.copyfile(self.args.persona_vocab_fname, model_path + '/vocab_persona')
 
     def load_model(self):
         # tmp for load pretrain LM model before factor ff

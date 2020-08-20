@@ -83,7 +83,8 @@ class Evaler:
         return args
 
     def build_persona_vocab(self):
-        self.persona_vocab = datasets.PersonaVocab(self.model_config.persona_vocab_fname)
+        # self.persona_vocab = datasets.PersonaVocab(self.model_config.persona_vocab_fname)
+        self.persona_vocab = datasets.PersonaVocab(self.get_model_deps_file('vocab_persona'))
         self.model_config.persona_vocab_size = len(self.persona_vocab)
  
     def build_vocab(self):

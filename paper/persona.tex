@@ -122,6 +122,8 @@ AR+模型的超参数如下：
 
 基线为AR模型，参数与AR+一致。
 
+基线与AR+模型的decoding策略均为Nucleus Sampling\citeext{Holtzman2019}，参数是：temperature 0.7, top_k 0, top_p 0.9。
+
 \subsection[Datasets]{数据集} 
 PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,149个会话，训练、验证和测试数据集是分别在数据去重后随机无置回取出的10万会话子集。我们用验证集调整超参数，在测试集上进行评测。
 

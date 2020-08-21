@@ -698,33 +698,80 @@ AR+
 params: 31,247,409
 MEM: 5600M
 Time(include valid) 
-2020-08-20 15:08:56,990 - INFO - Epoch: 03 | Time: 6m 31s
-2020-08-20 15:08:56,990 - INFO - 	Train Loss: 4.697 | Train PPL: 109.652
-2020-08-20 15:08:56,990 - INFO - 	 Val. Loss: 4.789 |  Val. PPL: 120.226
-2020-08-20 15:09:22,793 - INFO - | Test Loss: 4.772 | Test PPL: 118.186 |
-Bleu: 0.00467425 | F1: 0.00023434 | Dist1: 0.845 | Dist2: 0.791 | PPL: 118.218
+2020-08-21 14:07:33,994 - INFO - Epoch: 03 | Time: 6m 59s
+2020-08-21 14:07:33,994 - INFO - 	Train Loss: 4.718 | Train PPL: 111.920
+2020-08-21 14:07:33,994 - INFO - 	 Val. Loss: 4.808 |  Val. PPL: 122.512
+2020-08-21 14:08:00,146 - INFO - | Test Loss: 4.788 | Test PPL: 120.057 |
+Bleu: 0.00509641 | F1: 0.00023654 | Dist1: 0.830 | Dist2: 0.780 | PPL: 119.998
+% time * 3
 
 AR:
 params: 30,081,024
-MEM: 7950
+MEM: 7920
 Time(include valid) 
-lr: 0.2e-2 % did not learn, and overfit
+lr: 0.2e-2 
+% did not learn, and overfit
 2020-08-21 11:36:36,732 - INFO - Epoch: 02 | Time: 10m 3s
 2020-08-21 11:36:36,732 - INFO - 	Train Loss: 8.819 | Train PPL: 6762.262
 2020-08-21 11:36:36,732 - INFO - 	 Val. Loss: 9.466 |  Val. PPL: 12913.355
 Bleu: 0.00000000 | F1: 0.00010080 | Dist1: 0.792 | Dist2: 0.866 | PPL: 12429.043
 lr: 1.5e-4
+% Dist1两个模型相差不大，可能是由于训练数据集较小且训练不足的原因。
+2020-08-21 13:20:41,817 - INFO - Epoch: 03 | Time: 10m 10s
+2020-08-21 13:20:41,817 - INFO - 	Train Loss: 6.438 | Train PPL: 624.927
+2020-08-21 13:20:41,817 - INFO - 	 Val. Loss: 6.449 |  Val. PPL: 632.035
+2020-08-21 13:21:19,837 - INFO - | Test Loss: 6.420 | Test PPL: 613.996 |
+Bleu: 0.00256675 | F1: 0.00017396 | Dist1: 0.842 | Dist2: 0.772 | PPL: 614.254
 
 
-exclude #1:
+exclude #1 ReZero:
+params: 31,247,409
+MEM: 5360M
+Time(include valid) 
+% lr: 1.5e-4
+2020-08-21 15:42:35,413 - INFO - Epoch: 03 | Time: 6m 29s
+2020-08-21 15:42:35,413 - INFO - 	Train Loss: 6.101 | Train PPL: 446.465
+2020-08-21 15:42:35,413 - INFO - 	 Val. Loss: 5.164 |  Val. PPL: 174.861
+2020-08-21 15:43:01,311 - INFO - | Test Loss: 5.151 | Test PPL: 172.585 |
+Bleu: 0.00371071 | F1: 0.00019026 | Dist1: 0.821 | Dist2: 0.746 | PPL: 172.474
 
-exclude #2:
+exclude #2 ALBERT:
+params: 44,764,854
+MEM: 5730M
+Time(include valid) 
+% lr: 1.5e-4
+% emb is bigger, 6 times more transformer layer, so performance is better 
+% if model size is not a problem, don't use ALBERT method
+% if used, add ReZero
+2020-08-21 16:29:53,959 - INFO - Epoch: 03 | Time: 6m 51s
+2020-08-21 16:29:53,959 - INFO - 	Train Loss: 4.775 | Train PPL: 118.520
+2020-08-21 16:29:53,959 - INFO - 	 Val. Loss: 4.712 |  Val. PPL: 111.230
+2020-08-21 16:30:19,654 - INFO - | Test Loss: 4.695 | Test PPL: 109.347 |
+Bleu: 0.00451880 | F1: 0.00024912 | Dist1: 0.852 | Dist2: 0.773 | PPL: 109.418
 
-exclude #3:
+exclude #3 Factor FF:
+params: 54,274,566
+MEM: 6410M
+Time(include valid) 
+% lr: 1.5e-4
+2020-08-21 17:16:19,406 - INFO - Epoch: 03 | Time: 8m 17s
+2020-08-21 17:16:19,407 - INFO - 	Train Loss: 4.928 | Train PPL: 138.124
+2020-08-21 17:16:19,407 - INFO - 	 Val. Loss: 4.828 |  Val. PPL: 125.018
+2020-08-21 17:16:50,733 - INFO - | Test Loss: 4.814 | Test PPL: 123.169 |
+Bleu: 0.00360490 | F1: 0.00022391 | Dist1: 0.862 | Dist2: 0.794 | PPL: 122.758
 
-exclude #4:
+exclude #4 MemN2N:
+params: 28,646,406
+MEM: 8200M
+Time(include valid) 
+% lr: 1.5e-4
+% params is smaller, as person used emb and encoder, and persona emb share with context emb, encoder share with decoder
+2020-08-21 18:16:20,324 - INFO - Epoch: 03 | Time: 10m 44s
+2020-08-21 18:16:20,324 - INFO - 	Train Loss: 5.011 | Train PPL: 150.085
+2020-08-21 18:16:20,324 - INFO - 	 Val. Loss: 4.887 |  Val. PPL: 132.494
+2020-08-21 18:17:01,140 - INFO - | Test Loss: 4.875 | Test PPL: 131.010 |
 
-exclude #5(equal AR):
+exclude #5 BART MLM (equal AR):
 
 
 身份特征问话分类：

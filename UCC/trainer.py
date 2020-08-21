@@ -57,7 +57,7 @@ class Trainer:
 
         self.ensure_deps()
 
-        self.grad_util = utils.Grads()
+        # self.grad_util = utils.Grads()
 
         self.logger.info('Build vocab and embeddings...')
         self.pretrain_feature_model = None
@@ -244,8 +244,10 @@ class Trainer:
                                                                                          
     def build_dataloaders(self):
         args = self.args
-        gb = lambda batch: datasets.generate_batch(batch, self.vocab, self.persona_vocab)
-        gb_lm = lambda batch: datasets.generate_lm_batch(batch, self.vocab)
+        is_mlm = self.args.auxiliary_task == 'MLM'
+        gb = lambda batch: datasets.generate_batch(batch, 
+                self.vocab, self.persona_vocab, is_mlm)
+        gb_lm = lambda batch: datasets.generate_lm_batch(batch, self.vocab, is_mlm)
 
         if args.n_epochs_early_stage > 0:
             dp = datasets.LMDataProcesser(limit_length=args.limit_example_length, 
@@ -391,7 +393,7 @@ class Trainer:
         test_loss = self.eval(self.test_iter)
         self.logger.info(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
-        self.grad_util.plot()
+        # self.grad_util.plot()
 
     def train_lm(self, epoch):
         self.model.train()
@@ -453,7 +455,7 @@ class Trainer:
             if self.args.clip_grad is not None:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.args.clip_grad)
 
-            self.grad_util.collect(self.model)
+            # self.grad_util.collect(self.model)
 
             if (batch_idx + 1) % self.args.gradient_accumulation == 0:
                 self.optimizer.step()
@@ -492,7 +494,7 @@ class Trainer:
     # https://pytorch.org/tutorials/beginner/saving_loading_models.html#saving-loading-a-general-checkpoint-for-inference-and-or-resuming-training
     def save_model(self, epoch, stage=''):
         model_path = os.path.join(self.args.model_path, 
-                'model_{}_epoch{}'.format(stage, epoch + 1))
+                'model_{}_epoch{}_{}'.format(stage, epoch + 1, self.args.experiment_name))
         if not os.path.exists(model_path):
             os.mkdir(model_path)
         torch.save(self.model.state_dict(), model_path + '/model.pt')

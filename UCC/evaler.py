@@ -39,7 +39,7 @@ class Evaler:
         self.tokenizer = None
         self.persona_vocab = None
 
-        if self.model_config.persona_emb_dim is not None:
+        if self.model_config.use_mem_n2n:
             self.build_persona_vocab()
  
         if self.model_config.pretrain_feature:
@@ -138,7 +138,9 @@ class Evaler:
     def build_dataloaders(self):
         args = self.args
         model_config = self.model_config
-        gb = lambda batch: datasets.generate_batch(batch, self.vocab, self.persona_vocab)
+        is_mlm = self.model_config.auxiliary_task == 'MLM'
+        gb = lambda batch: datasets.generate_batch(batch, 
+                self.vocab, self.persona_vocab, is_mlm)
 
         dp = datasets.ChatDataProcesser(limit_length=args.limit_example_length, 
                     max_seq_length=model_config.max_seq_length, 

@@ -57,20 +57,21 @@ class AR(nn.Module):
         self.mem_n2n_hops = mem_n2n_hops
         self.mem_n2n_layer_share = mem_n2n_layer_share
 
-        if self.mem_n2n_layer_share == 'adjacent':
-            self.mem_input = nn.modules.transformer._get_clones(
-                    modules.MemInput(persona_vocab_size, context_emb.d_model),
-                    self.mem_n2n_hops)
-            self.mem_output = nn.modules.transformer._get_clones(
-                    modules.MemOutput(persona_vocab_size, context_emb.d_model),
-                    self.mem_n2n_hops)
-            self._share_mem_n2n_layers()
-        else:
-            self.mem_output_map = nn.Linear(context_emb.d_model, context_emb.d_model, bias=False)
-            #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
-            #        copy.deepcopy(self.post_encoder))
-            self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
-            self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
+        if self.use_mem_n2n:
+            if self.mem_n2n_layer_share == 'adjacent':
+                self.mem_input = nn.modules.transformer._get_clones(
+                        modules.MemInput(persona_vocab_size, context_emb.d_model),
+                        self.mem_n2n_hops)
+                self.mem_output = nn.modules.transformer._get_clones(
+                        modules.MemOutput(persona_vocab_size, context_emb.d_model),
+                        self.mem_n2n_hops)
+                self._share_mem_n2n_layers()
+            else:
+                self.mem_output_map = nn.Linear(context_emb.d_model, context_emb.d_model, bias=False)
+                #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
+                #        copy.deepcopy(self.post_encoder))
+                self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
+                self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
 
         self._share_emb()
         if self.share_encoder_decoder:
@@ -171,15 +172,13 @@ class AR(nn.Module):
         else:
             out_gen = self.generate(out)
 
-        out_lm_gen = None
-        if self.auxiliary_task == 'MLM':
-            enc_lm = self.output_emb(feature.lm.x, 
-                    feature.lm.x_pad_mask)
-            out_lm = self.resp_decoder(enc_lm, memory=x_mlm_enc, 
-                    memory_key_padding_mask=feature.lm.x_mlm_pad_mask,
-                    tgt_mask=feature.lm.x_mask,
-                    tgt_key_padding_mask=feature.lm.x_pad_mask) 
-            out_lm_gen = self.generate(out_lm)
+        enc_lm = self.output_emb(feature.lm.x, 
+                feature.lm.x_pad_mask)
+        out_lm = self.resp_decoder(enc_lm, memory=x_mlm_enc, 
+                memory_key_padding_mask=feature.lm.x_mlm_pad_mask,
+                tgt_mask=feature.lm.x_mask,
+                tgt_key_padding_mask=feature.lm.x_pad_mask) 
+        out_lm_gen = self.generate(out_lm)
 
         return out_gen, out_lm_gen
 

@@ -321,7 +321,7 @@ class ChatFeature:
 
 
 # https://pytorch.org/tutorials/beginner/text_sentiment_ngrams_tutorial.html?highlight=collate_fn
-def generate_batch(batch, vocab, persona_vocab):
+def generate_batch(batch, vocab, persona_vocab, is_mlm):
     pad_idx = vocab.stoi(utils.PAD)
     persona_pad_idx = pad_idx
     if persona_vocab is not None:
@@ -362,7 +362,7 @@ def generate_batch(batch, vocab, persona_vocab):
     personas_no_tag_pad = pad_sequence(tmp, padding_value=persona_pad_idx).permute(2, 0, 1) 
     personas_no_tag_pad_mask = (personas_no_tag_pad == persona_pad_idx).T
 
-    lm = generate_lm_batch(lm, vocab, in_chat=True)
+    lm = generate_lm_batch(lm, vocab, is_mlm, in_chat=True)
 
     return ChatFeature(
             context=context_pad,
@@ -387,11 +387,11 @@ def generate_batch(batch, vocab, persona_vocab):
     )
 
 
-def generate_lm_batch(batch, vocab, in_chat=False):
+def generate_lm_batch(batch, vocab, is_mlm, in_chat=False):
     pad_idx = vocab.stoi(utils.PAD)
     mask_idx = vocab.stoi(utils.MASK)
 
-    if not in_chat:
+    if not in_chat or not is_mlm:
         x_mlm = None
         x_mlm_pad_mask = None
         batch = torch.tensor(batch).T

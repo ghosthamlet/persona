@@ -1,5 +1,7 @@
 
-experiment_name: default
+# XXX: disabled persona_vocab, maybe remove cache if enabled persona_vocab before
+  
+experiment_name: NoMemN2N1
 
 # use cpu for easy debug
 device: cuda
@@ -8,14 +10,11 @@ n_epochs: 3
 # for LM
 #n_epochs_early_stage: 1
 n_epochs_early_stage: 0
-#batch_size: 32
 batch_size: 64
-#batch_size: 80
 # for LM
 #batch_size: 1280
 #limit_example_length: 1000000
 limit_example_length: 100000
-#limit_example_length: 10000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -34,16 +33,12 @@ pretrain_feature_model_name: voidful/albert_chinese_small
 pretrain_feature_type: feature
 
 emb_freeze: False
-# for ALBERT
-# if emb_dim is same as d_model, no factor emb
 emb_dim: 200
 # when use_mem_n2n, persona_emb will be enable
 # will auto fill
 persona_vocab_size:
 dropout: 0.1
 num_layers: 6
-# for ALBERT
-# if num_groups is 1, no layer share
 # num_layers % num_groups == 0 and num_groups <= num_layers
 # real layer num is num_layers / num_groups
 num_groups: 6
@@ -55,14 +50,14 @@ adapter_d_ff: 2048
 factor_ff: True
 
 use_rezero: True
-# this will enable persona_emb
-use_mem_n2n: True
+# remove persona data cache
+use_mem_n2n: False
 mem_n2n_hops: 3
 # layer_wise | adjacent
 mem_n2n_layer_share: adjacent
 
-#lr: 1.5e-4
-lr: 0.2e-2
+lr: 1.5e-4
+#lr: 0.2e-2
 weight_decay: 0.05
 #clip_grad: 5
 clip_grad: 1
@@ -70,21 +65,14 @@ use_scheduler: True
 warmup_steps: 0
 gradient_accumulation: 1
 adapter_finetune: False
+# MLM | LM
 auxiliary_task: MLM
-#auxiliary_task: LM
 alpha: 0.5
 #alpha: 0.1
 
 model_path: models/
 # lm clip_grad
 pretrained_fname: 
-#pretrained_fname: models/model__epoch2_10w_pretrain_feature/model.pt
-#pretrained_path: models/model_lm_epoch4_all_factor_ff_epoch1/model.pt
-#pretrained_path: models/model_lm_epoch4_all/model.pt
-# 31476781 based on 2m
-#pretrained_path: models/model_lm_epoch5_2m_all/model.pt
-#pretrained_path: models/model_lm_epoch9_2m/model.pt
-# data_path: tmp/
 data_path: datas/
 cache_path: caches/
 log_path: logs/

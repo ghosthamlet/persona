@@ -707,7 +707,7 @@ Bleu: 0.00509641 | F1: 0.00023654 | Dist1: 0.830 | Dist2: 0.780 | PPL: 119.998
 
 AR:
 params: 30,081,024
-MEM: 7920
+MEM: 7920M
 Time(include valid) 
 lr: 0.2e-2 
 % did not learn, and overfit
@@ -728,7 +728,7 @@ exclude #1 ReZero:
 params: 31,247,409
 MEM: 5360M
 Time(include valid) 
-% lr: 1.5e-4
+% lr: 1.5e-4 lr should be small without ReZero
 2020-08-21 15:42:35,413 - INFO - Epoch: 03 | Time: 6m 29s
 2020-08-21 15:42:35,413 - INFO - 	Train Loss: 6.101 | Train PPL: 446.465
 2020-08-21 15:42:35,413 - INFO - 	 Val. Loss: 5.164 |  Val. PPL: 174.861
@@ -783,6 +783,66 @@ Time(include valid)
 2020-08-21 19:16:19,808 - INFO - | Test Loss: 6.357 | Test PPL: 576.252 |
 Bleu: 0.00406702 | F1: 0.00020639 | Dist1: 0.810 | Dist2: 0.746 | PPL: 576.252
 
+% 以上是按顺序累积消除
+
+% 下面是独立消除，experiment_name后缀带1的配置文件，论文用的方法：
+
+exclude #1 ReZero:
+params: 31,247,409
+MEM: 5360M
+Time(include valid) 
+% lr: 1.5e-4
+同上
+2020-08-21 15:42:35,413 - INFO - Epoch: 03 | Time: 6m 29s
+2020-08-21 15:42:35,413 - INFO - 	Train Loss: 6.101 | Train PPL: 446.465
+2020-08-21 15:42:35,413 - INFO - 	 Val. Loss: 5.164 |  Val. PPL: 174.861
+2020-08-21 15:43:01,311 - INFO - | Test Loss: 5.151 | Test PPL: 172.585 |
+Bleu: 0.00371071 | F1: 0.00019026 | Dist1: 0.821 | Dist2: 0.746 | PPL: 172.474
+
+exclude #2 ALBERT:
+params: 44,764,854
+MEM: 5890M
+Time(include valid) 
+% lr: 0.2e-2
+2020-08-21 22:29:35,396 - INFO - Epoch: 03 | Time: 6m 47s
+2020-08-21 22:29:35,396 - INFO - 	Train Loss: 4.712 | Train PPL: 111.221
+2020-08-21 22:29:35,396 - INFO - 	 Val. Loss: 4.829 |  Val. PPL: 125.143
+2020-08-21 22:30:00,977 - INFO - | Test Loss: 4.812 | Test PPL: 122.956 |
+Bleu: 0.00472794 | F1: 0.00027237 | Dist1: 0.850 | Dist2: 0.784 | PPL: 122.926
+
+exclude #3 Factor FF:
+params: 32,832,361
+MEM: 6690M
+Time(include valid) 
+% lr: 0.2e-2
+2020-08-21 22:58:46,321 - INFO - Epoch: 03 | Time: 8m 11s
+2020-08-21 22:58:46,321 - INFO - 	Train Loss: 4.685 | Train PPL: 108.324
+2020-08-21 22:58:46,321 - INFO - 	 Val. Loss: 4.717 |  Val. PPL: 111.802
+2020-08-21 22:59:19,077 - INFO - | Test Loss: 4.699 | Test PPL: 109.884 |
+Bleu: 0.00345118 | F1: 0.00023586 | Dist1: 0.875 | Dist2: 0.789 | PPL: 109.551
+
+exclude #4 MemN2N:
+params: 8,742,681
+MEM: 7410M
+Time(include valid) 
+% lr: 0.2e-2
+2020-08-21 23:29:15,515 - INFO - Epoch: 03 | Time: 8m 25s
+2020-08-21 23:29:15,515 - INFO - 	Train Loss: 4.752 | Train PPL: 115.843
+2020-08-21 23:29:15,515 - INFO - 	 Val. Loss: 4.782 |  Val. PPL: 119.364
+2020-08-21 23:29:48,726 - INFO - | Test Loss: 4.767 | Test PPL: 117.562 |
+Bleu: 0.00260409 | F1: 0.00020995 | Dist1: 0.878 | Dist2: 0.807 | PPL: 117.220
+
+
+exclude #5 BART MLM:
+params: 31,247,409
+MEM: 5120M
+Time(include valid) 
+% lr: 0.2e-2
+2020-08-21 23:48:29,244 - INFO - Epoch: 03 | Time: 5m 33s
+2020-08-21 23:48:29,244 - INFO - 	Train Loss: 6.398 | Train PPL: 600.677
+2020-08-21 23:48:29,244 - INFO - 	 Val. Loss: 6.474 |  Val. PPL: 648.066
+2020-08-21 23:48:50,791 - INFO - | Test Loss: 6.455 | Test PPL: 635.944 |
+Bleu: 0.00498985 | F1: 0.00023944 | Dist1: 0.831 | Dist2: 0.780 | PPL: 635.944
 
 
 身份特征问话分类：

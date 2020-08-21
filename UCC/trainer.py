@@ -112,7 +112,6 @@ class Trainer:
         parser.add_argument('--attn_alpha', default=1, type=int, required=False, help='')
         parser.add_argument('--adapter_d_ff', default=2048, type=int, required=False, help='')
         parser.add_argument('--factor_ff', action='store_true', required=False, help='')
-        parser.add_argument('--factor_emb', action='store_true', required=False, help='')
         parser.add_argument('--use_rezero', action='store_true', required=False, help='')
         parser.add_argument('--use_mem_n2n', action='store_true', required=False, help='')
         parser.add_argument('--mem_n2n_hops', default=3, type=int, required=False, help='')

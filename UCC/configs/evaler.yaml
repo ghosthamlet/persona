@@ -11,7 +11,7 @@ top_k: 0
 top_p: 0.9
 no_sample: False
 
-pretrained_fname: models/model__epoch3_NoBARTMLM/model.pt
+pretrained_fname: models/model__epoch3_NoBARTMLM1/model.pt
 data_path: datas/
 cache_path: caches/
 log_path: logs/

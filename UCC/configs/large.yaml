@@ -34,12 +34,16 @@ pretrain_feature_model_name: voidful/albert_chinese_small
 pretrain_feature_type: feature
 
 emb_freeze: False
+# for ALBERT
+# if emb_dim is same as d_model, no factor emb
 emb_dim: 200
 # when use_mem_n2n, persona_emb will be enable
 # will auto fill
 persona_vocab_size:
 dropout: 0.1
 num_layers: 6
+# for ALBERT
+# if num_groups is 1, no layer share
 # num_layers % num_groups == 0 and num_groups <= num_layers
 # real layer num is num_layers / num_groups
 num_groups: 6
@@ -50,7 +54,6 @@ attn_alpha: 1
 adapter_d_ff: 2048
 factor_ff: True
 
-factor_emb: True
 use_rezero: True
 # this will enable persona_emb
 use_mem_n2n: True

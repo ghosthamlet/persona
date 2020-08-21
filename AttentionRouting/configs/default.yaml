@@ -1,5 +1,5 @@
 
-experiment_name: 
+experiment_name: default
 
 # use cpu for easy debug
 device: cuda
@@ -34,8 +34,8 @@ d_ff: 2048
 attn_alpha: 1
 alpha: 0.5
 
-#lr: 1.5e-4
-lr: 0.2e-2
+lr: 1.5e-4
+#lr: 0.2e-2
 weight_decay: 0.05
 clip_grad: 1
 

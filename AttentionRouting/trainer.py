@@ -114,7 +114,8 @@ class Trainer:
                 or not os.path.exists(args.vocab_fname)
         ):
             print('Pretraining word2vec...')
-            models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, args.d_model)
+            utils.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, 
+                    max_vocab_size=args.max_vocab_sizem, emb_dim=args.d_model)
 
         embeddings, gensim_vocab = None, None
         if args.pretrain_emb:

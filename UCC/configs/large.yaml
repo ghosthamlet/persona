@@ -14,8 +14,8 @@ batch_size: 64
 # for LM
 #batch_size: 1280
 #limit_example_length: 1000000
-#limit_example_length: 100000
-limit_example_length: 10000
+limit_example_length: 100000
+#limit_example_length: 10000
 # lm context size is equal max_seq_length
 max_seq_length: 15
 # must be even, and >= 2
@@ -35,9 +35,7 @@ pretrain_feature_type: feature
 
 emb_freeze: False
 emb_dim: 200
-# empty to disable persona word emb, use char emb as others
-# persona_emb_dim: 
-persona_emb_dim: 200
+# when use_mem_n2n, persona_emb will be enable
 # will auto fill
 persona_vocab_size:
 dropout: 0.1
@@ -54,6 +52,7 @@ factor_ff: True
 
 factor_emb: True
 use_rezero: True
+# this will enable persona_emb
 use_mem_n2n: True
 mem_n2n_hops: 3
 # layer_wise | adjacent

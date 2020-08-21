@@ -120,7 +120,7 @@ AR+模型的超参数如下：
 批大小为64，Epoch为3，优化器为AdamW(使用Transformers类库correct bias的\\AdamW\footnote{\url{https://github.com/huggingface/transformers/}})，通过lr finder\citeext{Smith2015}(类库\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}})发现学习率可为0.2e-2，权重衰退为0.05，clip grad为1，
 语言模型$L_{LM}$的$\lambda_1$为0.5，学习率调度器为ReduceLROnPlateau，其参数分别为：mode min, factor 0.5, min\_lr 1.5e-4, patience 60，MemN2N的参数分别为：hops 3，layer\_share adjacent。
 
-基线为AR模型，参数与AR+一致。
+基线为AR模型，学习率为1.5e-4，其他参数与AR+一致。如很多人说过的，学习率确实是所有参数中影响最大的，AR模型如果和AR+用一样的0.2e-2的大学习率，则AR模型根本无法学习，而且可能由于我们用的训练数据子集不够大，致使训练第一个Epoch后就过拟合了。
 
 基线与AR+模型的decoding策略均为Nucleus Sampling\citeext{Holtzman2019}，参数是：temperature 0.7, top_k 0, top_p 0.9。
 

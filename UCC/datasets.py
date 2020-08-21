@@ -105,17 +105,15 @@ class ChatDataProcesser:
 
     def get_examples(self, path, mode):
         file_path = os.path.join(path, mode + '.txt')
-        char_emb = True
         _tok = self.tokenizer
         tokenizer = lambda x: _tok(x.replace(' ', '')) if _tok is not None else x.split()
-        if char_emb:
-            parse_loc = lambda x: tokenizer(x != '' and ' '.join(x) or UNK)
-        else:
-            # prefer city to province, as city can infer province, inverse can't
-            parse_loc = lambda x: [x != '' and x.split()[-1] or UNK]
         if self.persona_vocab is not None:
-            parse_loc = lambda x: [x != '' and x or UNK]
-        parse_gender = lambda x: ['男' if x == 'male' else ('女' if x == 'female' else UNK)]
+            parse_loc = lambda x: x != '' and x or UNK
+            parse_tag = lambda x: x and x.replace(';', ' ') or UNK
+        else:
+            parse_loc = lambda x: x != '' and ' '.join(x) or UNK
+            parse_tag = lambda x: x and ' '.join(x.replace(';', '')) or UNK
+        parse_gender = lambda x: '男' if x == 'male' else ('女' if x == 'female' else UNK)
 
         with open(file_path) as f:
             cnt = 0
@@ -142,28 +140,24 @@ class ChatDataProcesser:
                 d_len = len(dialogs)
 
                 personas_no_tag = [
-                        parse_gender(persona1['gender']) + parse_loc(persona1['loc']),
-                        parse_gender(persona2['gender']) + parse_loc(persona2['loc']),
+                        tokenizer('%s %s' % (parse_gender(persona1['gender']), parse_loc(persona1['loc']))),
+                        tokenizer('%s %s' % (parse_gender(persona2['gender']), parse_loc(persona2['loc'])))
                         ]
-
                 # TODO: limit tags count
+                tags = [
+                        tokenizer(parse_tag(persona1['tag'][0])),
+                        tokenizer(parse_tag(persona2['tag'][0])),
+                        ] 
+
                 if self.persona_vocab is not None:
-                    tags = [
-                            (persona1['tag'][0] or UNK).split(';'),
-                            (persona2['tag'][0] or UNK).split(';'),
-                            ]
-                    persona = [['性别'] + parse_gender(persona2['gender']), 
-                               ['地址'] + parse_loc(persona2['loc']),
-                               ['兴趣'] + (persona2['tag'][0] or UNK).split(';')]              
+                    persona_tpl = '性别 %s 地址 %s 兴趣 %s'
                 else:
-                    tags = [
-                            list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona1['tag'][0] or UNK).split(';')])),
-                            list(itertools.chain(*[tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])),
-                            ]
-                    persona = [tokenizer('性 别') + parse_gender(persona2['gender']), 
-                               tokenizer('地 址') + parse_loc(persona2['loc']),
-                              list(itertools.chain(*(tokenizer('兴 趣') 
-                                  + [tokenizer(' '.join(v)) for v in (persona2['tag'][0] or UNK).split(';')])))]
+                    persona_tpl = '性 别 %s 地 址 %s 兴 趣 %s'
+                persona = tokenizer(persona_tpl % 
+                            (parse_gender(persona2['gender']), 
+                             parse_loc(persona2['loc']),
+                             parse_tag(persona2['tag'][0])))
+
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
@@ -195,30 +189,35 @@ class ChatDataProcesser:
             else:
                 iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
                         for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            _vocab = self.vocab
+
             if self.persona_vocab is not None:
                 _vocab = self.persona_vocab
+            else:
+                _vocab = self.vocab
             ipersonas_no_tag = list(map(lambda x: list(map(_vocab.stoi, x)), personas_no_tag))
             itags = list(map(lambda x: list(map(_vocab.stoi, x)), tags))
-            ipersona = list(map(lambda x: list(map(_vocab.stoi, x)), persona))
-          # print()
-          # print('context:')
-          # print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
-          # print('segs:')
-          # print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
-          # print('personas_no_tag:')
-          # print([vocab.itos(v) for v in ipersonas_no_tag[0]])
-          # print([vocab.itos(v) for v in ipersonas_no_tag[1]])
-          # print('tags:')
-          # print([vocab.itos(v) for v in itags[0]])
-          # print([vocab.itos(v) for v in itags[1]])
-          # print('resp:')
-          # print([vocab.itos(v) for v in iresp])
+            ipersona = list(map(_vocab.stoi, persona))
+           #print()
+           #print('context:')
+           #print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
+           #print('segs:')
+           #print([vocab.itos(v) for v in list(itertools.chain(*isegs))])
+           #print('resp:')
+           #print([vocab.itos(v) for v in iresp])
+           #
+           #print('personas_no_tag:')
+           #print([_vocab.itos(v) for v in ipersonas_no_tag[0]])
+           #print([_vocab.itos(v) for v in ipersonas_no_tag[1]])
+           #print('tags:')
+           #print([_vocab.itos(v) for v in itags[0]])
+           #print([_vocab.itos(v) for v in itags[1]])
+           #print('ipersona:')
+           #print([_vocab.itos(v) for v in ipersona])
 
             icontext = list(itertools.chain(*icontext))
             yield (icontext, list(itertools.chain(*isegs)), 
                     ipersonas_no_tag, itags, 
-                    iresp, list(itertools.chain(*ipersona)), 
+                    iresp, ipersona, 
                     # XXX: for lm auxiliary task
                     # better performance
                     # icontext + iresp)
@@ -239,18 +238,12 @@ class LMDataProcesser:
         file_path = os.path.join(path, mode + '.txt')
         seq_length = self.max_seq_length
         limit_length = self.limit_length
-        char_emb = True
 
         with open(file_path) as f:
             datas = f.read()
-        if char_emb:
-            if limit_length is not None:
-                datas = datas[:limit_length*seq_length]
-            datas = list(datas)
-        else:
-            datas = datas.split()
-            if limit_length is not None:
-                datas = datas[:limit_length*seq_length]
+        if limit_length is not None:
+            datas = datas[:limit_length*seq_length]
+        datas = list(datas)
         l = len(datas)
 
         # self.max_seq_length-1 for every seq start with prev seq end char
@@ -334,7 +327,6 @@ def generate_batch(batch, vocab, persona_vocab):
     if persona_vocab is not None:
         persona_pad_idx = persona_vocab.stoi(utils.PAD)
     context, segs, personas_no_tag, tags, resp, persona, lm = zip(*batch)
-    char_emb = True
 
     post = []
     cls_idx = vocab.stoi(utils.CLS)
@@ -363,14 +355,11 @@ def generate_batch(batch, vocab, persona_vocab):
     resp_mask = utils.generate_square_subsequent_mask(resp_pad.shape[0])
     resp_pad_mask = (resp_pad == pad_idx).T
     persona_pad_mask = (persona_pad == persona_pad_idx).T
-    if char_emb:
-        # batch_size X n_persona X 2 
-        tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=persona_pad_idx),
-                personas_no_tag))
-        # n_persona X batch_size X 2 --> 2 X n_persona X batch_size
-        personas_no_tag_pad = pad_sequence(tmp, padding_value=persona_pad_idx).permute(2, 0, 1) 
-    else:
-        personas_no_tag_pad = torch.tensor(personas_no_tag).permute(1, 2, 0)
+    # batch_size X n_persona X 2 
+    tmp = list(map(lambda x: pad_sequence(fn(x), padding_value=persona_pad_idx),
+            personas_no_tag))
+    # n_persona X batch_size X 2 --> 2 X n_persona X batch_size
+    personas_no_tag_pad = pad_sequence(tmp, padding_value=persona_pad_idx).permute(2, 0, 1) 
     personas_no_tag_pad_mask = (personas_no_tag_pad == persona_pad_idx).T
 
     lm = generate_lm_batch(lm, vocab, in_chat=True)

@@ -36,8 +36,9 @@ class ChatDataProcesser:
 
     def get_examples(self, path, mode):
         file_path = os.path.join(path, mode + '.txt')
-        parse_loc = lambda x: x != '' and x or UNK
-        parse_gender = lambda x: '男' if x == 'male' else '女'
+        parse_loc = lambda x: x != '' and ' '.join(x) or UNK
+        parse_gender = lambda x: '男' if x == 'male' else ('女' if x == 'female' else UNK)
+        parse_tag = lambda x: x and ' '.join(x.replace(';', '')) or UNK
 
         with open(file_path) as f:
             cnt = 0
@@ -64,21 +65,21 @@ class ChatDataProcesser:
                 d_len = len(dialogs)
 
                 personas_no_tag = [
-                        [parse_gender(persona1['gender']) or UNK, parse_loc(persona1['loc'])],
-                        [parse_gender(persona2['gender']) or UNK, parse_loc(persona2['loc'])],
+                        ('%s %s' % (parse_gender(persona1['gender']), parse_loc(persona1['loc']))).split(),
+                        ('%s %s' % (parse_gender(persona2['gender']), parse_loc(persona2['loc']))).split(),
                         ]
                 tags = [
-                        (persona1['tag'][0] or UNK).split(';'),
-                        (persona2['tag'][0] or UNK).split(';'),
+                        parse_tag(persona1['tag'][0]).split(),
+                        parse_tag(persona2['tag'][0]).split(),
                         ]
-                persona = [('性别', parse_gender(persona2['gender']) or UNK), 
-                           ('地址', parse_loc(persona2['loc'])),
-                           ('兴趣', ),
-                           (v for v in (persona2['tag'][0] or UNK).split(';'))]
+                persona = ('性 别 %s 地 址 %s 兴 趣 %s' % 
+                            (parse_gender(persona2['gender']), 
+                             parse_loc(persona2['loc']),
+                             parse_tag(persona2['tag'][0]))).split()
                 for i in range(0, d_len, 2):
                     if dialogs[i] == '':
                         dialogs[i] = UNK
-                    context = [v[0].split() for v in dialogs[:i+1][-self.max_context_size:]]
+                    context = [v[0].split() for v in dialogs[:i+1][-(self.max_context_size+1):]]
                     resp = dialogs[i+1][0].split()
 
                     yield context, personas_no_tag, tags, resp, persona
@@ -99,9 +100,10 @@ class ChatDataProcesser:
                     for i in range(0, l, 2)]
             iresp = [vocab.stoi(SOS)] + [vocab.stoi(k) 
                     for k in resp[:self.max_seq_length]] + [vocab.stoi(EOS)]
-            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), personas_no_tag))
-            itags = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), tags))
-            ipersona = list(map(lambda x: list(map(vocab.stoi, ''.join(x))), persona))
+
+            ipersonas_no_tag = list(map(lambda x: list(map(vocab.stoi, x)), personas_no_tag))
+            itags = list(map(lambda x: list(map(vocab.stoi, x)), tags))
+            ipersona = list(map(vocab.stoi, persona))
            #print()
            #print('context:')
            #print([vocab.itos(v) for v in list(itertools.chain(*icontext))])
@@ -116,12 +118,12 @@ class ChatDataProcesser:
            #print('resp:')
            #print([vocab.itos(v) for v in iresp])
            #print('ipersona:')
-           #print([vocab.itos(v) for v in itertools.chain(*ipersona)])
+           #print([vocab.itos(v) for v in ipersona])
 
             icontext = list(itertools.chain(*icontext))
             yield (icontext, list(itertools.chain(*isegs)), 
                     ipersonas_no_tag, itags, 
-                    iresp, list(itertools.chain(*ipersona)), 
+                    iresp, ipersona, 
                     # icontext + iresp)
                     iresp)
 

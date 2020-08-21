@@ -64,7 +64,7 @@ class Trainer:
         self.tokenizer = None
         self.persona_vocab = None
 
-        if self.args.persona_emb_dim is not None:
+        if self.args.use_mem_n2n:
             self.build_persona_vocab()
 
         if self.args.pretrain_feature:
@@ -102,7 +102,6 @@ class Trainer:
 
         parser.add_argument('--emb_freeze', action='store_true', required=False, help='')
         parser.add_argument('--emb_dim', default=200, type=int, required=False, help='')
-        parser.add_argument('--persona_emb_dim', default=200, type=int, required=False, help='')
         parser.add_argument('--persona_vocab_size', type=int, required=False, help='Will auto fill')
         parser.add_argument('--dropout', default=0.1, type=float, required=False, help='')
         parser.add_argument('--num_layers', default=6, type=int, required=False, help='')
@@ -169,7 +168,8 @@ class Trainer:
                 or not os.path.exists(args.vocab_fname)
         ):
             self.logger.info('Pretraining word2vec...')
-            models.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, args.d_model)
+            utils.build_word2vec(args.corpus_fname, args.vec_fname, args.vocab_fname, 
+                    max_vocab_size=args.max_seq_length, emb_dim=args.d_model)
 
         embeddings, gensim_vocab = None, None
         if args.pretrain_emb:
@@ -498,7 +498,7 @@ class Trainer:
         torch.save(self.model.state_dict(), model_path + '/model.pt')
         shutil.copyfile(self.args.config_file, model_path + '/config.yml')
         shutil.copyfile(self.args.vocab_fname, model_path + '/vocab')
-        if self.args.persona_emb_dim is not None:
+        if self.args.use_mem_n2n:
             shutil.copyfile(self.args.persona_vocab_fname, model_path + '/vocab_persona')
 
     def load_model(self):

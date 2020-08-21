@@ -34,7 +34,9 @@ class AR(nn.Module):
         pretrain_feature_model,
         pretrain_feature_type,
         persona_vocab_size,
-        persona_emb_dim,
+        use_mem_n2n,
+        mem_n2n_hops,
+        mem_n2n_layer_share,
         auxiliary_task=None,
     ):
         super().__init__()
@@ -51,38 +53,24 @@ class AR(nn.Module):
         self.auxiliary_task = auxiliary_task
         self.share_encoder_decoder = share_encoder_decoder
         self.pretrain_feature_type = pretrain_feature_type
-        self.persona_emb_dim = persona_emb_dim
-        self.use_mem_n2n = True
-        self.mem_n2n_hops = 3
-        # self.mem_n2n_layer_share = 'layer_wise'
-        self.mem_n2n_layer_share = 'adjacent'
+        self.use_mem_n2n = use_mem_n2n
+        self.mem_n2n_hops = mem_n2n_hops
+        self.mem_n2n_layer_share = mem_n2n_layer_share
 
         if self.mem_n2n_layer_share == 'adjacent':
-            if persona_emb_dim is None:
-                self.mem_input = nn.modules.transformer._get_clones(
-                        modules.MemInput(context_emb.input_dim, context_emb.d_model),
-                        self.mem_n2n_hops)
-                self.mem_output = nn.modules.transformer._get_clones(
-                        modules.MemOutput(context_emb.input_dim, context_emb.d_model),
-                        self.mem_n2n_hops)
-            else:
-                self.mem_input = nn.modules.transformer._get_clones(
-                        modules.MemInput(persona_vocab_size, context_emb.d_model),
-                        self.mem_n2n_hops)
-                self.mem_output = nn.modules.transformer._get_clones(
-                        modules.MemOutput(persona_vocab_size, context_emb.d_model),
-                        self.mem_n2n_hops)
+            self.mem_input = nn.modules.transformer._get_clones(
+                    modules.MemInput(persona_vocab_size, context_emb.d_model),
+                    self.mem_n2n_hops)
+            self.mem_output = nn.modules.transformer._get_clones(
+                    modules.MemOutput(persona_vocab_size, context_emb.d_model),
+                    self.mem_n2n_hops)
             self._share_mem_n2n_layers()
         else:
             self.mem_output_map = nn.Linear(context_emb.d_model, context_emb.d_model, bias=False)
-            if persona_emb_dim is None:
-                self.mem_input = modules.MemInput(context_emb.input_dim, context_emb.d_model)
-                self.mem_output = modules.MemOutput(context_emb.input_dim, context_emb.d_model)
-                #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
-                #        copy.deepcopy(self.post_encoder))
-            else:
-                self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
-                self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
+            #self.mem_input = modules.MemInput(copy.deepcopy(self.seq_emb),
+            #        copy.deepcopy(self.post_encoder))
+            self.mem_input = modules.MemInput(persona_vocab_size, context_emb.d_model)
+            self.mem_output = modules.MemOutput(persona_vocab_size, context_emb.d_model)
 
         self._share_emb()
         if self.share_encoder_decoder:
@@ -204,10 +192,10 @@ class AR(nn.Module):
     def _share_emb(self):
         self.context_emb.emb.weight = self.output_emb.emb.weight
         #self.context_emb.proj.weight = self.output_emb.proj.weight
-        if self.persona_emb_dim is None:
-            self.persona_emb.emb.weight = self.output_emb.emb.weight
-        else:
+        if self.use_mem_n2n:
             self.context_emb.persona_emb.weight = self.persona_emb.emb.weight
+        else:
+            self.persona_emb.emb.weight = self.output_emb.emb.weight
         #self.persona_emb.proj.weight = self.output_emb.proj.weight
         self.seq_emb.emb.weight = self.output_emb.emb.weight
 
@@ -351,11 +339,11 @@ class AR(nn.Module):
         context_emb = modules.ContextEmb(sep_idx, spe1_idx, spe2_idx,
                 input_dim, args.emb_dim, args.emb_freeze, 
                 args.d_model, pad_idx, args.dropout, 
-                args.persona_vocab_size, args.persona_emb_dim, 
+                args.persona_vocab_size, args.use_mem_n2n, 
                 embeddings, fn)
-        if args.persona_emb_dim is not None:
+        if args.use_mem_n2n:
             persona_emb = modules.PersonaEmb(
-                    args.persona_vocab_size, args.persona_emb_dim, False,
+                    args.persona_vocab_size, args.emb_dim, False,
                     args.d_model, pad_idx, args.dropout, None, fn)
         else:
             persona_emb = modules.PersonaEmb(input_dim, args.emb_dim, args.emb_freeze,
@@ -384,7 +372,7 @@ class AR(nn.Module):
                     generater, args.factor_ff, args.adapter_finetune, 
                     args.share_encoder_decoder, _pretrain_feature_model, 
                     args.pretrain_feature_type, args.persona_vocab_size, 
-                    args.persona_emb_dim
+                    args.use_mem_n2n, args.mem_n2n_hops, args,mem_n2n_layer_share
                     )
         else:
             model = AR(
@@ -393,7 +381,8 @@ class AR(nn.Module):
                     generater, args.factor_ff, args.adapter_finetune, 
                     args.share_encoder_decoder, _pretrain_feature_model, 
                     args.pretrain_feature_type, args.persona_vocab_size, 
-                    args.persona_emb_dim, args.auxiliary_task
+                    args.use_mem_n2n, args.mem_n2n_hops, args.mem_n2n_layer_share,
+                    args.auxiliary_task
                     )
 
         return model

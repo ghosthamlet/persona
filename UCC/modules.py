@@ -32,7 +32,7 @@ class ContextEmb(nn.Module):
         pad_idx,
         dropout,
         persona_vocab_size,
-        persona_emb_dim,
+        use_mem_n2n,
         embeddings=None,
         pretrain_feature_model=None,
     ):
@@ -57,8 +57,8 @@ class ContextEmb(nn.Module):
             self.emb1 = pretrain_feature_model
         self.emb = utils.embedding(input_dim, emb_dim, embeddings, emb_freeze, pad_idx)
         self.persona_emb = self.emb
-        if persona_emb_dim is not None:
-            self.persona_emb = nn.Embedding(persona_vocab_size, persona_emb_dim)
+        if use_mem_n2n:
+            self.persona_emb = nn.Embedding(persona_vocab_size, emb_dim)
 
     def forward(self, feature):
         def orig_emb(feature):

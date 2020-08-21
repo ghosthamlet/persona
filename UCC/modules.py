@@ -451,13 +451,12 @@ class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, nhead, attn_alpha,
             dim_feedforward=2048, dropout=0.1, activation="relu",
             factor_ff=False, adapter_finetune=False, adapter_d_ff=2048,
-            use_rezero=True, auxiliary_task='MLM'):
+            use_rezero=True):
         super().__init__()
         # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.factor_ff = factor_ff
         self.use_rezero = use_rezero
-        self.auxiliary_task = auxiliary_task
 
         if self.factor_ff:
             in_ff = int(dim_feedforward/4)
@@ -560,7 +559,7 @@ class TransformerDecoderLayer(nn.Module):
                         key_padding_mask=persona_pad_mask)[0]
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]
-            # self.auxiliary_task == 'MLM'
+            # auxiliary_task == 'MLM'
             elif memory is not None:
                 attn_c = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask, 
                         key_padding_mask=memory_key_padding_mask)[0]

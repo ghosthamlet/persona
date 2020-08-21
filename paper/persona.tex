@@ -44,7 +44,7 @@
 
 \maketitle
 \begin{abstract}
-本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过90个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
+本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
 \end{abstract}
 
 \section[Background]{背景} 
@@ -66,9 +66,10 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 
 此外还有相对少量的利用VAE(Variational AutoEncoder)，RL(Reinforcement Learning)和GAN(Generative Adversarial Network)等等的模型，如CVAE(Conditional VAE)+RNN+内存机制的\citeext{Song2019}(数据集PERSONA-CHAT)，VAE+GRU(RNN)+内存机制＋注意力机制的\citeext{Xu2020}(数据集PERSONA-CHAT)，RL+Transformer的\citeext{Liu2020}(数据集PERSONA-CHAT)等等，GAN相关的模型我们未作研究，在此不做介绍。
 
+\section[Model]{模型} 
+
 我们选用Transformer架构的Attention Routing模型\citeext{Zheng2019}作为研究对象，是基于其模型的简单性及高效，并且未偏离原生Transformer架构太远，因而能够对其运用大多数原生Transformer架构的改进。另外我们使用的数据集是PersonalDialog，但由于资源有限暂无法利用其完整的数百万数据，训练与评测只在随机分别取出的10万、2万会话上进行。全数据集的训练与评测留待将来研究。后文简称Attention Routing模型为AR模型，我们改进的模型称为AR+模型。
 
-\section[Model]{模型} 
 AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
 
 1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串输入Encoder。

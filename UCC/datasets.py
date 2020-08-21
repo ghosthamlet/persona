@@ -391,10 +391,14 @@ def generate_lm_batch(batch, vocab, is_mlm, in_chat=False):
     pad_idx = vocab.stoi(utils.PAD)
     mask_idx = vocab.stoi(utils.MASK)
 
-    if not in_chat or not is_mlm:
+    if not in_chat:
         x_mlm = None
         x_mlm_pad_mask = None
         batch = torch.tensor(batch).T
+    elif not is_mlm:
+        x_mlm = None
+        x_mlm_pad_mask = None
+        batch = pad_sequence(list(map(torch.tensor, batch)), padding_value=pad_idx)
     else:
         x_mlm = []
         for v in batch:
@@ -413,8 +417,8 @@ def generate_lm_batch(batch, vocab, is_mlm, in_chat=False):
             start = random.randint(1, l-mask-1)
             x_mlm.append(v[0:start] + [mask_idx] + v[start+mask:])
 
-        batch = pad_sequence(list(map(torch.tensor, batch)) , padding_value=pad_idx)
-        x_mlm = pad_sequence(list(map(torch.tensor, x_mlm)) , padding_value=pad_idx)
+        batch = pad_sequence(list(map(torch.tensor, batch)), padding_value=pad_idx)
+        x_mlm = pad_sequence(list(map(torch.tensor, x_mlm)), padding_value=pad_idx)
         x_mlm_pad_mask = (x_mlm == pad_idx).T
 
     x = batch[:-1]

@@ -19,10 +19,6 @@
 \usepackage{CJKutf8}
 \AtBeginDvi{\input{zhwinfonts}}
 
-% all custom newcommand should begin with prefix: K
-\newcommand{\KModelName}{RAR模型}
-\newcommand{\KFactorNoused}{\underline{时间、对话环境、对方地点、发言者地点}}
-
 % \DeclareRobustCommand{\citeext}[1]{\citeauthor{#1}~\cite{#1}}
 \DeclareRobustCommand{\citeext}[1]{\cite[#1]{#1}}
 
@@ -35,29 +31,27 @@
 \begin{document}
 \begin{CJK*}{UTF8}{gbsn}
 
-\title{开放领域个性化对话生成专用模型的改进}
-\author{胡俊波，韩强，刘华伟 \\
+\title{Improvement of a dedicated model for open domain persona-wise dialogue generation}
+\author{Jing Bo Hu, Qiang Han~\& Hua Wei Liu \\
 杭州高登影视公司\\
-% \author{Jing Bo Hu, Qiang Han~\& Hua Wei Liu \\
-% HuggingFace  Inc.\\
 {\tt \{hjb,gvvvv,lhw\}@163.com} \\}
 
 \maketitle
 \begin{abstract}
-本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
+This paper analyzes some speed and performance improvement methods of Transformer architecture in recent years, mainly its application in dedicated model training. The dedicated model studied here refers to the open domain persona-wise dialogue generation model, and the dataset is multi round short dialogue, The total length of a single input sequence is no more than 105 tokens. Therefore, many improvements in the architecture and attention mechanism of transformer architecture for long sequence processing are not discussed in this paper. 
 \end{abstract}
 
-\section[Background]{背景} 
-NLP(自然语言处理)领域的革命从注意力机制\citeext{Bahdanau2015}的奠基，~Transformer架构\citeext{Vaswani2017}点燃了导火索，到BERT模型\citeext{Devlin2019}正式拉开革命帷幕，以简单的纯注意力机制架构取代了曾经是NLP主流的相对复杂的RNN架构系列模型，并在模型性能、扩展性以及速度上都取得了极大的提升，４年间全面改变了NLP领域，造就了NLP领域的ImageNet时刻\citeext{ruder2018nlpimagenet}。
+\section[Background]{Background} 
+The revolution in the field of NLP(natural language processing) started with the foundation of attention mechanism\citeext {Bahdanau2015}, ~Transformer architecture\citeext{Vaswani2017} ignited the fuse, and officially opened the revolution curtain by the BERT model\citeext{Devilin2019}. It replaced the relatively complex RNN Architecture series models that used to be the mainstream of NLP with simple pure attention mechanism architecture In the past four years, it has changed the field of NLP in an all-round way, and created the Imagenet moment\citeext{ruder2018nlpimagenet} in NLP field. 
 
-开放领域对话生成是NLP的一项重要且十分复杂的任务，Transformer架构在这项任务上同样取得了质的飞跃，如GPT-2、GPT-3模型和Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}。后文如无指定说明，涉及模型皆为Transformer架构模型。
+Open domain dialogue generation is an important and very complex task of NLP. Transformer architecture has also made a qualitative leap in this task, such as GPT-2, GPT-3 model and Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}. If there is no special explanation in the following text, the models involved are Transformer architecture models. 
 
-GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非专用于开放领域对话生成，这类模型通常需以巨大的模型尺寸、海量预训练数据和漫长的预训练时间为代价，才能在性能上与专用中小模型相匹配（尽管有DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}}，DistilBERT\citeext{Sanh2019}对通用模型的优化，但其性能也相应下降）。
-而且通用模型很难生成个性一致的对话\footnote{即聊天机器人带有明确固定个性特征如姓名性别地址等等的个性化对话}，即使如微调GPT-2模型\citeext{Radford2019}的方法TransferTransfo\citeext{Wolf2019}\footnote{在输入的对话上下文中增加了个性化数据}，虽然其在个性化对话英文数据集PERSONA-CHAT\citeext{Zhang2018}上表现不错，但在个性化对话中文数据集PersonalDialog\citeext{Zheng2019a}上测试时仍然不如专用模型\citeext{Zheng2019}。GPT-3只有Beta API，无需微调，用提示编程方式前置个性字符串即可，但我们没有取得测试权限，无法对比性能。
+GPT-2 and GPT-3 models are general models, which are suitable for almost all NLP tasks, and are not dedicated to open domain dialog generation. These models usually need huge model size, massive pretraining data and long pretraining time to match the performance of dedicated medium or small models(although DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}} and DistilBERT\citeext{Sanh2019} are used to optimize the general model, but their performance also decreases accordingly). 
+Moreover, it is difficult to generate a conversation with consistent personality\footnote{The chatbot has specific and fixed personality characteristics, such as name, gender, address, etc.} in the general model, even if method like TransferTransfo\citeext{Wolf2019} which finetuning GPT-2 model\footnote{Adds personalized data to the input dialog context}, although it has good performance on the personalized dialogue English dataset PERSONAL-CHAT\citeext{Zhang2018}, it is still not as good as the dedicated model\citeext{Zheng2019} when trained on personalized Dialogue Chinese dataset PersonalDialog\citeext{Zheng2019a}. GPT-3 only has beta API, no need to fine tune, using prompt programming by prepending the personalized data, but we have not obtained the test authority, unable to compare the performance. 
 
-本论文即对开放领域个性化对话生成专用模型\citeext{Zheng2019}引入Transformer架构近几年的速度和性能上的一些改进，并分析在此专用模型上有效和无效的各种尝试，实验的源代码已经开源\footnote{\url{https://github.com/ghosthamlet/persona}}。后文简称开放领域个性化对话生成为个性化对话生成。
+In this paper, we introduced some speed and performance improvement methods of Transformer architecture in recent years to this dedicated open domain persona-wise dialogue generation model\citeext{Zheng2019}, and analyze the effective and invalid attempts on this dedicated model. The source code of the experiment has been open sourced\footnote{\url{https://github.com/ghosthamlet/persona}}. In the following text, open domain persona-wise dialogue generation is referred to as persona-wise dialogue generation. 
 
-\section[Related Works]{相关研究} 
+\section[Related Works]{Related Works} 
 个性化对话生成的研究相对于无个性对话生成和闭合领域任务型对话生成来说比较少，因此相关的对话数据集也较少。英文的主要是PERSONA-CHAT\citeext{Zhang2018}，中文的有PersonalDialog\citeext{Zheng2019a}和Personality Assignment\citeext{Qian2017}。这里讨论的多数研究主要是使用这三个数据集。
 
 早期的对话生成基本是RNN+注意力机制\citeext{Bahdanau2015}的Seq2Seq模型\citeext{SutskeverGoogle2014}，如复杂的多阶段训练的\citeext{Qian2017}(数据集Personality Assignment)，简单的端到端训练的\citeext{Zheng2019a}(数据集PersonalDialog)等等，也有RNN+内存机制\citeext{Sukhbaatar2015}的Seq2Seq模型，如\citeext{Zhang2018}(数据集PERSONA-CHAT)中的几个基线模型。

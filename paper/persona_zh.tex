@@ -19,10 +19,6 @@
 \usepackage{CJKutf8}
 \AtBeginDvi{\input{zhwinfonts}}
 
-% all custom newcommand should begin with prefix: K
-\newcommand{\KModelName}{RAR模型}
-\newcommand{\KFactorNoused}{\underline{时间、对话环境、对方地点、发言者地点}}
-
 % \DeclareRobustCommand{\citeext}[1]{\citeauthor{#1}~\cite{#1}}
 \DeclareRobustCommand{\citeext}[1]{\cite[#1]{#1}}
 
@@ -44,7 +40,7 @@
 
 \maketitle
 \begin{abstract}
-本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指个性感知的开放领域对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
+本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指开放领域个性化对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
 \end{abstract}
 
 \section[Background]{背景} 
@@ -72,9 +68,9 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 
 AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
 
-1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串输入Encoder。
+1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串输入同一个Encoder。
 
-2. 模型架构方面，Encoder和Decoder共享权重，Decoder只有一个attention模块，即attention routing模型，回复字符串输入Decoder分别Attend到自身Attention为\\$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
+2. 模型架构方面，Encoder和Decoder共享权重，Decoder只有一个attention模块，即attention routing模块，回复字符串输入Decoder分别Attend到自身Attention为\\$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
 \begin{equation}
 O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}    
 \end{equation}
@@ -106,24 +102,24 @@ O_{output} = E_{prev} + bO_T + bO_C + d(O_{merge}) * r
 
 $O_{output}$是残余连接的输出，$E_{prev}$是上层输出，$b$是固定Attention超参数，默认为0.1，$d(*)$是dropout函数，$r$是零初始化的学习参数。
 
-2. ALBERT\citeext{Lan2019}方法，因子分解嵌入层，减小嵌入维度，并使其独立于模型隐藏维度，两者因此能够分开修改；共享Transformer层的权重。减少计算量、模型尺寸及显存消耗。
+2. ALBERT\citeext{Lan2019}方法，因式分解嵌入层，减小嵌入维度，并使其独立于模型隐藏维度，两者因此能够分开修改；共享Transformer层的权重。减少计算量、模型尺寸及显存消耗。
 
-3. Factor FF方法，因子分解Transformer层内的两个全连接层。减少计算量、模型尺寸及显存消耗。
+3. Factor FF方法，因式分解Transformer层内的两个全连接层。减少计算量、模型尺寸及显存消耗。
 
 4. MemN2N\citeext{Sukhbaatar2015}方法，回复者个性键值对字符串不存在顺序问题，其嵌入也较简单，不需要用Transformer编码，改为按词分割以独立的内存机制处理性能更好，且减少了计算量。
 
-5. BART MLM\citeext{Lewis2019}方法，BART论文中表明Mask语言模型性能多数情况下比回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
+5. BART MLM\citeext{Lewis2019}方法，BART论文中表明Mask语言模型性能多数情况下比自回归语言模型更好，所以在多任务训练中我们采用与BART类似的Mask语言模型任务。
 
 \section[Experiments]{实验} 
 AR+模型的超参数如下：
 
 字分割的词汇大小为9489，嵌入维度为200，使用PersonalDialog完整数据集预训练嵌入，词分割的个性词汇大小为10004，个性嵌入维度与模型隐藏维度相同为512，Transformer层数为6，Attention头为8，全连接维度为2048，dropout为0.1。
 批大小为64，Epoch为3，优化器为AdamW(使用Transformers类库correct bias的\\AdamW\footnote{\url{https://github.com/huggingface/transformers/}})，通过lr finder\citeext{Smith2015}(类库\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}})发现学习率可为0.2e-2，权重衰退为0.05，clip grad为1，
-语言模型$L_{LM}$的$\lambda_1$为0.5，学习率调度器为ReduceLROnPlateau，其参数分别为：mode min, factor 0.5, min\_lr 1.5e-4, patience 60，MemN2N的参数分别为：hops 3，layer\_share adjacent。
+语言模型$L_{LM}$的$\lambda_1$为0.5，学习率调度器为ReduceLROnPlateau，其超参数分别为：mode min, factor 0.5, min\_lr 1.5e-4, patience 60，MemN2N的超参数分别为：hops 3，layer\_share adjacent。
 
-基线为AR模型，学习率为1.5e-4，其他参数与AR+一致。如很多人说过的，学习率确实是所有参数中影响最大的，AR模型如果和AR+用一样的0.2e-2的大学习率，则AR模型根本无法学习，而且可能由于我们用的训练数据子集不够大，致使训练第一个Epoch后就过拟合了。
+基线为AR模型，学习率为1.5e-4，其他超参数与AR+一致。如很多人说过的，学习率确实是所有超参数中影响最大的，AR模型如果和AR+用一样的0.2e-2的大学习率，则AR模型根本无法学习，而且可能由于我们用的训练数据子集不够大，致使训练第一个Epoch后就过拟合了。
 
-基线与AR+模型的decoding策略均为Nucleus Sampling\citeext{Holtzman2019}，参数是：temperature 0.7, top\_k 0, top\_p 0.9。
+基线与AR+模型的decoding策略均为Nucleus Sampling\citeext{Holtzman2019}，超参数是：temperature 0.7, top\_k 0, top\_p 0.9。
 
 \subsection[Datasets]{数据集} 
 PersonalDialog数据集原始数据包含部分重复数据，去重后是5,195,149个会话，训练、验证和测试数据集是分别在数据去重后随机无置回取出的10万、2万、2万会话子集。我们用验证集调整超参数，在测试集上进行评测。
@@ -166,9 +162,9 @@ AR+ & \textbf{0.00510} & \textbf{0.00024} & \textbf{120}
 % an alternative lightweight fine-tuning strategy that achieves on-par performance to full fine-tuning. They consist of a small set of additional newly initialized weights at every layer of the transformer. These weights are then trained during fine-tuning, while the pre-trained parameters of the large model are kept frozen/fixed. 
 1. Adapters\citeext{Houlsby2019}，替代微调整个模型的轻量级微调策略，微调时冻结全部预训练的参数，在Transformer层之间嵌入新的全连接层，只更新这些新层的权重。可能由于AR+模型内部不同于Transformer或预训练数据及时间不够充分，Adapters这种方法运用在AR+上后Loss太大无法完成微调。
 
-2. 预训练特征\citeext{Devlin2019}，AR+模型的嵌入部分用预训练ALBERT\citeext{Lan2019}或ELECTRA\citeext{Clark2020}的特征替换，Loss改进十分有限甚至更差，我们还试验了特征+嵌入、特征替换Encoder、不同层的特征、不同层特征的合并、不同大小的模型，结果也相差不大。
+2. 预训练特征\citeext{Devlin2019}，AR+模型的嵌入部分用预训练ALBERT\citeext{Lan2019}或ELECTRA\citeext{Clark2020}的特征替换，Loss改进十分有限甚至更差，我们还试验了特征+嵌入、特征替换Encoder、不同层的特征、不同层特征的合并、不同大小的预训练模型，结果也相差不大。
 
-3. 预训练权重初始化\citeext{Ziegler2019}，用预训练ALBERT或ELECTRA的权重初始化AR+模型的权重，Loss改进也很有限有时更差，我们还试验了取消Encoder和Decoder共享让Encoder或Decoder单独初始化、取消层共享用预训练模型相应的层初始化、不同大小的模型，结果也相差不大。
+3. 预训练权重初始化\citeext{Ziegler2019}，用预训练ALBERT或ELECTRA的权重初始化AR+模型的权重，Loss改进也很有限有时更差，我们还试验了取消Encoder和Decoder共享让Encoder或Decoder单独初始化、取消层共享用预训练模型相应的层初始化、不同大小的预训练模型，结果也相差不大。
 
 2和3的方法分别在\citeext{Devlin2019}和\citeext{Zhao2019}论文中验证有效，但却无法对AR+模型产生效果，我们还试验了BERT或XLNet\citeext{Yang2019}的预训练模型，效果也没多大变化，我们猜想可能是因为a. 这些都是BERT分支的预训练模型适合做各种分类、提取式知识问答和回归等任务，不太适合用来迁移到文本生成的任务上，尤其是开放领域对话生成任务，尽管\citeext{Zhao2019}在对话模型中成功运用了BERT，但他们的对话模型是比较特殊的VAE+RNN模型，b. 这些预训练模型的训练数据是普通的网页或文章内容，与微调的对话数据相差比较大，所以能产生的正面效果非常有限。
 
@@ -178,11 +174,9 @@ AR+ & \textbf{0.00510} & \textbf{0.00024} & \textbf{120}
 
 1. 通用模型预训练之后，可用来微调不同的任务，达到重复利用的目的。
 
-2. 标记数据不够大的情况下，预训练可以提高性能，并缩短微调时间。
+2. 标记数据集不够大的情况下，预训练可以提高性能，并缩短微调时间。
 
-如果标记数据集足够大，达到500万以上，模型是专用的模型，这时如果有现成预训练过的通用模型，自然可以达到2的目的，
-如果没有现成的预训练模型，自己对专用模型预训练就显得不必要，首先无法实现1的目的，其次2的目的也未必能达到，毕竟有大规模的
-标记数据，用和预训练+微调同样甚至更短的时间从头训练，得到的性能也许相差无几。
+如果标记数据集足够大，达到500万以上，模型是专用的模型，这时如果有现成预训练过的通用模型，那可以尝试利用，但如果没有现成的适合的预训练模型，自己对专用模型预训练就显得不必要，首先无法实现1的目的，其次2的目的也未必能达到，毕竟有大规模的标记数据，用和预训练+微调同样甚至更短的时间从头训练，得到的性能也许相差无几。
 
 
 \section[Ablation Study]{消融研究} 
@@ -219,7 +213,7 @@ AR+ & 0.00510 & 0.00024 & 120
                      
 
 \section[Conclusion]{结论} 
-本论文中对专用个性化对话生成模型运用Transformer架构的各项改进实验表明，即使同是Transformer架构，只要内部结构有所改变，适用于原生架构的优化不一定都适用于新架构，另外BERT分支的预训练模型不适于迁移到对话生成Transformer模型。由于我们只使用小模型对PersonalDialog数据集子集进行训练，未来研究中可以扩大模型训练完整数据，以检测本论文提出的五项有效优化在大规模训练中是否依然有效。
+本论文对专用个性化对话生成模型运用近来Transformer架构的各项改进方法进行增强，实验表明，即使同是Transformer架构，只要内部结构有所改变，适用于原生架构的优化不一定都适用于新模型，另外BERT分支的预训练模型不适于迁移到对话生成Transformer模型。由于我们只使用小模型对PersonalDialog数据集子集进行训练，未来研究中可以扩大模型训练完整数据，以检测本论文提出的五项有效优化在大规模训练中是否依然有效。
 
 % \section[Acknowledgement]{致谢}
 

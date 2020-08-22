@@ -1,0 +1,533 @@
+@article{Zhao2019,
+abstract = {The RNN encoder-decoder structures have critical problems in generating meaningful responses. Variational autoencoders (VAE) combined with hierarchical RNNs have emerged as a powerful framework for conversation modeling, as the latent variables can encode the high-level information (topics, tones, sentiments, etc.) in conversations. On the other hand, BERT, one of the latest deep pre-trained language representation models, has achieved the remarkable state of the art across a wide range of tasks in natural language processing. However, BERT has not yet been investigated in a conversation generation task. In this paper, we explore different BERT-empowered conversation modeling approaches by incorporating BERT, RNNs, and VAEs. Moreover, BERT can be used either with weights fixed as feature extraction module or with weights updated and optimized for a specific task. In this paper, we demonstrate that simply using fixed pre-trained BERT as part of the model without further finetuning is powerful enough for generating better responses in terms of fluency, grammar, and semantic coherency. Fine-tuning can achieve the comparable results. This paper sets new baselines for conversation generation task and we are the first to demonstrate the success of BERT in conversation modeling.},
+author = {Zhao, Xue and Zhang, Ying and Guo, Wenya and Yuan, Xiaojie},
+doi = {10.1109/ICCC47050.2019.9064414},
+file = {:home/han300hu/下载/attention/BERT for Open-Domain Conversation Modeling.pdf:pdf},
+isbn = {9781728147437},
+journal = {2019 IEEE 5th International Conference on Computer and Communications, ICCC 2019},
+keywords = {BERT,VAEs,conversation generation},
+pages = {1532--1536},
+publisher = {IEEE},
+title = {{BERT for Open-Domain Conversation Modeling}},
+year = {2019}
+}
+@article{Zheng2019a,
+abstract = {Endowing a dialogue system with particular personality traits is essential to deliver more human-like conversations. However, due to the challenge of embodying personality via language expression and the lack of large-scale persona-labeled dialogue data, this research problem is still far from well-studied. In this paper, we investigate the problem of incorporating explicit personality traits in dialogue generation to deliver personalized dialogues. To this end, firstly, we construct PersonalDialog, a large-scale multi-turn dialogue dataset containing various traits from a large number of speakers. The dataset consists of 20.83M sessions and 56.25M utterances from 8.47M speakers. Each utterance is associated with a speaker who is marked with traits like Age, Gender, Location, Interest Tags, etc. Several anonymization schemes are designed to protect the privacy of each speaker. This large-scale dataset will facilitate not only the study of personalized dialogue generation, but also other researches on sociolinguistics or social science. Secondly, to study how personality traits can be captured and addressed in dialogue generation, we propose persona-aware dialogue generation models within the sequence to sequence learning framework. Explicit personality traits (structured by key-value pairs) are embedded using a trait fusion module. During the decoding process, two techniques, namely persona-aware attention and persona-aware bias, are devised to capture and address trait-related information. Experiments demonstrate that our model is able to address proper traits in different contexts. Case studies also show interesting results for this challenging research problem.},
+annote = {Datasets:
+PersonalDialog a large-scale dialogue dataset that contains var- ious traits of each speaker (such as Age, Gender, Location, Interest Tags etc.)
+Please contact zhengyinhe1@163.com for the PersonalDialog dataset
+
+A Simple Model:
+encoder-decoder framework 
+Personality Trait Fusion
+one is a persona-aware attention mechanism, and the other is a persona-aware bias},
+archivePrefix = {arXiv},
+arxivId = {1901.09672},
+author = {Zheng, Yinhe and Chen, Guanyi and Huang, Minlie and Liu, Song and Zhu, Xuan},
+eprint = {1901.09672},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Zheng et al. - 2019 - Personalized Dialogue Generation with Diversified Traits.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {jan},
+title = {{Personalized Dialogue Generation with Diversified Traits}},
+url = {http://arxiv.org/abs/1901.09672},
+year = {2019}
+}
+@article{Adiwardana2020,
+abstract = {We present Meena, a multi-turn open-domain chatbot trained end-to-end on data mined and filtered from public domain social media conversations. This 2.6B parameter neural network is simply trained to minimize perplexity of the next token. We also propose a human evaluation metric called Sensibleness and Specificity Average (SSA), which captures key elements of a human-like multi-turn conversation. Our experiments show strong correlation between perplexity and SSA. The fact that the best perplexity end-to-end trained Meena scores high on SSA (72{\%} on multi-turn evaluation) suggests that a human-level SSA of 86{\%} is potentially within reach if we can better optimize perplexity. Additionally, the full version of Meena (with a filtering mechanism and tuned decoding) scores 79{\%} SSA, 23{\%} higher in absolute SSA than the existing chatbots we evaluated.},
+archivePrefix = {arXiv},
+arxivId = {2001.09977},
+author = {Adiwardana, Daniel and Luong, Minh-Thang and So, David R. and Hall, Jamie and Fiedel, Noah and Thoppilan, Romal and Yang, Zi and Kulshreshtha, Apoorv and Nemade, Gaurav and Lu, Yifeng and Le, Quoc V.},
+eprint = {2001.09977},
+file = {:home/han300hu/下载/attention/Towards a Human-like Open-Domain Chatbot.pdf:pdf},
+title = {{Towards a Human-like Open-Domain Chatbot}},
+url = {http://arxiv.org/abs/2001.09977},
+year = {2020}
+}
+@article{Liu2019,
+abstract = {Language model pretraining has led to significant performance gains but careful comparison between different approaches is challenging. Training is computationally expensive, often done on private datasets of different sizes, and, as we will show, hyperparameter choices have significant impact on the final results. We present a replication study of BERT pretraining (Devlin et al., 2019) that carefully measures the impact of many key hyperparameters and training data size. We find that BERT was significantly undertrained, and can match or exceed the performance of every model published after it. Our best model achieves state-of-the-art results on GLUE, RACE and SQuAD. These results highlight the importance of previously overlooked design choices, and raise questions about the source of recently reported improvements. We release our models and code.},
+annote = {New training method
+
+Great designed experiments
+},
+archivePrefix = {arXiv},
+arxivId = {1907.11692},
+author = {Liu, Yinhan and Ott, Myle and Goyal, Naman and Du, Jingfei and Joshi, Mandar and Chen, Danqi and Levy, Omer and Lewis, Mike and Zettlemoyer, Luke and Stoyanov, Veselin},
+eprint = {1907.11692},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Liu et al. - 2019 - RoBERTa A Robustly Optimized BERT Pretraining Approach.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {jul},
+title = {{RoBERTa: A Robustly Optimized BERT Pretraining Approach}},
+url = {http://arxiv.org/abs/1907.11692},
+year = {2019}
+}
+@article{Wolf2019,
+abstract = {We introduce a new approach to generative data-driven dialogue systems (e.g. chatbots) called TransferTransfo which is a combination of a Transfer learning based training scheme and a high-capacity Transformer model. Fine-tuning is performed by using a multi-task objective which combines several unsupervised prediction tasks. The resulting fine-tuned model shows strong improvements over the current state-of-the-art end-to-end conversational models like memory augmented seq2seq and information-retrieval models. On the privately held PERSONA-CHAT dataset of the Conversational Intelligence Challenge 2, this approach obtains a new state-of-the-art, with respective perplexity, Hits@1 and F1 metrics of 16.28 (45 {\%} absolute improvement), 80.7 (46 {\%} absolute improvement) and 19.5 (20 {\%} absolute improvement).},
+archivePrefix = {arXiv},
+arxivId = {1901.08149},
+author = {Wolf, Thomas and Sanh, Victor and Chaumond, Julien and Delangue, Clement},
+eprint = {1901.08149},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Wolf et al. - 2019 - TransferTransfo A Transfer Learning Approach for Neural Network Based Conversational Agents.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {jan},
+title = {{TransferTransfo: A Transfer Learning Approach for Neural Network Based Conversational Agents}},
+url = {http://arxiv.org/abs/1901.08149},
+year = {2019}
+}
+@article{Liu2020,
+abstract = {Despite the continuing efforts to improve the engagingness and consistency of chit-chat dialogue systems, the majority of current work simply focus on mimicking human-like responses, leaving understudied the aspects of modeling understanding between interlocutors. The research in cognitive science, instead, suggests that understanding is an essential signal for a high-quality chit-chat conversation. Motivated by this, we propose P{\^{}}2 Bot, a transmitter-receiver based framework with the aim of explicitly modeling understanding. Specifically, P{\^{}}2 Bot incorporates mutual persona perception to enhance the quality of personalized dialogue generation. Experiments on a large public dataset, Persona-Chat, demonstrate the effectiveness of our approach, with a considerable boost over the state-of-the-art baselines across both automatic metrics and human evaluations.},
+annote = {Complex Transformer Model:
+GPT, BERT, RL self-play
+
+Dataset:
+PERSONA-CHAT},
+archivePrefix = {arXiv},
+arxivId = {2004.05388},
+author = {Liu, Qian and Chen, Yihong and Chen, Bei and Lou, Jian-Guang and Chen, Zixuan and Zhou, Bin and Zhang, Dongmei},
+eprint = {2004.05388},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Liu et al. - 2020 - You Impress Me Dialogue Generation via Mutual Persona Perception.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {apr},
+title = {{You Impress Me: Dialogue Generation via Mutual Persona Perception}},
+url = {http://arxiv.org/abs/2004.05388},
+year = {2020}
+}
+@article{Bahdanau2015,
+abstract = {Neural machine translation is a recently proposed approach to machine translation. Unlike the traditional statistical machine translation, the neural machine translation aims at building a single neural network that can be jointly tuned to maximize the translation performance. The models proposed recently for neural machine translation often belong to a family of encoder–decoders and encode a source sentence into a fixed-length vector from which a decoder generates a translation. In this paper, we conjecture that the use of a fixed-length vector is a bottleneck in improving the performance of this basic encoder–decoder architecture, and propose to extend this by allowing a model to automatically (soft-)search for parts of a source sentence that are relevant to predicting a target word, without having to form these parts as a hard segment explicitly. With this new approach, we achieve a translation performance comparable to the existing state-of-the-art phrase-based system on the task of English-to-French translation. Furthermore, qualitative analysis reveals that the (soft-)alignments found by the model agree well with our intuition.},
+archivePrefix = {arXiv},
+arxivId = {1409.0473},
+author = {Bahdanau, Dzmitry and Cho, Kyung Hyun and Bengio, Yoshua},
+eprint = {1409.0473},
+file = {:home/han300hu/下载/attention/Neural Machine Translation by Jointly Learning to Align and Translate.pdf:pdf},
+journal = {3rd International Conference on Learning Representations, ICLR 2015 - Conference Track Proceedings},
+keywords = {Read},
+mendeley-tags = {Read},
+pages = {1--15},
+title = {{Neural machine translation by jointly learning to align and translate}},
+year = {2015}
+}
+@article{Xu2020,
+abstract = {Unstructured Persona-oriented Dialogue Systems (UPDS) has been demonstrated effective in generating persona consistent responses by utilizing predefined natural language user persona descriptions (e.g., "I am a vegan"). However, the predefined user persona descriptions are usually short and limited to only a few descriptive words, which makes it hard to correlate them with the dialogues. As a result, existing methods either fail to use the persona description or use them improperly when generating persona consistent responses. To address this, we propose a neural topical expansion framework, namely Persona Exploration and Exploitation (PEE), which is able to extend the predefined user persona description with semantically correlated content before utilizing them to generate dialogue responses. PEE consists of two main modules: persona exploration and persona exploitation. The former learns to extend the predefined user persona description by mining and correlating with existing dialogue corpus using a variational auto-encoder (VAE) based topic model. The latter learns to generate persona consistent responses by utilizing the predefined and extended user persona description. In order to make persona exploitation learn to utilize user persona description more properly, we also introduce two persona-oriented loss functions: Persona-oriented Matching (P-Match) loss and Persona-oriented Bag-of-Words (P-BoWs) loss which respectively supervise persona selection in encoder and decoder. Experimental results show that our approach outperforms state-of-the-art baselines, in terms of both automatic and human evaluations.},
+annote = {Complex VAE and GRU model
+
+Datasets:
+persona-chat},
+archivePrefix = {arXiv},
+arxivId = {2002.02153},
+author = {Xu, Minghong and Li, Piji and Yang, Haoran and Ren, Pengjie and Ren, Zhaochun and Chen, Zhumin and Ma, Jun},
+eprint = {2002.02153},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Xu et al. - 2020 - A Neural Topical Expansion Framework for Unstructured Persona-oriented Dialogue Generation.pdf:pdf},
+month = {feb},
+title = {{A Neural Topical Expansion Framework for Unstructured Persona-oriented Dialogue Generation}},
+url = {http://arxiv.org/abs/2002.02153},
+year = {2020}
+}
+@article{Lan2019,
+abstract = {Increasing model size when pretraining natural language representations often results in improved performance on downstream tasks. However, at some point further model increases become harder due to GPU/TPU memory limitations and longer training times. To address these problems, we present two parameter-reduction techniques to lower memory consumption and increase the training speed of BERT. Comprehensive empirical evidence shows that our proposed methods lead to models that scale much better compared to the original BERT. We also use a self-supervised loss that focuses on modeling inter-sentence coherence, and show it consistently helps downstream tasks with multi-sentence inputs. As a result, our best model establishes new state-of-the-art results on the GLUE, RACE, and $\backslash$squad benchmarks while having fewer parameters compared to BERT-large. The code and the pretrained models are available at https://github.com/google-research/ALBERT.},
+archivePrefix = {arXiv},
+arxivId = {1909.11942},
+author = {Lan, Zhenzhong and Chen, Mingda and Goodman, Sebastian and Gimpel, Kevin and Sharma, Piyush and Soricut, Radu},
+eprint = {1909.11942},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Lan et al. - 2019 - ALBERT A Lite BERT for Self-supervised Learning of Language Representations.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {sep},
+title = {{ALBERT: A Lite BERT for Self-supervised Learning of Language Representations}},
+url = {http://arxiv.org/abs/1909.11942},
+year = {2019}
+}
+@article{Zhang2018,
+abstract = {Chit-chat models are known to have several problems: they lack specificity, do not display a consistent personality and are often not very captivating. In this work we present the task of making chit-chat more engaging by conditioning on profile information. We collect data and train models to (i) condition on their given profile information; and (ii) information about the person they are talking to, resulting in improved dialogues, as measured by next utterance prediction. Since (ii) is initially unknown our model is trained to engage its partner with personal topics, and we show the resulting dialogue can be used to predict profile information about the interlocutors.},
+archivePrefix = {arXiv},
+arxivId = {1801.07243},
+author = {Zhang, Saizheng and Dinan, Emily and Urbanek, Jack and Szlam, Arthur and Kiela, Douwe and Weston, Jason},
+eprint = {1801.07243},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Zhang et al. - 2018 - Personalizing Dialogue Agents I have a dog, do you have pets too(4).pdf:pdf},
+journal = {ACL 2018 - 56th Annual Meeting of the Association for Computational Linguistics, Proceedings of the Conference (Long Papers)},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {jan},
+pages = {2204--2213},
+publisher = {Association for Computational Linguistics (ACL)},
+title = {{Personalizing Dialogue Agents: I have a dog, do you have pets too?}},
+url = {http://arxiv.org/abs/1801.07243},
+volume = {1},
+year = {2018}
+}
+@article{Bachlechner2020,
+abstract = {Deep networks often suffer from vanishing or exploding gradients due to inefficient signal propagation, leading to long training times or convergence difficulties. Various architecture designs, sophisticated residual-style networks, and initialization schemes have been shown to improve deep signal propagation. Recently, Pennington et al. used free probability theory to show that dynamical isometry plays an integral role in efficient deep learning. We show that the simplest architecture change of gating each residual connection using a single zero-initialized parameter satisfies initial dynamical isometry and outperforms more complex approaches. Although much simpler than its predecessors, this gate enables training thousands of fully connected layers with fast convergence and better test performance for ResNets trained on CIFAR-10. We apply this technique to language modeling and find that we can easily train 120-layer Transformers. When applied to 12 layer Transformers, it converges 56{\%} faster on enwiki8.},
+archivePrefix = {arXiv},
+arxivId = {2003.04887},
+author = {Bachlechner, Thomas and Majumder, Bodhisattwa Prasad and Mao, Huanru Henry and Cottrell, Garrison W. and McAuley, Julian},
+eprint = {2003.04887},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Bachlechner et al. - 2020 - ReZero is All You Need Fast Convergence at Large Depth.pdf:pdf},
+month = {mar},
+title = {{ReZero is All You Need: Fast Convergence at Large Depth}},
+url = {http://arxiv.org/abs/2003.04887},
+year = {2020}
+}
+@article{Zheng2019,
+abstract = {Endowing dialogue systems with personas is essential to deliver more human-like conversations. However, this problem is still far from well explored due to the difficulties of both embodying personalities in natural languages and the persona sparsity issue observed in most dialogue corpora. This paper proposes a pre-training based personalized dialogue model that can generate coherent responses using persona-sparse dialogue data. In this method, a pre-trained language model is used to initialize an encoder and decoder, and personal attribute embeddings are devised to model richer dialogue contexts by encoding speakers' personas together with dialogue histories. Further, to incorporate the target persona in the decoding process and to balance its contribution, an attention routing structure is devised in the decoder to merge features extracted from the target persona and dialogue contexts using dynamically predicted weights. Our model can utilize persona-sparse dialogues in a unified manner during the training process, and can also control the amount of persona-related features to exhibit during the inference process. Both automatic and manual evaluation demonstrates that the proposed model outperforms state-of-the-art methods for generating more coherent and persona consistent responses with persona-sparse data.},
+annote = {Transformer Model},
+archivePrefix = {arXiv},
+arxivId = {1911.04700},
+author = {Zheng, Yinhe and Zhang, Rongsheng and Mao, Xiaoxi and Huang, Minlie},
+eprint = {1911.04700},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Zheng et al. - 2019 - A Pre-training Based Personalized Dialogue Generation Model with Persona-sparse Data.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {nov},
+title = {{A Pre-training Based Personalized Dialogue Generation Model with Persona-sparse Data}},
+url = {http://arxiv.org/abs/1911.04700},
+year = {2019}
+}
+@article{Sukhbaatar2015,
+abstract = {We introduce a neural network with a recurrent attention model over a possibly large external memory. The architecture is a form of Memory Network (Weston et al., 2015) but unlike the model in that work, it is trained end-to-end, and hence requires significantly less supervision during training, making it more generally applicable in realistic settings. It can also be seen as an extension of RNNsearch to the case where multiple computational steps (hops) are performed per output symbol. The flexibility of the model allows us to apply it to tasks as diverse as (synthetic) question answering and to language modeling. For the former our approach is competitive with Memory Networks, but with less supervision. For the latter, on the Penn TreeBank and Text8 datasets our approach demonstrates comparable performance to RNNs and LSTMs. In both cases we show that the key concept of multiple computational hops yields improved results.},
+author = {Sukhbaatar, Sainbayar and Szlam, Arthur and Weston, Jason and Fergus, Rob},
+file = {:home/han300hu/下载/attention/End-To-End Memory Networks.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+title = {{End-To-End Memory Networks}},
+url = {https://arxiv.org/abs/1503.08895},
+year = {2015}
+}
+@article{Song2019,
+abstract = {In human conversations, due to their personalities in mind, people can easily carry out and maintain the conversations. Giving conversational context with persona information to a chatbot, how to exploit the information to generate diverse and sustainable conversations is still a non-trivial task. Previous work on persona-based conversational models successfully make use of predefined persona information and have shown great promise in delivering more realistic responses. And they all learn with the assumption that given a source input, there is only one target response. However, in human conversations, there are massive appropriate responses to a given input message. In this paper, we propose a memory-augmented architecture to exploit persona information from context and incorporate a conditional variational autoencoder model together to generate diverse and sustainable conversations. We evaluate the proposed model on a benchmark persona-chat dataset. Both automatic and human evaluations show that our model can deliver more diverse and more engaging persona-based responses than baseline approaches.},
+annote = {Complex Model:
+Persona-CVAE
+
+See papers cited this},
+archivePrefix = {arXiv},
+arxivId = {1905.12188},
+author = {Song, Haoyu and Zhang, Wei-Nan and Cui, Yiming and Wang, Dong and Liu, Ting},
+eprint = {1905.12188},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Song et al. - 2019 - Exploiting Persona Information for Diverse Generation of Conversational Responses.pdf:pdf},
+journal = {IJCAI International Joint Conference on Artificial Intelligence},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {may},
+pages = {5190--5196},
+publisher = {International Joint Conferences on Artificial Intelligence},
+title = {{Exploiting Persona Information for Diverse Generation of Conversational Responses}},
+url = {http://arxiv.org/abs/1905.12188},
+volume = {2019-Augus},
+year = {2019}
+}
+@article{Qian2017,
+abstract = {Endowing a chatbot with personality or an identity is quite challenging but critical to deliver more realistic and natural conversations. In this paper, we address the issue of generating responses that are coherent to a pre-specified agent profile. We design a model consisting of three modules: a profile detector to decide whether a post should be responded using the profile and which key should be addressed, a bidirectional decoder to generate responses forward and backward starting from a selected profile value, and a position detector that predicts a word position from which decoding should start given a selected profile value. We show that general conversation data from social media can be used to generate profile-coherent responses. Manual and automatic evaluation shows that our model can deliver more coherent, natural, and diversified responses.},
+annote = {Datasets:
+http://coai.cs.tsinghua.edu.cn/hml/dataset/{\#}AssignPersonality
+
+Code:
+https://github.com/qianqiao/AssignPersonality},
+archivePrefix = {arXiv},
+arxivId = {1706.02861},
+author = {Qian, Qiao and Huang, Minlie and Zhao, Haizhou and Xu, Jingfang and Zhu, Xiaoyan},
+eprint = {1706.02861},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Qian et al. - 2017 - Assigning personalityidentity to a chatting machine for coherent conversation generation.pdf:pdf},
+journal = {IJCAI International Joint Conference on Artificial Intelligence},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {jun},
+pages = {4279--4285},
+publisher = {International Joint Conferences on Artificial Intelligence},
+title = {{Assigning personality/identity to a chatting machine for coherent conversation generation}},
+url = {http://arxiv.org/abs/1706.02861},
+volume = {2018-July},
+year = {2017}
+}
+@article{Clark2020,
+abstract = {Masked language modeling (MLM) pre-training methods such as BERT corrupt the input by replacing some tokens with [MASK] and then train a model to reconstruct the original tokens. While they produce good results when transferred to downstream NLP tasks, they generally require large amounts of compute to be effective. As an alternative, we propose a more sample-efficient pre-training task called replaced token detection. Instead of masking the input, our approach corrupts it by replacing some tokens with plausible alternatives sampled from a small generator network. Then, instead of training a model that predicts the original identities of the corrupted tokens, we train a discriminative model that predicts whether each token in the corrupted input was replaced by a generator sample or not. Thorough experiments demonstrate this new pre-training task is more efficient than MLM because the task is defined over all input tokens rather than just the small subset that was masked out. As a result, the contextual representations learned by our approach substantially outperform the ones learned by BERT given the same model size, data, and compute. The gains are particularly strong for small models; for example, we train a model on one GPU for 4 days that outperforms GPT (trained using 30x more compute) on the GLUE natural language understanding benchmark. Our approach also works well at scale, where it performs comparably to RoBERTa and XLNet while using less than 1/4 of their compute and outperforms them when using the same amount of compute.},
+archivePrefix = {arXiv},
+arxivId = {2003.10555},
+author = {Clark, Kevin and Luong, Minh-Thang and Le, Quoc V. and Manning, Christopher D.},
+eprint = {2003.10555},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Clark et al. - 2020 - ELECTRA Pre-training Text Encoders as Discriminators Rather Than Generators.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {mar},
+title = {{ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators}},
+url = {http://arxiv.org/abs/2003.10555},
+year = {2020}
+}
+@techreport{Radford2019,
+abstract = {Natural language processing tasks, such as question answering, machine translation, reading comprehension , and summarization, are typically approached with supervised learning on task-specific datasets. We demonstrate that language models begin to learn these tasks without any explicit supervision when trained on a new dataset of millions of webpages called WebText. When conditioned on a document plus questions, the answers generated by the language model reach 55 F1 on the CoQA dataset-matching or exceeding the performance of 3 out of 4 baseline systems without using the 127,000+ training examples. The capacity of the language model is essential to the success of zero-shot task transfer and increasing it improves performance in a log-linear fashion across tasks. Our largest model, GPT-2, is a 1.5B parameter Transformer that achieves state of the art results on 7 out of 8 tested language modeling datasets in a zero-shot setting but still underfits WebText. Samples from the model reflect these improvements and contain coherent paragraphs of text. These findings suggest a promising path towards building language processing systems which learn to perform tasks from their naturally occurring demonstrations.},
+author = {Radford, Alec and Wu, Jeffrey and Child, Rewon and Luan, David and Amodei, Dario and Sutskever, Ilya},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Radford et al. - 2019 - Language Models are Unsupervised Multitask Learners.pdf:pdf},
+keywords = {ICML,Machine Learning,Read},
+mendeley-tags = {Read},
+title = {{Language Models are Unsupervised Multitask Learners}},
+url = {https://github.com/codelucas/newspaper},
+year = {2019}
+}
+@misc{Tselousov2018,
+author = {Tselousov, Alexander and Golovanov, Sergey and Kurbanov, Rauf},
+title = {{The Conversational Intelligence Challenge 2 Solution of "Lost in Conversation" team Speaker: Rauf Kurbanov}},
+year = {2018},
+publisher = {GitHub},
+journal = {GitHub repository},
+howpublished = {\url{https://github.com/atselousov/transformer_chatbot}},
+}
+@techreport{Lewis2019,
+abstract = {We present BART, a denoising autoencoder for pretraining sequence-to-sequence models. BART is trained by (1) corrupting text with an arbitrary noising function, and (2) learning a model to reconstruct the original text. It uses a standard Tranformer-based neural machine translation architecture which, despite its simplicity , can be seen as generalizing BERT (due to the bidirectional encoder), GPT (with the left-to-right decoder), and many other more recent pretraining schemes. We evaluate a number of noising approaches, finding the best performance by both randomly shuffling the order of the original sentences and using a novel in-filling scheme, where spans of text are replaced with a single mask token. BART is particularly effective when fine tuned for text generation but also works well for comprehension tasks. It matches the performance of RoBERTa with comparable training resources on GLUE and SQuAD, achieves new state-of-the-art results on a range of abstractive dialogue , question answering, and summariza-tion tasks, with gains of up to 6 ROUGE. BART also provides a 1.1 BLEU increase over a back-translation system for machine translation , with only target language pretraining. We also report ablation experiments that replicate other pretraining schemes within the BART framework, to better measure which factors most influence end-task performance.},
+annote = {New training method},
+archivePrefix = {arXiv},
+arxivId = {1910.13461v1},
+author = {Lewis, Mike and Liu, Yinhan and Goyal, Naman and Ghazvininejad, Marjan and Mohamed, Abdelrahman and Levy, Omer and Stoyanov, Ves and Zettlemoyer, Luke},
+eprint = {1910.13461v1},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Lewis et al. - Unknown - BART Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehensio.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+title = {{BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension}},
+year = {2019}
+}
+@inproceedings{Vaswani2017,
+abstract = {The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.0 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature.},
+author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+booktitle = {Advances in Neural Information Processing Systems},
+file = {:home/han300hu/下载/attention/Attention Is All You Need.pdf:pdf},
+issn = {10495258},
+title = {{Attention is all you need}},
+year = {2017}
+}
+@article{Brown2020,
+abstract = {Recent work has demonstrated substantial gains on many NLP tasks and benchmarks by pre-training on a large corpus of text followed by fine-tuning on a specific task. While typically task-agnostic in architecture, this method still requires task-specific fine-tuning datasets of thousands or tens of thousands of examples. By contrast, humans can generally perform a new language task from only a few examples or from simple instructions - something which current NLP systems still largely struggle to do. Here we show that scaling up language models greatly improves task-agnostic, few-shot performance, sometimes even reaching competitiveness with prior state-of-the-art fine-tuning approaches. Specifically, we train GPT-3, an autoregressive language model with 175 billion parameters, 10x more than any previous non-sparse language model, and test its performance in the few-shot setting. For all tasks, GPT-3 is applied without any gradient updates or fine-tuning, with tasks and few-shot demonstrations specified purely via text interaction with the model. GPT-3 achieves strong performance on many NLP datasets, including translation, question-answering, and cloze tasks, as well as several tasks that require on-the-fly reasoning or domain adaptation, such as unscrambling words, using a novel word in a sentence, or performing 3-digit arithmetic. At the same time, we also identify some datasets where GPT-3's few-shot learning still struggles, as well as some datasets where GPT-3 faces methodological issues related to training on large web corpora. Finally, we find that GPT-3 can generate samples of news articles which human evaluators have difficulty distinguishing from articles written by humans. We discuss broader societal impacts of this finding and of GPT-3 in general.},
+archivePrefix = {arXiv},
+arxivId = {2005.14165},
+author = {Brown, Tom B. and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and Kaplan, Jared and Dhariwal, Prafulla and Neelakantan, Arvind and Shyam, Pranav and Sastry, Girish and Askell, Amanda and Agarwal, Sandhini and Herbert-Voss, Ariel and Krueger, Gretchen and Henighan, Tom and Child, Rewon and Ramesh, Aditya and Ziegler, Daniel M. and Wu, Jeffrey and Winter, Clemens and Hesse, Christopher and Chen, Mark and Sigler, Eric and Litwin, Mateusz and Gray, Scott and Chess, Benjamin and Clark, Jack and Berner, Christopher and McCandlish, Sam and Radford, Alec and Sutskever, Ilya and Amodei, Dario},
+eprint = {2005.14165},
+file = {:home/han300hu/下载/attention/Language Models are Few-Shot Learners.pdf:pdf},
+title = {{Language Models are Few-Shot Learners}},
+url = {http://arxiv.org/abs/2005.14165},
+year = {2020}
+}
+@article{You2019,
+abstract = {Training large deep neural networks on massive datasets is computationally very challenging. There has been recent surge in interest in using large batch stochastic optimization methods to tackle this issue. The most prominent algorithm in this line of research is LARS, which by employing layerwise adaptive learning rates trains ResNet on ImageNet in a few minutes. However, LARS performs poorly for attention models like BERT, indicating that its performance gains are not consistent across tasks. In this paper, we first study a principled layerwise adaptation strategy to accelerate training of deep neural networks using large mini-batches. Using this strategy, we develop a new layerwise adaptive large batch optimization technique called LAMB; we then provide convergence analysis of LAMB as well as LARS, showing convergence to a stationary point in general nonconvex settings. Our empirical results demonstrate the superior performance of LAMB across various tasks such as BERT and ResNet-50 training with very little hyperparameter tuning. In particular, for BERT training, our optimizer enables use of very large batch sizes of 32868 without any degradation of performance. By increasing the batch size to the memory limit of a TPUv3 Pod, BERT training time can be reduced from 3 days to just 76 minutes (Table 1). The LAMB implementation is available at https://github.com/tensorflow/addons/blob/master/tensorflow{\_}addons/optimizers/lamb.py},
+archivePrefix = {arXiv},
+arxivId = {1904.00962},
+author = {You, Yang and Li, Jing and Reddi, Sashank and Hseu, Jonathan and Kumar, Sanjiv and Bhojanapalli, Srinadh and Song, Xiaodan and Demmel, James and Keutzer, Kurt and Hsieh, Cho-Jui},
+eprint = {1904.00962},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/You et al. - 2019 - Large Batch Optimization for Deep Learning Training BERT in 76 minutes.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {apr},
+title = {{Large Batch Optimization for Deep Learning: Training BERT in 76 minutes}},
+url = {http://arxiv.org/abs/1904.00962},
+year = {2019}
+}
+@techreport{Li2016,
+abstract = {Sequence-to-sequence neural network models for generation of conversational responses tend to generate safe, commonplace responses (e.g., I don't know) regardless of the input. We suggest that the traditional objective function , i.e., the likelihood of output (response) given input (message) is unsuited to response generation tasks. Instead we propose using Maximum Mutual Information (MMI) as the objective function in neural models. Experimental results demonstrate that the proposed MMI models produce more diverse, interesting , and appropriate responses, yielding substantive gains in BLEU scores on two conversational datasets and in human evaluations.},
+archivePrefix = {arXiv},
+arxivId = {1510.03055v3},
+author = {Li, Jiwei and Galley, Michel and Brockett, Chris and Gao, Jianfeng and Dolan, Bill},
+eprint = {1510.03055v3},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Li et al. - 2016 - A Diversity-Promoting Objective Function for Neural Conversation Models.pdf:pdf},
+title = {{A Diversity-Promoting Objective Function for Neural Conversation Models}},
+year = {2016}
+}
+@techreport{Devlin2019,
+abstract = {We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models (Peters et al., 2018a; Rad-ford et al., 2018), BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers. As a result , the pre-trained BERT model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks, such as question answering and language inference, without substantial task-specific architecture modifications. BERT is conceptually simple and empirically powerful. It obtains new state-of-the-art results on eleven natural language processing tasks, including pushing the GLUE score to 80.5{\%} (7.7{\%} point absolute improvement), MultiNLI accuracy to 86.7{\%} (4.6{\%} absolute improvement), SQuAD v1.1 question answering Test F1 to 93.2 (1.5 point absolute improvement) and SQuAD v2.0 Test F1 to 83.1 (5.1 point absolute improvement).},
+archivePrefix = {arXiv},
+arxivId = {1810.04805v2},
+author = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Google, Kristina Toutanova and Language, A I},
+eprint = {1810.04805v2},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Devlin et al. - Unknown - BERT Pre-training of Deep Bidirectional Transformers for Language Understanding.pdf:pdf},
+isbn = {1810.04805v2},
+keywords = {Read},
+mendeley-tags = {Read},
+title = {{BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding}},
+url = {https://github.com/tensorflow/tensor2tensor},
+year = {2019}
+}
+@article{Ziegler2019,
+abstract = {Large pretrained language models have changed the way researchers approach discriminative natural language understanding tasks, leading to the dominance of approaches that adapt a pretrained model for arbitrary downstream tasks. However it is an open-question how to use similar techniques for language generation. Early results in the encoder-agnostic setting have been mostly negative. In this work we explore methods for adapting a pretrained language model to arbitrary conditional input. We observe that pretrained transformer models are sensitive to large parameter changes during tuning. We therefore propose an adaptation that directly injects arbitrary conditioning into self attention, an approach we call pseudo self attention. Through experiments on four diverse conditional text generation tasks we show that this encoder-agnostic technique outperforms strong baselines, produces coherent generations, and is data efficient.},
+annote = {Transformer Implicit Model
+We observe that pretrained transformer models are sensitive to large parameter changes during tuning. We therefore propose an adaptation that directly injects arbitrary conditioning into self attention, an approach we call pseudo self attention.},
+archivePrefix = {arXiv},
+arxivId = {1908.06938},
+author = {Ziegler, Zachary M. and Melas-Kyriazi, Luke and Gehrmann, Sebastian and Rush, Alexander M.},
+eprint = {1908.06938},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Ziegler et al. - 2019 - Encoder-Agnostic Adaptation for Conditional Language Generation.pdf:pdf},
+keywords = {Read},
+mendeley-tags = {Read},
+month = {aug},
+title = {{Encoder-Agnostic Adaptation for Conditional Language Generation}},
+url = {http://arxiv.org/abs/1908.06938},
+year = {2019}
+}
+
+@misc{ruder2018nlpimagenet,
+author = {Ruder, Sebastian},
+title = {NLP's ImageNet moment has arrived},
+journal = {The Gradient},
+year = {2018},
+howpublished = {\url{https://thegradient.pub/nlp-imagenet/ } },
+}
+
+@article{Sanh2019,
+abstract = {As Transfer Learning from large-scale pre-trained models becomes more prevalent in Natural Language Processing (NLP), operating these large models in on-the-edge and/or under constrained computational training or inference budgets remains challenging. In this work, we propose a method to pre-train a smaller general-purpose language representation model, called DistilBERT, which can then be fine-tuned with good performances on a wide range of tasks like its larger counterparts. While most prior work investigated the use of distillation for building task-specific models, we leverage knowledge distillation during the pre-training phase and show that it is possible to reduce the size of a BERT model by 40{\%}, while retaining 97{\%} of its language understanding capabilities and being 60{\%} faster. To leverage the inductive biases learned by larger models during pre-training, we introduce a triple loss combining language modeling, distillation and cosine-distance losses. Our smaller, faster and lighter model is cheaper to pre-train and we demonstrate its capabilities for on-device computations in a proof-of-concept experiment and a comparative on-device study.},
+archivePrefix = {arXiv},
+arxivId = {1910.01108},
+author = {Sanh, Victor and Debut, Lysandre and Chaumond, Julien and Wolf, Thomas},
+eprint = {1910.01108},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Sanh et al. - 2019 - DistilBERT, a distilled version of BERT smaller, faster, cheaper and lighter.pdf:pdf},
+keywords = {Read},
+mendeley-groups = {NLP},
+mendeley-tags = {Read},
+month = {oct},
+title = {{DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter}},
+url = {http://arxiv.org/abs/1910.01108},
+year = {2019}
+}
+
+% too large pretrain model
+@misc{GPT2-ML,
+  author = {Zhibo Zhang},
+  title = {GPT2-ML: GPT-2 for Multiple Languages},
+  year = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/imcaspar/gpt2-ml}},
+}
+% too small pretrain model and datasets
+@misc{GPT2-Chinese,
+  author = {Zeyao Du},
+  title = {GPT2-Chinese: Tools for training GPT2 model in Chinese language},
+  year = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/Morizeyao/GPT2-Chinese}},
+}
+% too small pretrain model and datasets
+@misc{GPT2-chitchat,
+  author = {Zeyao Du},
+  title = {GPT2-chitchat: GPT2 for Chinese chitchat},
+  year = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/yangjianxin1/GPT2-chitchat}},
+}
+
+% for future work finetune on it
+% https://github.com/thu-coai/CDial-GPT
+@inproceedings{wang2020chinese,
+  title={A Large-Scale Chinese Short-Text Conversation Dataset},
+  author={Wang, Yida and Ke, Pei and Zheng, Yinhe and Huang, Kaili and Jiang, Yong and Zhu, Xiaoyan and Huang, Minlie},
+  booktitle={NLPCC},
+  year={2020},
+  url={https://arxiv.org/abs/2008.03946}
+}
+
+@techreport{SutskeverGoogle2014,
+abstract = {Deep Neural Networks (DNNs) are powerful models that have achieved excellent performance on difficult learning tasks. Although DNNs work well whenever large labeled training sets are available, they cannot be used to map sequences to sequences. In this paper, we present a general end-to-end approach to sequence learning that makes minimal assumptions on the sequence structure. Our method uses a multilayered Long Short-Term Memory (LSTM) to map the input sequence to a vector of a fixed dimensionality, and then another deep LSTM to decode the target sequence from the vector. Our main result is that on an English to French translation task from the WMT'14 dataset, the translations produced by the LSTM achieve a BLEU score of 34.8 on the entire test set, where the LSTM's BLEU score was penalized on out-of-vocabulary words. Additionally, the LSTM did not have difficulty on long sentences. For comparison, a phrase-based SMT system achieves a BLEU score of 33.3 on the same dataset. When we used the LSTM to rerank the 1000 hypotheses produced by the aforementioned SMT system, its BLEU score increases to 36.5, which is close to the previous best result on this task. The LSTM also learned sensible phrase and sentence representations that are sensitive to word order and are relatively invariant to the active and the passive voice. Finally, we found that reversing the order of the words in all source sentences (but not target sentences) improved the LSTM's performance markedly, because doing so introduced many short term dependencies between the source and the target sentence which made the optimization problem easier.},
+archivePrefix = {arXiv},
+arxivId = {1409.3215v3},
+author = {{Sutskever Google}, Ilya and {Vinyals Google}, Oriol and {Le Google}, Quoc V},
+eprint = {1409.3215v3},
+file = {::},
+mendeley-groups = {1-paper,NLP},
+title = {{Sequence to Sequence Learning with Neural Networks}},
+year = {2014}
+}
+
+@techreport{Radford2018,
+abstract = {Natural language understanding comprises a wide range of diverse tasks such as textual entailment, question answering, semantic similarity assessment, and document classification. Although large unlabeled text corpora are abundant, labeled data for learning these specific tasks is scarce, making it challenging for discriminatively trained models to perform adequately. We demonstrate that large gains on these tasks can be realized by generative pre-training of a language model on a diverse corpus of unlabeled text, followed by discriminative fine-tuning on each specific task. In contrast to previous approaches, we make use of task-aware input transformations during fine-tuning to achieve effective transfer while requiring minimal changes to the model architecture. We demonstrate the effectiveness of our approach on a wide range of benchmarks for natural language understanding. Our general task-agnostic model outperforms discriminatively trained models that use architectures specifically crafted for each task, significantly improving upon the state of the art in 9 out of the 12 tasks studied. For instance, we achieve absolute improvements of 8.9{\%} on commonsense reasoning (Stories Cloze Test), 5.7{\%} on question answering (RACE), and 1.5{\%} on textual entailment (MultiNLI).},
+author = {Radford, Alec and Narasimhan, Karthik and Salimans, Tim and Sutskever, Ilya},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Openai et al. - Unknown - Improving Language Understanding by Generative Pre-Training.pdf:pdf;:home/han300hu/下载/attention/GPT{\_}architecture.png:png},
+keywords = {Read},
+mendeley-groups = {NLP,1-paper},
+mendeley-tags = {Read},
+title = {{Improving Language Understanding by Generative Pre-Training}},
+url = {https://gluebenchmark.com/leaderboard},
+year = {2018}
+}
+
+@techreport{Papineni2002,
+abstract = {Human evaluations of machine translation are extensive but expensive. Human evaluations can take months to finish and involve human labor that can not be reused. We propose a method of automatic machine translation evaluation that is quick, inexpensive, and language-independent, that correlates highly with human evaluation , and that has little marginal cost per run. We present this method as an automated understudy to skilled human judges which substitutes for them when there is need for quick or frequent evaluations. 1},
+author = {Papineni, Kishore and Roukos, Salim and Ward, Todd and Zhu, Wei-Jing},
+file = {::},
+mendeley-groups = {1-paper},
+title = {{BLEU: a Method for Automatic Evaluation of Machine Translation}},
+year = {2002}
+}
+
+@techreport{Smith2015,
+abstract = {It is known that the learning rate is the most important hyper-parameter to tune for training deep neural networks. This paper describes a new method for setting the learning rate, named cyclical learning rates, which practically eliminates the need to experimentally find the best values and schedule for the global learning rates. Instead of mono-tonically decreasing the learning rate, this method lets the learning rate cyclically vary between reasonable boundary values. Training with cyclical learning rates instead of fixed values achieves improved classification accuracy without a need to tune and often in fewer iterations. This paper also describes a simple way to estimate "reasonable bounds"-linearly increasing the learning rate of the network for a few epochs. In addition, cyclical learning rates are demonstrated on the CIFAR-10 and CIFAR-100 datasets with ResNets, Stochastic Depth networks, and DenseNets, and the ImageNet dataset with the AlexNet and GoogLeNet architectures. These are practical tools for everyone who trains neural networks.},
+archivePrefix = {arXiv},
+arxivId = {1506.01186v6},
+author = {Smith, Leslie N},
+eprint = {1506.01186v6},
+file = {::},
+mendeley-groups = {Optimization,1-paper},
+title = {{Cyclical Learning Rates for Training Neural Networks}},
+url = {www.cs.toronto.edu/},
+year = {2015}
+}
+
+@article{Houlsby2019,
+abstract = {Fine-tuning large pre-trained models is an effective transfer mechanism in NLP. However, in the presence of many downstream tasks, fine-tuning is parameter inefficient: an entire new model is required for every task. As an alternative, we propose transfer with adapter modules. Adapter modules yield a compact and extensible model; they add only a few trainable parameters per task, and new tasks can be added without revisiting previous ones. The parameters of the original network remain fixed, yielding a high degree of parameter sharing. To demonstrate adapter's effectiveness, we transfer the recently proposed BERT Transformer model to 26 diverse text classification tasks, including the GLUE benchmark. Adapters attain near state-of-the-art performance, whilst adding only a few parameters per task. On GLUE, we attain within 0.4{\%} of the performance of full fine-tuning, adding only 3.6{\%} parameters per task. By contrast, fine-tuning trains 100{\%} of the parameters per task.},
+archivePrefix = {arXiv},
+arxivId = {1902.00751},
+author = {Houlsby, Neil and Giurgiu, Andrei and Jastrz{\c{c}}bski, Stanisraw and Morrone, Bruna and de Laroussilhe, Quentin and Gesmundo, Andrea and Attariyan, Mona and Gelly, Sylvain},
+eprint = {1902.00751},
+file = {:home/han300hu/下载/attention/Parameter-efficient transfer learning for NLP.pdf:pdf},
+isbn = {9781510886988},
+journal = {36th International Conference on Machine Learning, ICML 2019},
+mendeley-groups = {NLP,1-paper},
+pages = {4944--4953},
+title = {{Parameter-efficient transfer learning for NLP}},
+volume = {2019-June},
+year = {2019}
+}
+
+@article{Wolf2019HuggingFacesTS,
+  title={HuggingFace's Transformers: State-of-the-art Natural Language Processing},
+  author={Thomas Wolf and Lysandre Debut and Victor Sanh and Julien Chaumond and Clement Delangue and Anthony Moi and Pierric Cistac and Tim Rault and R'emi Louf and Morgan Funtowicz and Jamie Brew},
+  journal={ArXiv},
+  year={2019},
+  volume={abs/1910.03771}
+}
+
+@article{Yang2019,
+abstract = {With the capability of modeling bidirectional contexts, denoising autoencoding based pretraining like BERT achieves better performance than pretraining approaches based on autoregressive language modeling. However, relying on corrupting the input with masks, BERT neglects dependency between the masked positions and suffers from a pretrain-finetune discrepancy. In light of these pros and cons, we propose XLNet, a generalized autoregressive pretraining method that (1) enables learning bidirectional contexts by maximizing the expected likelihood over all permutations of the factorization order and (2) overcomes the limitations of BERT thanks to its autoregressive formulation. Furthermore, XLNet integrates ideas from Transformer-XL, the state-of-the-art autoregressive model, into pretraining. Empirically, under comparable experiment settings, XLNet outperforms BERT on 20 tasks, often by a large margin, including question answering, natural language inference, sentiment analysis, and document ranking.},
+annote = {Complex and hard to read},
+archivePrefix = {arXiv},
+arxivId = {1906.08237},
+author = {Yang, Zhilin and Dai, Zihang and Yang, Yiming and Carbonell, Jaime and Salakhutdinov, Ruslan and Le, Quoc V.},
+eprint = {1906.08237},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Yang et al. - 2019 - XLNet Generalized Autoregressive Pretraining for Language Understanding.pdf:pdf},
+keywords = {Complex,Hard,Read},
+mendeley-groups = {NLP,1-paper},
+mendeley-tags = {Complex,Hard,Read},
+month = {jun},
+title = {{XLNet: Generalized Autoregressive Pretraining for Language Understanding}},
+url = {http://arxiv.org/abs/1906.08237},
+year = {2019}
+}
+
+@techreport{Roller2020,
+abstract = {Building open-domain chatbots is a challenging area for machine learning research. While prior work has shown that scaling neural models in the number of parameters and the size of the data they are trained on gives improved results, we show that other ingredients are important for a high-performing chatbot. Good conversation requires a number of skills that an expert conversationalist blends in a seamless way: providing engaging talking points and listening to their partners, and displaying knowledge , empathy and personality appropriately, while maintaining a consistent persona. We show that large scale models can learn these skills when given appropriate training data and choice of generation strategy. We build variants of these recipes with 90M, 2.7B and 9.4B parameter models, and make our models and code publicly available. Human evaluations show our best models are superior to existing approaches in multi-turn dialogue in terms of engagingness and humanness measurements. We then discuss the limitations of this work by analyzing failure cases of our models.},
+archivePrefix = {arXiv},
+arxivId = {2004.13637v2},
+author = {Roller, Stephen and Dinan, Emily and Goyal, Naman and Ju, Da and Williamson, Mary and Liu, Yinhan and Xu, Jing and Ott, Myle and Shuster, Kurt and Smith, Eric M and Boureau, Y-Lan and Weston, Jason},
+eprint = {2004.13637v2},
+mendeley-groups = {ToRead,Persona,1-paper},
+title = {{Recipes for building an open-domain chatbot}},
+year = {2020}
+}
+
+@techreport{Holtzman2019,
+abstract = {Despite considerable advances in neural language modeling, it remains an open question what the best decoding strategy is for text generation from a language model (e.g. to generate a story). The counter-intuitive empirical observation is that even though the use of likelihood as training objective leads to high quality models for a broad range of language understanding tasks, maximization-based decoding methods such as beam search lead to degeneration-output text that is bland, incoherent, or gets stuck in repetitive loops. To address this we propose Nucleus Sampling, a simple but effective method to draw considerably higher quality text out of neural language models than previous decoding strategies. Our approach avoids text degeneration by truncating the unreliable tail of the probability distribution, sampling from the dynamic nucleus of tokens containing the vast majority of the probability mass. To properly examine current maximization-based and stochastic decoding methods , we compare generations from each of these methods to the distribution of human text along several axes such as likelihood, diversity, and repetition. Our results show that (1) maximization is an inappropriate decoding objective for open-ended text generation, (2) the probability distributions of the best current language models have an unreliable tail which needs to be truncated during generation and (3) Nucleus Sampling is currently the best available decoding strategy for generating long-form text that is both high-quality-as measured by human evaluation-and as diverse as human-written text.},
+archivePrefix = {arXiv},
+arxivId = {1904.09751v2},
+author = {Holtzman, Ari and Buys, Jan and Du, Li and Forbes, Maxwell and Choi, Yejin and Allen, Paul G},
+eprint = {1904.09751v2},
+file = {:home/han300hu/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Holtzman et al. - Unknown - THE CURIOUS CASE OF NEURAL TEXT DeGENERATION.pdf:pdf},
+mendeley-groups = {NLP,ToRead,1-paper},
+title = {{THE CURIOUS CASE OF NEURAL TEXT DeGENERATION}},
+url = {https://github.com/ari-holtzman/degen},
+year = {2019}
+}

@@ -1,6 +1,8 @@
 \def\year{2020}\relax
 %File: formatting-instruction.tex
 \documentclass[letterpaper]{article} %DO NOT CHANGE THIS
+% for styles like two columns
+\usepackage{aaai19}  %Required
 \usepackage{times}  %Required
 \usepackage{helvet}  %Required
 \usepackage{courier}  %Required
@@ -13,6 +15,7 @@
 
 \usepackage{amsmath}
 \usepackage{IEEEtrantools}
+
 
 % \usepackage[sort&compress,square,comma,numbers]{natbib}
 
@@ -27,7 +30,7 @@
 
 \begin{document}
 
-\title{Improvement of a dedicated model for open domain persona-wise dialogue generation}
+\title{Improvement of a dedicated model for open domain persona-aware dialogue generation}
 \author{Jing Bo Hu, Qiang Han~\& Hua Wei Liu \\
 HangZhou GaoDeng Inc. \\
 % 杭州高登影视公司\\
@@ -35,21 +38,21 @@ HangZhou GaoDeng Inc. \\
 
 \maketitle
 \begin{abstract}
-This paper analyzes some speed and performance improvement methods of Transformer architecture in recent years, mainly its application in dedicated model training. The dedicated model studied here refers to the open domain persona-wise dialogue generation model, and the dataset is multi turn short dialogue, The total length of a single input sequence is no more than 105 tokens. Therefore, many improvements in the architecture and attention mechanism of transformer architecture for long sequence processing are not discussed in this paper. 
+This paper analyzes some speed and performance improvement methods of Transformer architecture in recent years, mainly its application in dedicated model training. The dedicated model studied here refers to the open domain persona-aware dialogue generation model, and the dataset is multi turn short dialogue, The total length of a single input sequence is no more than 105 tokens. Therefore, many improvements in the architecture and attention mechanism of transformer architecture for long sequence processing are not discussed in this paper. 
 \end{abstract}
 
 \section[Background]{Background} 
-The revolution in the field of NLP(natural language processing) started with the foundation of attention mechanism\citeext {Bahdanau2015}, ~Transformer architecture\citeext{Vaswani2017} ignited the fuse, and officially opened the revolution curtain by the BERT model\citeext{Devilin2019}. It replaced the relatively complex RNN Architecture series models that used to be the mainstream of NLP with simple pure attention mechanism architecture In the past four years, it has changed the field of NLP in an all-round way, and created the Imagenet moment\citeext{ruder2018nlpimagenet} in NLP field. 
+The revolution in the field of NLP(natural language processing) started with the foundation of attention mechanism\citeext {Bahdanau2015}, ~Transformer architecture\citeext{Vaswani2017} ignited the fuse, and officially opened the revolution curtain by the BERT model\citeext{Devlin2019}. It replaced the relatively complex RNN Architecture series models that used to be the mainstream of NLP with simple pure attention mechanism architecture In the past four years, it has changed the field of NLP in an all-round way, and created the Imagenet moment\citeext{ruder2018nlpimagenet} in NLP field. 
 
 Open domain dialogue generation is an important and very complex task of NLP. Transformer architecture has also made a qualitative leap in this task, such as GPT-2, GPT-3 model and Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}. If there is no special explanation in the following text, the models involved are Transformer architecture models. 
 
 GPT-2 and GPT-3 models are general models, which are suitable for almost all NLP tasks, and are not dedicated to open domain dialog generation. These models usually need huge model size, massive pretraining data and long pretraining time to match the performance of dedicated medium or small models(although DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}} and DistilBERT\citeext{Sanh2019} are used to optimize the general model, but their performance also decreases accordingly). 
 Moreover, it is difficult to generate a conversation with consistent personality\footnote{The chatbot has specific and fixed personality characteristics, such as name, gender, address, etc.} in the general model, even if method like TransferTransfo\citeext{Wolf2019} which finetuning GPT-2 model\footnote{Adds personalized data to the input dialog context}, although it has good performance on the personalized dialogue English dataset PERSONAL-CHAT\citeext{Zhang2018}, it is still not as good as the dedicated model\citeext{Zheng2019} when trained on personalized Dialogue Chinese dataset PersonalDialog\citeext{Zheng2019a}. GPT-3 only has beta API, no need to fine tune, using prompt programming by prepending the personalized data, but we have not obtained the test authority, unable to compare the performance. 
 
-In this paper, we introduced some speed and performance improvement methods of Transformer architecture in recent years to this dedicated open domain persona-wise dialogue generation model\citeext{Zheng2019}, and analyze the effective and invalid attempts on this dedicated model. The source code of the experiment has been open sourced\footnote{\url{https://github.com/ghosthamlet/persona}}. In the following text, open domain persona-wise dialogue generation is referred to as persona-wise dialogue generation. 
+In this paper, we introduced some speed and performance improvement methods of Transformer architecture in recent years to this dedicated open domain persona-aware dialogue generation model\citeext{Zheng2019}, and analyze the effective and invalid attempts on this dedicated model. The source code of the experiment has been open sourced\footnote{\url{https://github.com/ghosthamlet/persona}}. In the following text, open domain persona-aware dialogue generation is referred to as persona-aware dialogue generation. 
 
 \section[Related Works]{Related Works} 
-The research on persona-wise dialogue generation is less than that of no persona-wise dialogue generation and closed domain task-oriented dialogue generation, so the relevant dialogue datasets are also less. The English ones are mainly PERSONA-CHAT\citeext{Zhang2018}, while the Chinese ones are PersonalDialog\citeext{Zheng2019a} and Personality Assignment\citeext{Qian2017}. Most of the studies discussed here mainly use these three datasets. 
+The research on persona-aware dialogue generation is less than that of no persona-aware dialogue generation and closed domain task-oriented dialogue generation, so the relevant dialogue datasets are also less. The English ones are mainly PERSONA-CHAT\citeext{Zhang2018}, while the Chinese ones are PersonalDialog\citeext{Zheng2019a} and Personality Assignment\citeext{Qian2017}. Most of the studies discussed here mainly use these three datasets. 
 
 The early dialogue generation is basically the Seq2Seq model\citeext{SutskeverGoogle2014} of RNN+attention mechanism\citeext{Bahdanau2015}, such as the complex multi-stage training of\citeext{Qian2017}(dataset Personality Assignment), simple end-to-end training of\citeext{Zheng2019a}(dataset PersonalDialog) etc., as well as the Seq2Seq model of RNN+memory mechanism\citeext{Sukhbaatar2015}, such as several baseline models in\citeext{Zhang2018}(dataset PERSONA-CHAT). 
 
@@ -65,7 +68,7 @@ The AR model is an Encoder Decoder structure, similar to the full version of the
 
 1. In terms of input representation, the dialog context uses~\_SEP special characters as separator and spliced into a sequence. The sequence is segmented as characters, did not use BPE or SentencePiece. Context embedding and persona embedding of corresponding speakers are summing together, and then input into Encoder. The persona key-value pairs of target are spliced into another sequence and input into the same Encoder after embedded. 
 
-2. In terms of model architecture, the Encoder and the Decoder share weight. The Decoder has only one attention module, that is, the Attention Routing module. The target sequence is input into the Decoder, and attend to itself to get attention $O_{prev}$, attend to context encode to get attention $O_C$, attend to persona encode to get attention $O_T$, then sum up these three attentions, $O_T$ and $O_C$ is multiplied by a weight respectively, and an additional item of $O_C$ is added: 
+2. In terms of model architecture, the Encoder and the Decoder share weight. The Decoder has only one attention module, that is, the Attention Routing module. The target sequence is input into the Decoder after embedding, and attend to itself to get attention $O_{prev}$, attend to context encode to get attention $O_C$, attend to persona encode to get attention $O_T$, then sum up these three attentions, $O_T$ and $O_C$ is multiplied by a weight respectively, and an additional item of $O_C$ is added: 
 \begin{equation}
 O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}    
 \end{equation}
@@ -136,7 +139,7 @@ AR+ model is better than AR model in most metrics. Dist1 and Dist2 have little d
 \centering
 \caption{Experimental results, bold data is improved metric}
 %\setlength{\arraycolsep}{5pt}
-\resizebox{1\columnwidth}{!}{%
+\resizebox{2\columnwidth}{!}{%
 \begin{tabular}{|l || c|c|c|c|c || c|c|c |}
 \hline
 \textbf{Model} & BLEU & F1 & PPL 
@@ -176,13 +179,13 @@ If the labeled dataset is large enough to reach more than 5 million, and the mod
 
 
 \section[Ablation Study]{Ablation Study} 
-We removed each of the five optimizations for ablation study, and compared with the complete AR+ model, we can see that these optimizations are respectively in the The improvement of training speed, the reduction of model size, the reduction of memory consumption and the improvement of performance have produced significant effects. After ablation, the data of corresponding metrics have changed accordingly. For detailed data, see the chart: \ref{tab:result-ablation}.
+We removed each of the five optimizations for ablation study, and compared with the complete AR+ model, we can see that these optimizations are respectively in the The improvement of training speed, the reduction of model size, the reduction of memory consumption and the improvement of performance have produced significant effects. After ablation, the data of corresponding metrics have changed accordingly. See the table for specific data: \ref{tab:result-ablation}.
  
 \begin{table*} [b]
 \centering
 \caption{Ablation study results, bold data is degradation metric}
 %\setlength{\arraycolsep}{5pt}
-\resizebox{1\columnwidth}{!}{%
+\resizebox{2\columnwidth}{!}{%
 \begin{tabular}{|l || c|c|c|c|c || c|c|c |}
 \hline
 \textbf{Model} & BLEU & F1 & PPL 
@@ -208,7 +211,7 @@ AR+ & 0.00510 & 0.00024 & 120
                      
 
 \section[Conclusion]{Conclusion} 
-In this paper, we improve the dedicated persona-wise dialogue generation model with recent advances in Transformer architecture. Experiments show that even if the model is transformer architecture, as long as the internal structure is changed, the improvements for the original architecture may not be suitable for the new model. In addition, the pretrained BERT branch models are not suitable for transfer to the dialogue generation transformer model. Since we only use small models to train the subsets of PersonalDialog dataset, in the future research we can scale the model to train the full dataset to test whether the five effective methods proposed in this paper are still effective in large-scale training. 
+In this paper, we improve the dedicated persona-aware dialogue generation model with recent advances in Transformer architecture. Experiments show that even if the model is transformer architecture, as long as the internal structure is changed, the improvements for the original architecture may not be suitable for the new model. In addition, the pretrained BERT branch models are not suitable for transfer to the dialogue generation transformer model. Since we only use small models to train the subsets of PersonalDialog dataset, in the future research we can scale the model to train the full dataset to test whether the five effective methods proposed in this paper are still effective in large-scale training. 
 
 % \section[Acknowledgement]{致谢}
 

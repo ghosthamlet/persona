@@ -40,7 +40,7 @@
 
 \maketitle
 \begin{abstract}
-本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指开放领域个性化对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上架构、注意力机制等方面的诸多改进不在本论文讨论之列。
+本论文主要分析Transformer架构近几年来的一些速度和性能上的改进方法，其在专用模型训练上的运用，这里研究的专用模型是指开放领域个性化对话生成模型，针对的数据集是多轮短对话, 单个输入系列总长度不超过105个字，因此Transformer架构在长文本处理上的架构、注意力机制等方面的诸多改进不在本论文讨论之列。
 \end{abstract}
 
 \section[Background]{背景} 
@@ -68,9 +68,9 @@ GPT-2、GPT-3模型都是通用模型，适用于几乎所有NLP任务，并非�
 
 AR模型为Encoder Decoder结构，类似于Transformer架构的完整版\citeext{Vaswani2017}，区别是：
 
-1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串输入同一个Encoder。
+1. 输入数据方面，对话上下文双方发言以\_SEP特殊字符分隔拼接为一个字符串，文字为单字分割而不是用BPE或SentencePiece方法，双方发言的文字嵌入分别加上发言人的个性嵌入，然后输入Encoder，回复者的个性键值对拼接为另一个字符串嵌入后输入同一个Encoder。
 
-2. 模型架构方面，Encoder和Decoder共享权重，Decoder只有一个attention模块，即attention routing模块，回复字符串输入Decoder分别Attend到自身Attention为\\$O_{prev}$、Attend到对话上下文的Encode Attention为$O_C$和Attend到回复者个性Encode Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
+2. 模型架构方面，Encoder和Decoder共享权重，Decoder只有一个attention模块，即attention routing模块，回复字符串嵌入后输入Decoder分别Attend到自身，Attention为$O_{prev}$，Attend到对话上下文的Encode，Attention为$O_C$和Attend到回复者个性Encode，Attention为$O_T$，然后三个Attention相加，$O_T$和$O_C$分别乘于权重，额外增加一项$O_C$：
 \begin{equation}
 O_{merge} = aO_T + (1 - a)O_C + O_C + O_{prev}    
 \end{equation}
@@ -85,7 +85,7 @@ O_{merge} = O_T + O_C + O_{prev}
 L(\phi, \theta) = L_D(\phi) + \lambda_1L_{LM}(\phi) + \lambda_2L_W(\theta)
 \end{equation}
 
-$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，\\$L_W(\theta)$是Predictor的Loss，这里不予考虑，所以Loss是：
+$L_D(\phi)$是对话生成Loss，$\lambda_1~\lambda_2$是Loss权重超参数，$L_{LM}(\phi)$是语言模型Loss，\\$L_W(\theta)$是Predictor的Loss，这里不予考虑，所以Loss是：
 \begin{equation}
 L(\phi) = L_D(\phi) + \lambda_1L_{LM}(\phi)
 \end{equation}

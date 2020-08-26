@@ -13,7 +13,7 @@ Personalized Dialogue Generation with Diversified Traits (http://arxiv.org/abs/1
 (Please contact zhengyinhe1@163.com for the PersonalDialog dataset)
 
 Assigning personality/identity to a chatting machine for coherent conversation generation (http://arxiv.org/abs/1706.02861): AssignPersonality/
-(Personality Assignment dataset: http://coai.cs.tsinghua. edu.cn/hml/dataset/#AssignPersonality)
+(Personality Assignment dataset: http://coai.cs.tsinghua.edu.cn/hml/dataset/#AssignPersonality)
 
 The first two papers code tested on ubuntu16.10 and python3.6.10.
 

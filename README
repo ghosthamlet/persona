@@ -1,0 +1,15 @@
+
+## Open domain persona-aware dialogue generation
+
+Code quality is low, just can be used for experiments, implemented four papers about open domain persona-aware dialogue generation:
+
+
+Improvement of a dedicated model for open domain persona-aware dialogue generation (): AttentionRoutingPlus/
+
+A Pre-training Based Personalized Dialogue Generation Model with Persona-sparse Data (http://arxiv.org/abs/1911.04700): AttentionRouting/
+
+Personalized Dialogue Generation with Diversified Traits (http://arxiv.org/abs/1901.09672): PersonalityTraitFusion/
+
+Assigning personality/identity to a chatting machine for coherent conversation generation (http://arxiv.org/abs/1706.02861): AssignPersonality/
+
+The last two papers code still have problems. 

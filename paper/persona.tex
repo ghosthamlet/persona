@@ -31,32 +31,31 @@
 \begin{document}
 
 \title{Improvement of a dedicated model for open domain persona-aware dialogue generation}
-\author{Jing Bo Hu, Qiang Han~\& Hua Wei Liu \\
-HangZhou GaoDeng Inc. \\
+\author{Qiang Han \\
 % 杭州高登影视公司\\
-{\tt \{hjb,gvvvv,lhw\}@163.com} \\}
+{\tt \{gvvvv\}@163.com} \\}
 
 \maketitle
 \begin{abstract}
-This paper analyzes some speed and performance improvement methods of Transformer architecture in recent years, mainly its application in dedicated model training. The dedicated model studied here refers to the open domain persona-aware dialogue generation model, and the dataset is multi turn short dialogue, The total length of a single input sequence is no more than 105 tokens. Therefore, many improvements in the architecture and attention mechanism of transformer architecture for long sequence processing are not discussed in this paper. 
+This paper analyzes some speed and performance improvement methods of Transformer architecture in recent years, mainly its application in dedicated model training. The dedicated model studied here refers to the open domain persona-aware dialogue generation model, and the dataset is multi turn short dialogue, The total length of a single input sequence is no more than 105 tokens. Therefore, many improvements in the architecture and attention mechanism of transformer architecture for long sequence processing are not discussed in this paper. The source code of the experiments has been open sourced\footnote{\url{https://github.com/ghosthamlet/persona}}. 
 \end{abstract}
 
 \section[Background]{Background} 
-The revolution in the field of NLP(natural language processing) started with the foundation of attention mechanism\citeext {Bahdanau2015}, ~Transformer architecture\citeext{Vaswani2017} ignited the fuse, and officially opened the revolution curtain by the BERT model\citeext{Devlin2019}. It replaced the relatively complex RNN Architecture series models that used to be the mainstream of NLP with simple pure attention mechanism architecture In the past four years, it has changed the field of NLP in an all-round way, and created the Imagenet moment\citeext{ruder2018nlpimagenet} in NLP field. 
+The revolution in the field of NLP (Natural Language Processing) started with the foundation of attention mechanism\citeext {Bahdanau2015}, ~Transformer architecture\citeext{Vaswani2017} ignited the fuse, and officially opened the revolution curtain by the BERT model\citeext{Devlin2019}. It replaced the relatively complex RNN Architecture series models that used to be the mainstream of NLP with simple pure attention mechanism architecture in the past four years, it has changed the field of NLP in an all-round way, and created the Imagenet moment\citeext{ruder2018nlpimagenet} in NLP field. 
 
 Open domain dialogue generation is an important and very complex task of NLP. Transformer architecture has also made a qualitative leap in this task, such as GPT-2, GPT-3 model and Google Meena\citeext{Radford2019, Brown2020, Adiwardana2020}. If there is no special explanation in the following text, the models involved are Transformer architecture models. 
 
-GPT-2 and GPT-3 models are general models, which are suitable for almost all NLP tasks, and are not dedicated to open domain dialog generation. These models usually need huge model size, massive pretraining data and long pretraining time to match the performance of dedicated medium or small models(although DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}} and DistilBERT\citeext{Sanh2019} are used to optimize the general model, but their performance also decreases accordingly). 
+GPT-2 and GPT-3 models are general models, which are suitable for almost all NLP tasks, and are not dedicated to open domain dialog generation. These models usually need huge model size, massive pretraining data and long pretraining time to match the performance of dedicated medium or small models (although DistilGPT2\footnote{\url{https://github.com/huggingface/transformers/tree/master/examples/distillation}} and DistilBERT\citeext{Sanh2019} are used to optimize the general model, but their performance also decreases accordingly). 
 Moreover, it is difficult to generate a conversation with consistent personality\footnote{The chatbot has specific and fixed personality characteristics, such as name, gender, address, etc.} in the general model, even if method like TransferTransfo\citeext{Wolf2019} which finetuning GPT-2 model\footnote{Adds personalized data to the input dialog context}, although it has good performance on the personalized dialogue English dataset PERSONAL-CHAT\citeext{Zhang2018}, it is still not as good as the dedicated model\citeext{Zheng2019} when trained on personalized Dialogue Chinese dataset PersonalDialog\citeext{Zheng2019a}. GPT-3 only has beta API, no need to fine tune, using prompt programming by prepending the personalized data, but we have not obtained the test authority, unable to compare the performance. 
 
-In this paper, we introduced some speed and performance improvement methods of Transformer architecture in recent years to this dedicated open domain persona-aware dialogue generation model\citeext{Zheng2019}, and analyze the effective and invalid attempts on this dedicated model. The source code of the experiment has been open sourced\footnote{\url{https://github.com/ghosthamlet/persona}}. In the following text, open domain persona-aware dialogue generation is referred to as persona-aware dialogue generation. 
+In this paper, we introduced some speed and performance improvement methods of Transformer architecture in recent years to this dedicated open domain persona-aware dialogue generation model\citeext{Zheng2019}, and analyze the effective and invalid attempts on this dedicated model. In the following text, open domain persona-aware dialogue generation is referred to as persona-aware dialogue generation. 
 
 \section[Related Works]{Related Works} 
 The research on persona-aware dialogue generation is less than that of no persona-aware dialogue generation and closed domain task-oriented dialogue generation, so the relevant dialogue datasets are also less. The English ones are mainly PERSONA-CHAT\citeext{Zhang2018}, while the Chinese ones are PersonalDialog\citeext{Zheng2019a} and Personality Assignment\citeext{Qian2017}. Most of the studies discussed here mainly use these three datasets. 
 
-The early dialogue generation is basically the Seq2Seq model\citeext{SutskeverGoogle2014} of RNN+attention mechanism\citeext{Bahdanau2015}, such as the complex multi-stage training of\citeext{Qian2017} (dataset Personality Assignment), simple end-to-end training of\citeext{Zheng2019a} (dataset PersonalDialog) etc., as well as the Seq2Seq model of RNN+memory mechanism\citeext{Sukhbaatar2015}, such as several baseline models in\citeext{Zhang2018} (dataset PERSONA-CHAT). 
+The early persona-aware dialogue generation is basically the Seq2Seq model\citeext{SutskeverGoogle2014} of RNN+attention mechanism\citeext{Bahdanau2015}, such as the complex multi-stage training of\citeext{Qian2017} (dataset Personality Assignment), simple end-to-end training of\citeext{Zheng2019a} (dataset PersonalDialog) etc., as well as the Seq2Seq model of RNN+memory mechanism\citeext{Sukhbaatar2015}, such as several baseline models in\citeext{Zhang2018} (dataset PERSONA-CHAT). 
 
-With the rise of Transformer architecture, recently most of the models have been the original general-purpose or special-purpose models of Transformer architecture, such as\citeext{Tselousov2018} (dataset PERSONA-CHAT) changing the model of GPT\citeext{Radford2018}, \citeext{Wolf2019} (dataset PERSONA-CHAT) with the native GPT, and \citeext{Zheng2019} (dataset PersonalDialog)adding Attention Routing, and \citeext{Liu2020} (dataset PERSONA-CHAT) with combination of GPT and BERT, and \citeext{Roller2020} (dataset is mainly PERSONA-CHAT, with another three) with changed Transformer and so on. 
+With the rise of Transformer architecture, recently most of the models have been the original general-purpose or special-purpose models of Transformer architecture, such as\citeext{Tselousov2018} (dataset PERSONA-CHAT) changing the model of GPT\citeext{Radford2018}, \citeext{Wolf2019} (dataset PERSONA-CHAT) with the native GPT, and \citeext{Zheng2019} (dataset PersonalDialog) adding Attention Routing, and \citeext{Liu2020} (dataset PERSONA-CHAT) with combination of GPT and BERT, and \citeext{Roller2020} (dataset is mainly PERSONA-CHAT, with another three) with changed Transformer and so on. 
 
 In addition, there are relatively few models using VAE (Variational AutoEncoder), RL (Reinforcement Learning) and GAN (Generative Adversarial Network), such as CVAE (Conditional VAE)+RNN+memory mechanism\citeext{Song2019} (dataset PERSONA-CHAT), VAE+GRU(RNN)+memory mechanism+attention mechanism\citeext{Xu2020} (dataset PERSONA-CHAT), RL+Transformer\citeext{Liu2020} (dataset PERSONA-CHAT) and so on, We have not studied the GAN related models and will not introduce them here. 
 
@@ -110,9 +109,9 @@ $O_{output}$ is output of the residual connection, $E_{prev}$ is prev output, $b
 \section[Experiments]{Experiments} 
 AR+ model hyperparameters:
 
-Characters vocabulary size: 9489, embedding size: 200, embedding pretrained on full PersonalDialog datasets, word vocabulary size of persona: 10004, persona embedding size is same as model hidden size: 512, 
+Characters vocabulary size: 9489, embedding size: 200, embedding pretrained on full PersonalDialog\citeext{Zheng2019a} datasets, word vocabulary size of persona: 10004, persona embedding size is same as model hidden size: 512, 
 Transformer layers: 6, attention head: 8, FF layer size: 2048, dropout: 0.1. 
-Batch size: 64, epoch: 3, optimizer: AdamW(Bias corrected AdamW from Transformers library\footnote{\url{https://github.com/huggingface/transformers/}}), we use lr finder\citeext{Smith2015}(library\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}}) to find lr should be: 0.2e-2, weight decay: 0.05, clip grad: 1.
+Batch size: 64, epoch: 3, optimizer: AdamW (Bias corrected AdamW from Transformers library\footnote{\url{https://github.com/huggingface/transformers/}}), we use lr finder\citeext{Smith2015} (library\footnote{\url{https://github.com/davidtvs/pytorch-lr-finder}}) to find lr should be: 0.2e-2, weight decay: 0.05, clip grad: 1.
 Language model $L_{LM}$ $\lambda_1$: 0.5, lr scheduler: ReduceLROnPlateau, scheduler params: mode min, factor 0.5, min\_lr 1.5e-4, patience 60.
 MemN2N params: hops 3, layer\_share adjacent.
 
@@ -121,7 +120,7 @@ Baseline model is AR model, lr: 1.5e-4, other hyperparameters is same as AR+. As
 The decoding strategy of baseline and AR+ is Nucleus Sampling\citeext{Holtzman2019}, params: temperature 0.7, top\_k 0, top\_p 0.9.
 
 \subsection[Datasets]{Datasets} 
-The original data of PersonalDialog dataset contains some duplicate data. After deduplication, there are 5,195,149 sessions. The training, validation and test datasets are 100000, 20000 and 20000 session subsets which are extracted randomly without replacement after data deduplication. We use the validation set to adjust the hyperparameters and evaluate on the test set. 
+The original data of PersonalDialog\citeext{Zheng2019a} dataset contains some duplicate data. After deduplication, there are 5,195,149 sessions. The training, validation and test datasets are 100000, 20000 and 20000 session subsets which are extracted randomly without replacement after data deduplication. We use the validation set to adjust the hyperparameters and evaluate on the test set. 
 
 Dialogues are generally short sentences with an average length of 15 characters. Therefore, the length of dialogue is limited to a maximum of 15 characters, and the context is limited to a maximum of three turns, together with the question, the maximum context length is $15*(2*3+1)=105$ characters. The length of target is also limited to 15 characters. Persona includes gender, address, interests, and interests can include multiple items. 
 
@@ -165,7 +164,7 @@ The following is an analysis of ineffective Methods:
 
 3. Use Pretrained weights to init AR+\citeext{Ziegler2019}, the weight of AR+ model is initialized with the weights of pretrained ALBERT or ELECTRA, the improvement of loss is limited, sometimes worse. We also try to cancel the sharing of Encoder and Decoder, let Encoder or Decoder initialize separately, cancel layer sharing, initialize the corresponding layer of pretrained model, and pretrained model of different sizes, all the results are not different. 
 
-Methods 2 and 3 were validated in the papers \citeext{Devlin2019} and \citeext{Zhao2019} respectively, but they could not produce an effect on AR+ model. We also tested the pretrained model of BERT or XLNET\citeext{Yang2019} and the effect was not much changed. We suspect that a. These pretrained models are all BERT branch, which are suitable for various tasks such as classification, question answering and regression, But not suitable for transferring to the task of text generation, especially the task of dialogue generation in the open domain. Although \citeext{Zhao2019} has successfully used Bert in the dialogue model, their dialogue model is a special VAE+RNN model, b. The training data of these pretrained models are ordinary webpage or article content, which is quite different from the fine-tuning dialogue data, so the positive effect can be very limited. 
+Methods 2 and 3 were validated in the papers \citeext{Devlin2019} and \citeext{Zhao2019} respectively, but they could not produce an effect on AR+ model. We also tested the pretrained model of BERT or XLNET\citeext{Yang2019} and the effect was not much changed. We suspect that A. These pretrained models are all BERT branch (except XLNET), which are suitable for various tasks such as classification, question answering and regression, But not suitable for transferring to the task of text generation, especially the task of dialogue generation in the open domain. Although \citeext{Zhao2019} has successfully used Bert in the dialogue model, their dialogue model is a special VAE+RNN model, b. The training data of these pretrained models are ordinary webpage or article content, which is quite different from the fine-tuning dialogue data, so the positive effect can be very limited. 
 
 The pretrained models are all from Transformers library\citeext{Wolf2019HuggingFacesTS}.
 
@@ -179,7 +178,7 @@ If the labeled dataset is large enough to reach more than 5 million, and the mod
 
 
 \section[Ablation Study]{Ablation Study} 
-We removed each of the five optimizations for ablation study, and compared with the complete AR+ model, we can see that these optimizations are respectively in the The improvement of training speed, the reduction of model size, the reduction of memory consumption and the improvement of performance have produced significant effects. After ablation, the data of corresponding metrics have changed accordingly. See the table for specific data: \ref{tab:result-ablation}.
+We removed each of the five optimizations for ablation study, and compared with the complete AR+ model, we can see that these optimizations are respectively in the improvement of training speed, the reduction of model size, the reduction of memory consumption and the improvement of performance have produced significant effects. After ablation, the data of corresponding metrics have changed accordingly. See the table for specific data: \ref{tab:result-ablation}.
  
 \begin{table*} [b]
 \centering

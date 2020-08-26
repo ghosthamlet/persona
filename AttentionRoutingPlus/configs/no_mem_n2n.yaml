@@ -1,0 +1,86 @@
+ 
+# XXX: disabled persona_vocab, maybe remove cache if enabled persona_vocab before
+
+experiment_name: NoMemN2N
+
+# use cpu for easy debug
+device: cuda
+seed: 42
+n_epochs: 3
+# for LM
+#n_epochs_early_stage: 1
+n_epochs_early_stage: 0
+batch_size: 64
+# for LM
+#batch_size: 1280
+#limit_example_length: 1000000
+limit_example_length: 100000
+# lm context size is equal max_seq_length
+max_seq_length: 15
+# must be even, and >= 2
+max_context_size: 6
+shuffle_data: True
+max_vocab_size: 42000
+pretrain_emb: True
+share_encoder_decoder: True
+pretrain_feature: False
+#pretrain_feature_model_name: hfl/chinese-xlnet-base
+pretrain_feature_model_name: voidful/albert_chinese_small
+#pretrain_feature_model_name: voidful/albert_chinese_base
+#pretrain_feature_model_name: hfl/chinese-electra-small-discriminator
+# emb | feature | weight | weight_plus | mem_n2n
+# weight_plus: weight + feature
+pretrain_feature_type: feature
+
+emb_freeze: False
+# for ALBERT
+# if emb_dim is same as d_model, no factor emb
+emb_dim: 512
+# when use_mem_n2n, persona_emb will be enable
+# will auto fill
+persona_vocab_size:
+dropout: 0.1
+num_layers: 6
+# for ALBERT
+# if num_groups is 1, no layer share
+# num_layers % num_groups == 0 and num_groups <= num_layers
+# real layer num is num_layers / num_groups
+num_groups: 1
+n_head: 8
+d_model: 512
+d_ff: 2048
+attn_alpha: 1
+adapter_d_ff: 2048
+factor_ff: False
+
+use_rezero: False
+# remove persona data cache
+use_mem_n2n: False
+mem_n2n_hops: 3
+# layer_wise | adjacent
+mem_n2n_layer_share: adjacent
+
+lr: 1.5e-4
+#lr: 0.2e-2
+weight_decay: 0.05
+#clip_grad: 5
+clip_grad: 1
+use_scheduler: True
+warmup_steps: 0
+gradient_accumulation: 1
+adapter_finetune: False
+# MLM | LM
+auxiliary_task: MLM
+alpha: 0.5
+#alpha: 0.1
+
+model_path: models/
+pretrained_fname: 
+data_path: datas/
+cache_path: caches/
+log_path: logs/
+corpus_fname:
+vec_fname: models/vec-char-512.txt
+vocab_fname: models/vocab-char-512.txt
+persona_vocab_fname: models/vocab_persona.txt
+ 

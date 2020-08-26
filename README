@@ -1,15 +1,43 @@
 
 ## Open domain persona-aware dialogue generation
 
-Code quality is low, just can be used for experiments, implemented four papers about open domain persona-aware dialogue generation:
-
+This codebase implemented four papers about open domain persona-aware dialogue generation, Code quality is low, just can be used for experiments:
 
 Improvement of a dedicated model for open domain persona-aware dialogue generation (): AttentionRoutingPlus/
+(Please contact zhengyinhe1@163.com for the PersonalDialog dataset)
 
 A Pre-training Based Personalized Dialogue Generation Model with Persona-sparse Data (http://arxiv.org/abs/1911.04700): AttentionRouting/
+(Please contact zhengyinhe1@163.com for the PersonalDialog dataset)
 
 Personalized Dialogue Generation with Diversified Traits (http://arxiv.org/abs/1901.09672): PersonalityTraitFusion/
+(Please contact zhengyinhe1@163.com for the PersonalDialog dataset)
 
 Assigning personality/identity to a chatting machine for coherent conversation generation (http://arxiv.org/abs/1706.02861): AssignPersonality/
+(Personality Assignment dataset: http://coai.cs.tsinghua. edu.cn/hml/dataset/#AssignPersonality)
 
-The last two papers code still have problems. 
+The first two papers code tested on ubuntu16.10 and python3.6.10.
+
+The last two papers code still have problems for training , don't use them. 
+
+
+## Install
+
+git clone https://github.com/ghosthamlet/persona.git
+
+cd into the corresponding paper code directory, then:
+
+pip install -r requirements.txt
+
+
+## Training
+
+in the corresponding paper code directory:
+
+python trainer.py --config_file configs/default.yaml
+
+
+## Evaluation 
+
+in the corresponding paper code directory:
+
+python evaler.py --config_file configs/evaler.yaml

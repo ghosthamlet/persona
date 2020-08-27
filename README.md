@@ -33,6 +33,11 @@ cd into the corresponding paper code directory, then:
 `pip install -r requirements.txt`
 
 
+## Data prepare
+
+for datasets of the first two papers, segment dialog sequences to characters separated by space, randomly extract 100000, 20000, 20000 sessions for three datasets without replacement: train_char.txt, valid_char.txt and test_char.txt, place them into datas directory of corresponding paper code.
+
+
 ## Training
 
 in the corresponding paper code directory:

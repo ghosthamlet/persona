@@ -3,7 +3,7 @@
 
 This codebase implemented four papers about open domain persona-aware dialogue generation, Code quality is low, just can be used for experiments:
 
-1. Improvement of a dedicated model for open domain persona-aware dialogue generation (): <br />
+1. Improvement of a dedicated model for open domain persona-aware dialogue generation (https://github.com/ghosthamlet/persona/blob/master/paper/persona.pdf): <br />
 AttentionRoutingPlus/<br />
 (Please contact zhengyinhe1@163.com for the PersonalDialog dataset)
 

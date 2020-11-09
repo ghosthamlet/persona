@@ -53,6 +53,7 @@ class PositionalEncoding(nn.Module):
                                 
 class Attention(nn.Module):
     """different attention implementions
+     https://blog.floydhub.com/attention-mechanism/
      https://nbviewer.jupyter.org/github/susanli2016/NLP-with-Python/blob/master/Attention%20Basics.ipynb
      https://github.com/graykode/nlp-tutorial/blob/master/4-2.Seq2Seq(Attention)/Seq2Seq(Attention)-Torch.py
      https://github.com/graykode/nlp-tutorial/blob/master/4-3.Bi-LSTM(Attention)/Bi-LSTM(Attention)-Torch.py
